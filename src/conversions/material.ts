@@ -42,6 +42,7 @@ function buildStandardMaterial(
     opacity: { value: number };
   },
 ): THREE.MeshStandardMaterial {
+  console.log("Building standard material with data:", data);
   const material = new THREE.MeshStandardMaterial({
     color: parseColor(data.color.value),
     metalness: data.metalness.value,
