@@ -41,6 +41,17 @@ interface NumberFieldComponent {
     action: string; // GUID for value change action
 }
 
+interface LoadJsonButtonComponent {
+    id: number;
+    component: "LoadJsonButton";
+    label?: string;
+    props: {
+        variant: "outline" | "default" | "destructive" | "secondary" | "ghost" | "link";
+        text: string;
+    };
+    action: string; // GUID for click action
+}
+
 // --- The main type is now a union of all supported components ---
 export type DynamicComponent = ButtonComponent | SliderComponent | NumberFieldComponent;
 export const sidebarComponents = reactive<DynamicComponent[]>([]);
@@ -60,6 +71,10 @@ export function uiManager(data: Record<string, unknown>) {
             addNumberField(data);
             sideBarInfoState.isVisible = true;
             break;
+        case "load_json_button":
+            addLoadJsonButton(data);
+            sideBarInfoState.isVisible = true;
+            break
         default:
             console.warn("Unknown component type:", type);
     }
@@ -111,6 +126,21 @@ export function addNumberField(data: Record<string, unknown>) {
         action: data.guid.value,
     };
     sidebarComponents.push(newNumberField);
+}
+
+export function addLoadJsonButton(data: Record<string, unknown>) {
+    const newButton: LoadJsonButtonComponent = {
+        id: Date.now(),
+        component: "LoadJsonButton",
+        label: data.label?.value,
+        props: {
+            text: data.text.value,
+            variant: data.variant.value,
+        },
+        action: data.guid.value,
+    };
+    console.log("Adding LoadJsonButton:", newButton);
+    sidebarComponents.push(newButton);
 }
 
 // --- Updated Action Handler ---

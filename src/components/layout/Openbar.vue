@@ -2,24 +2,23 @@
     <div id="openbar" class="fixed-openbar theme" :class="{ 'is-hidden': !isVisible }">
         <!-- Dynamically render components from the store -->
         <div v-for="item in sidebarComponents" :key="item.id" class="dynamic-item">
-            <!-- Add a label if it exists -->
             <label
                 v-if="item.label"
                 class="dynamic-label"
                 :class="{ dark: theme.value === 'dark' }"
-                >{{ item.label }}</label
             >
+                {{ item.label }}
+            </label>
 
-            <!-- Render a Button -->
-            <Button
-                variant="secondary"
-                v-if="item.component === 'Button'"
-                @click="handleAction(item.action)"
-            >
-                {{ item.props.text }}
-            </Button>
+            <div v-if="item.component === 'Button'" class="button-container">
+                <Button
+                    variant="secondary"
+                    @click="handleAction(item.action)"
+                >
+                    {{ item.props.text }}
+                </Button>
+            </div>
 
-            <!-- Render a Slider -->
             <div v-else-if="item.component === 'Slider'" class="slider-container">
                 <Slider
                     :min="item.props.min"
@@ -29,14 +28,12 @@
                     v-model="item.props.defaultValue"
                     @update:model-value="(value) => handleAction(item.action, value[0])"
                     class="w-[80%]"
-                >
-                </Slider>
+                />
                 <span v-if="item.props.defaultValue" class="slider-value">
                     {{ item.props.defaultValue[0] }}
                 </span>
             </div>
 
-            <!-- Render a NumberField -->
             <div v-else-if="item.component === 'NumberField'" class="number-field-container">
                 <NumberField
                     :min="item.props.min"
@@ -55,7 +52,12 @@
                 </NumberField>
             </div>
 
-            <!-- You could add more v-if blocks here for other components like Sliders -->
+            <div v-else-if="item.component === 'LoadJsonButton'" class="load-json-button-container">
+                <LoadJsonButton
+                    :text="item.props.text"
+                    :action="item.action"
+                />
+            </div>
         </div>
         <Button variant="secondary" size="icon" class="mb-4" @click="toggleSideBar()">
             <ArrowBigLeftDash />
@@ -90,6 +92,7 @@ import { theme } from "@/store/store";
 import { useHover } from "@/composables/useHover";
 import { watchEffect } from "vue";
 import { blockPicker, pickerEnabled } from "../../store/store";
+import LoadJsonButton from "@/components/tools/actions/loadJsonButton.vue";
 
 const isVisible = ref(true);
 
