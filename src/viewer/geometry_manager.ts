@@ -3,7 +3,7 @@
 
 import { scene } from "./scene_manager";
 import * as THREE from "three";
-import { convertToLineMaterial, convertToPointsMaterial } from "./material_manager";
+import { convertToLineMaterial, convertToPointsMaterial, GEOMETRY_MATERIALS } from "./material_manager";
 import { showEdges } from "@/store/store";
 import { convertToThreeJSGeometry } from "@/conversions";
 
@@ -116,13 +116,27 @@ export function isObjectInRegistry(obj: any): boolean {
     return existingObj !== undefined;
 }
 
-export function removeObject(obj: undefined) {
-    const objGuid = obj.guid;
-    const existingObj = SCENE_GEOMETRIES[objGuid];
+export function setObjectVisibility(guid: string, visible: boolean) {
+    const object = SCENE_GEOMETRIES[guid];
+    if (object) {
+        object.visible = visible;
+    }
+}
+
+export function toggleObjectVisibility(guid: string) {
+    const object = SCENE_GEOMETRIES[guid];
+    if (object) {
+        object.visible = !object.visible;
+    }
+}
+
+export function removeObject(guid: string) {
+    const existingObj = SCENE_GEOMETRIES[guid];
     if (existingObj) {
         scene.remove(existingObj);
-        delete SCENE_GEOMETRIES[objGuid];
+        delete SCENE_GEOMETRIES[guid];
     }
+    GEOMETRY_MATERIALS.delete(guid);
 }
 
 export function geometryManager(obj: any) {
@@ -131,5 +145,24 @@ export function geometryManager(obj: any) {
         return;
     } else {
         addObject(obj);
+    }
+}
+
+export function geometryHandler(data: Record<string, unknown>) {
+    const guid = String((data.guid as { value: string })?.value || "");
+    const type = (data.type as { value: string })?.value;
+
+    switch (type) {
+        case "remove":
+            removeObject(guid);
+            break;
+        case "set_visibility":
+            setObjectVisibility(guid, Boolean((data.visible as { value: boolean })?.value));
+            break;
+        case "toggle_visibility":
+            toggleObjectVisibility(guid);
+            break;
+        default:
+            console.warn("Unknown geometry action type:", type);
     }
 }

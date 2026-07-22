@@ -1,7 +1,7 @@
 import { getObjectFromMessage } from "@gramaziokohler/compas-pb-ts";
 import { Dictionary } from "@gramaziokohler/compas-pb-ts";
 import { lightManagerFromData } from "../viewer/light_manager";
-import { geometryManager } from "../viewer/geometry_manager";
+import { geometryManager, geometryHandler } from "../viewer/geometry_manager";
 import { materialManagerFromData } from "../viewer/material_manager";
 import { sceneManager } from "../viewer/scene_manager";
 import { themeManager } from "../viewer/theme_manager";
@@ -9,7 +9,6 @@ import { uiManager } from "./sidebarStore";
 import { textManager } from "../viewer/text_manager";
 import { objectInfoManager } from "./objectInfo";
 import { objectActionManager } from "./objectInfo";
-import { removeObjectFromScene } from "../viewer/scene_manager";
 
 export function dispatchMessage(message: Uint8Array) {
     const object = decodeWebsocketMessage(message);
@@ -56,8 +55,8 @@ function analyzeDictionary(dictionary: Dictionary) {
             objectActionManager(data);
             break;
             return;
-        case "remove_object":
-            removeObjectFromScene(data);
+        case "handle_geometry":
+            geometryHandler(data);
             break;
         default:
             console.warn("Unknown dispatch value:", data.dispatch.value);

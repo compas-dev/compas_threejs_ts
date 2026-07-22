@@ -2,8 +2,6 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { initializePicker } from "./picker";
 import { pickerEnabled, theme } from "@/store/store";
-import { SCENE_GEOMETRIES } from "./geometry_manager";
-import { GEOMETRY_MATERIALS } from "./material_manager";
 import { showEdges } from "@/store/store";
 import {
     goDarkMode,
@@ -163,21 +161,6 @@ class SceneManager {
     }
 
     /**
-     * Remove an object from the scene by its GUID
-     */
-    public removeObject(guid: string): void {
-        if (guid in SCENE_GEOMETRIES) {
-            const obj = SCENE_GEOMETRIES[guid];
-            this.scene.remove(obj);
-            delete SCENE_GEOMETRIES[guid];
-        }
-
-        if (guid in GEOMETRY_MATERIALS) {
-            delete GEOMETRY_MATERIALS[guid];
-        }
-    }
-
-    /**
      * Set the camera view to a preset
      */
     public setCameraViewPreset(preset: ViewPreset): void {
@@ -208,15 +191,6 @@ export type { ViewPreset };
  */
 export function sceneManager(data: Record<string, unknown>): void {
     sceneMgrInstance.handleSceneUpdate(data as SceneUpdateData);
-}
-
-/**
- * Remove an object from the scene
- */
-export function removeObjectFromScene(data: Record<string, unknown>): void {
-    const updateData = data as SceneUpdateData;
-    const guid = String(updateData.guid?.value || "");
-    sceneMgrInstance.removeObject(guid);
 }
 
 /**
