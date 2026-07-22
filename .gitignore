@@ -61,3 +61,4 @@ Thumbs.db
 
 # Optional stylelint cache
 .stylelintcache
+.claude/settings.local.json
