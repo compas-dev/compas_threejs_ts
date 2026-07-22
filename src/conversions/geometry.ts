@@ -279,19 +279,22 @@ export function parabolaToThreeJS(_parabola: Parabola): THREE.Line {
  * point. `size` controls the helper size.
  *
  * @param plane - COMPAS Plane protobuf object
- * @param size - size of the helper (default: 2)
  * @returns THREE.PlaneHelper visualizing the plane
  */
-export function planeToThreeJS(plane: Plane, size: number = 2): THREE.PlaneHelper {
-    const planeGeometry = new THREE.Plane(
-        new THREE.Vector3(plane.normal.x, plane.normal.y, plane.normal.z),
-        0
-    );
-    const planeHelper = new THREE.PlaneHelper(planeGeometry, size, 0xff00ff);
-    // PlaneHelper only offsets its mesh along the normal (via plane.constant);
-    // in-plane position must be set through the object's own transform.
-    planeHelper.position.set(plane.point.x, plane.point.y, plane.point.z);
-    return planeHelper;
+export function planeToThreeJS(plane: Plane): THREE.Mesh {
+
+    const point = new THREE.Vector3(plane.point.x, plane.point.y, plane.point.z)
+    const normal = new THREE.Vector3(plane.normal.x, plane.normal.y, plane.normal.z)
+    const planeGeometry = new THREE.PlaneGeometry(1, 1);
+    const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
+    const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+    // Position at point
+    planeMesh.position.copy(point);
+    // Orient the plane so its normal matches your normal
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    planeMesh.quaternion.copy(quaternion);
+    return planeMesh
 }
 
 /**
