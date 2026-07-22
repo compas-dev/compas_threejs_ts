@@ -58,6 +58,20 @@
                     :action="item.action"
                 />
             </div>
+
+            <div v-else-if="item.component === 'Checkbox'" class="checkbox-ui-component">
+                <Checkbox
+                        :id="`checkbox-${item.id}`"
+                        :model-value="Boolean(item.props.defaultValue)"
+                        @update:model-value="(checked) => {
+                            item.props.defaultValue = Boolean(checked);
+                            handleAction(item.action, checked);
+                        }"
+                    />
+                <span v-if="item.props.text">
+                    {{ item.props.text }}
+                </span>
+            </div>
         </div>
         <Button variant="secondary" size="icon" class="mb-4" @click="toggleSideBar()">
             <ArrowBigLeftDash />
@@ -88,6 +102,7 @@ import {
     NumberFieldIncrement,
     NumberFieldInput,
 } from "@/components/ui/number-field";
+import { Checkbox } from "@/components/ui/checkbox"
 import { theme } from "@/store/store";
 import { useHover } from "@/composables/useHover";
 import { watchEffect } from "vue";
@@ -166,6 +181,12 @@ div#openbar.is-hidden {
 
 .slider-value {
     color: var(--foreground);
+}
+
+.checkbox-ui-component {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Space between the checkbox and its label text */
 }
 
 Button.mb-4 {

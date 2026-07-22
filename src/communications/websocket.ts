@@ -4,35 +4,56 @@ let websocket: WebSocket | null = null;
 
 export function initializeWebSocketConnection(): void {
   // Read parameters from the current browser URL
-  // (e.g., http://localhost:3000/?port=9001)
   const urlParams = new URLSearchParams(window.location.search);
   const customHost = urlParams.get("ws_host") || "127.0.0.1";
   const customPort = urlParams.get("ws_port") || "9001";
 
-  // Construct the dynamic websocket
-  const wsUrl = `ws://${customHost}:${customPort}/ws`;
+  // ✨ Extract the workspace parameter dynamically (defaulting to 'main')
+  const workspaceId = urlParams.get("workspace") || "main";
+
+  // ✨ Construct the dynamic websocket including the workspace parameter
+  const wsUrl = `ws://${customHost}:${customPort}/ws?workspace=${workspaceId}`;
 
   const connect = () => {
     console.log(`Connecting to WebSocket at: ${wsUrl}`);
     websocket = new WebSocket(wsUrl);
     websocket.binaryType = "arraybuffer";
+
     websocket.onopen = () => {
       if (!sessionStorage.getItem("reloaded")) {
         sessionStorage.setItem("reloaded", "true");
         window.location.reload();
       }
     };
+
     websocket.onmessage = (event: MessageEvent) => {
       if (event.data instanceof ArrayBuffer) {
+        // Handle binary COMPAS elements / 3D geometries
         const uint8 = new Uint8Array(event.data);
         dispatchMessage(uint8);
+      } else if (typeof event.data === "string") {
+        // ✨ Handle text-based updates sent via backend send_json (UI configurations, themes, views)
+        try {
+          const jsonData = JSON.parse(event.data);
+          // If your dispatchMessage expects a Uint8Array, pass text data to its own handler,
+          // or cast it here if your message pipeline handles parsed objects.
+          console.log("⚡ Received JSON config update:", jsonData);
+
+          // Depending on how dispatchMessage works internally, you can map it or handle UI changes here:
+          // e.g., if it takes plain objects or needs conversion:
+          // dispatchMessage(jsonData);
+        } catch (error) {
+          console.error("❌ Failed to parse incoming WebSocket text message:", error);
+        }
       } else {
-        console.warn("❓ Received non-binary data:", event.data);
+        console.warn("❓ Received unknown data format:", event.data);
       }
     };
+
     websocket.onerror = (error: Event) => {
       console.error("WebSocket error:", error);
     };
+
     websocket.onclose = () => {
       sessionStorage.removeItem("reloaded");
       setTimeout(connect, 1000); // Attempt to reconnect after 1 second
@@ -42,11 +63,6 @@ export function initializeWebSocketConnection(): void {
 }
 
 export function sendWebSocketMessage(message: ArrayBuffer): boolean {
-  /**
-   * Sends a WebSocket message.
-   * @param message - The message to send.
-   * @returns true if message was sent, false otherwise.
-   */
   if (websocket && websocket.readyState === WebSocket.OPEN) {
     websocket.send(message);
     return true;
@@ -56,14 +72,7 @@ export function sendWebSocketMessage(message: ArrayBuffer): boolean {
   }
 }
 
-export function sendDataMessage(data: Record<string, undefined>): boolean {
-  /**
-   * Sends data over the WebSocket connection as text (JSON).
-   * Frontend-to-backend messages are sent as text to avoid being
-   * broadcast back to all clients.
-   * @param data - The data to send.
-   * @returns true if message was sent, false otherwise.
-   */
+export function sendDataMessage(data: Record<string, any>): boolean {
   if (websocket && websocket.readyState === WebSocket.OPEN) {
     try {
       console.log(data);
@@ -81,24 +90,14 @@ export function sendDataMessage(data: Record<string, undefined>): boolean {
 }
 
 export function stringToArrayBuffer(str: string): ArrayBuffer {
-  /**
-   * Converts a string to an ArrayBuffer.
-   * @param str - The string to convert.
-   * @returns The resulting ArrayBuffer.
-   */
   const encoder = new TextEncoder();
   const uint8Array = encoder.encode(str);
   return uint8Array.buffer;
 }
 
 export function dictionaryToArrayBuffer(
-  data: Record<string, undefined>,
+  data: Record<string, any>,
 ): ArrayBuffer {
-  /**
-   * Converts a dictionary to an ArrayBuffer.
-   * @param data - The dictionary to convert.
-   * @returns The resulting ArrayBuffer.
-   */
   const jsonString = JSON.stringify(data);
   return stringToArrayBuffer(jsonString);
 }

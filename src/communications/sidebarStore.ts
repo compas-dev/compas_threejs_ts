@@ -52,8 +52,21 @@ interface LoadJsonButtonComponent {
     action: string; // GUID for click action
 }
 
+
+interface CheckboxComponent{
+    id: number;
+    component: "Checkbox",
+    label?: string,
+    props: {
+        text: string;
+        defaultValue: boolean;
+    };
+    action: string
+}
+
+
 // --- The main type is now a union of all supported components ---
-export type DynamicComponent = ButtonComponent | SliderComponent | NumberFieldComponent;
+export type DynamicComponent = ButtonComponent | SliderComponent | NumberFieldComponent | LoadJsonButtonComponent |  CheckboxComponent;
 export const sidebarComponents = reactive<DynamicComponent[]>([]);
 
 export function uiManager(data: Record<string, unknown>) {
@@ -73,6 +86,10 @@ export function uiManager(data: Record<string, unknown>) {
             break;
         case "load_json_button":
             addLoadJsonButton(data);
+            sideBarInfoState.isVisible = true;
+            break
+        case "checkbox":
+            addCheckbox(data);
             sideBarInfoState.isVisible = true;
             break
         default:
@@ -143,6 +160,21 @@ export function addLoadJsonButton(data: Record<string, unknown>) {
     sidebarComponents.push(newButton);
 }
 
+export function addCheckbox(data: Record<string, unknown>) {
+    const checkbox: CheckboxComponent = {
+        id: Date.now(),
+        component: "Checkbox",
+        label: data.label?.value,
+        props: {
+            text: data.text.value,
+            defaultValue: data.default_value.value,
+        },
+        action: data.guid.value,
+    };
+    console.log("Adding Checkbox:", checkbox);
+    sidebarComponents.push(checkbox);
+}
+
 // --- Updated Action Handler ---
 // It now accepts a payload, which will be the slider's value.
 export function handleAction(actionGuid: string, value?: unknown) {
@@ -151,7 +183,6 @@ export function handleAction(actionGuid: string, value?: unknown) {
         action: actionGuid,
         value: null,
     };
-
     if (value !== undefined) {
         message.value = value;
     }
