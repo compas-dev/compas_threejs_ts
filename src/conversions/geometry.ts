@@ -287,8 +287,10 @@ export function planeToThreeJS(plane: Plane, size: number = 2): THREE.PlaneHelpe
         new THREE.Vector3(plane.normal.x, plane.normal.y, plane.normal.z),
         0
     );
-    planeGeometry.translate(new THREE.Vector3(plane.point.x, plane.point.y, plane.point.z));
     const planeHelper = new THREE.PlaneHelper(planeGeometry, size, 0xff00ff);
+    // PlaneHelper only offsets its mesh along the normal (via plane.constant);
+    // in-plane position must be set through the object's own transform.
+    planeHelper.position.set(plane.point.x, plane.point.y, plane.point.z);
     return planeHelper;
 }
 
