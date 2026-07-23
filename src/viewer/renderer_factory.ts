@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 // Change the default UP vector for all objects
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -38,6 +39,17 @@ export function createRenderer(width: number, height: number): THREE.WebGLRender
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     return renderer;
+}
+
+export function createLabelRenderer(width: number, height: number): CSS2DRenderer {
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(width, height);
+    labelRenderer.domElement.style.position = "absolute";
+    labelRenderer.domElement.style.top = "0px";
+    labelRenderer.domElement.style.left = "0px";
+    labelRenderer.domElement.style.pointerEvents = "none";
+
+    return labelRenderer;
 }
 
 export function createControls(

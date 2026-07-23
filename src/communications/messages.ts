@@ -7,6 +7,7 @@ import { sceneManager } from "../viewer/scene_manager";
 import { themeManager } from "../viewer/theme_manager";
 import { uiManager } from "./sidebarStore";
 import { textManager } from "../viewer/text_manager";
+import { textTagManager } from "../viewer/text_tag_manager";
 import { objectInfoManager } from "./objectInfo";
 import { objectActionManager } from "./objectInfo";
 
@@ -46,6 +47,9 @@ function analyzeDictionary(dictionary: Dictionary) {
             break;
         case "text":
             textManager(data);
+            break;
+        case "text_tag":
+            textTagManager(data);
             break;
         case "object_infos":
             objectInfoManager(data);

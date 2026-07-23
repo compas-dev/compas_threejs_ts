@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import ObjectInfo from "./components/layout/ObjectInfo.vue";
-import { renderer } from "./viewer/scene_manager";
+import { renderer, labelRenderer } from "./viewer/scene_manager";
 import { initializeWebSocketConnection } from "./communications/websocket";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
@@ -23,6 +23,7 @@ const threeContainer = ref<HTMLDivElement | null>(null);
 onMounted(() => {
     if (threeContainer.value) {
         threeContainer.value.appendChild(renderer.domElement);
+        threeContainer.value.appendChild(labelRenderer.domElement);
         initializeWebSocketConnection();
     }
 });

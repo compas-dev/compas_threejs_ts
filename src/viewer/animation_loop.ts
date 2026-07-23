@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 /**
  * Manages the animation loop and rendering.
@@ -9,6 +10,7 @@ export class AnimationLoop {
 
     constructor(
         private renderer: THREE.WebGLRenderer,
+        private labelRenderer: CSS2DRenderer,
         private scene: THREE.Scene,
         private camera: THREE.PerspectiveCamera,
         private controls: OrbitControls
@@ -32,5 +34,6 @@ export class AnimationLoop {
         this.animationFrameId = requestAnimationFrame(this.animate);
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
+        this.labelRenderer.render(this.scene, this.camera);
     };
 }

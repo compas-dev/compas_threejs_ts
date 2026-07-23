@@ -179,4 +179,17 @@ div#app {
     scrollbar-color: #888 transparent;
 }
 
+.text-tag {
+    padding: 2px 6px;
+    font-size: 12px;
+    font-family: Inter, sans-serif;
+    color: var(--popover-foreground);
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
 

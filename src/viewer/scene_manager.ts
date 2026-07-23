@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { initializePicker } from "./picker";
 import { pickerEnabled, theme } from "@/store/store";
 import { showEdges } from "@/store/store";
@@ -9,7 +10,13 @@ import {
     setUserBackgroundColor,
     initializeThemeManager,
 } from "./theme_manager";
-import { createScene, createCamera, createRenderer, createControls } from "./renderer_factory";
+import {
+    createScene,
+    createCamera,
+    createRenderer,
+    createControls,
+    createLabelRenderer,
+} from "./renderer_factory";
 import { ViewPresetManager, ViewPreset } from "./view_preset_manager";
 import { AnimationLoop } from "./animation_loop";
 import { ResizeManager } from "./resize_manager";
@@ -42,6 +49,7 @@ class SceneManager {
     public readonly scene: THREE.Scene;
     public readonly camera: THREE.PerspectiveCamera;
     public readonly renderer: THREE.WebGLRenderer;
+    public readonly labelRenderer: CSS2DRenderer;
     public readonly controls: OrbitControls;
 
     private viewPresetManager: ViewPresetManager;
@@ -54,20 +62,23 @@ class SceneManager {
         this.scene = createScene();
         this.camera = createCamera(window.innerWidth, window.innerHeight);
         this.renderer = createRenderer(window.innerWidth, window.innerHeight);
+        this.labelRenderer = createLabelRenderer(window.innerWidth, window.innerHeight);
         this.controls = createControls(this.camera, this.renderer.domElement);
 
-        // Attach renderer to DOM
+        // Attach renderers to DOM
         document.body.appendChild(this.renderer.domElement);
+        document.body.appendChild(this.labelRenderer.domElement);
 
         // Initialize helper systems
         this.viewPresetManager = new ViewPresetManager(this.camera, this.controls);
         this.animationLoop = new AnimationLoop(
             this.renderer,
+            this.labelRenderer,
             this.scene,
             this.camera,
             this.controls
         );
-        this.resizeManager = new ResizeManager(this.camera, this.renderer);
+        this.resizeManager = new ResizeManager(this.camera, this.renderer, this.labelRenderer);
 
         // Setup axes helper
         this.axesHelper = new THREE.AxesHelper(5);
@@ -183,6 +194,7 @@ const sceneMgrInstance = new SceneManager();
 export const scene = sceneMgrInstance.scene;
 export const camera = sceneMgrInstance.camera;
 export const renderer = sceneMgrInstance.renderer;
+export const labelRenderer = sceneMgrInstance.labelRenderer;
 export const controls = sceneMgrInstance.controls;
 export type { ViewPreset };
 
