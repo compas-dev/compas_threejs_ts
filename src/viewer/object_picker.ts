@@ -28,7 +28,9 @@ export class ObjectPicker {
      */
     getPickedObject(normalizedPosition: { x: number; y: number }): THREE.Object3D | null {
         this.raycaster.setFromCamera(normalizedPosition, this.camera);
-        const sceneObjects = SCENE_GEOMETRIES ? Object.values(SCENE_GEOMETRIES) : [];
+        const sceneObjects = SCENE_GEOMETRIES
+            ? Object.values(SCENE_GEOMETRIES).filter((object) => object.visible)
+            : [];
         const intersectedObjects = this.raycaster.intersectObjects(sceneObjects, true);
         return intersectedObjects.length ? intersectedObjects[0].object : null;
     }

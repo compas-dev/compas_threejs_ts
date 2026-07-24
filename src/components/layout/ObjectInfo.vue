@@ -15,7 +15,7 @@
                     </h1>
                     <div v-for="(value, key) in objectBarData.data" :key="key" class="data-entry">
                         <p>
-                            <strong> {{ key }}:</strong> {{ value.value }}
+                            <strong> {{ key }}:</strong> {{ value }}
                         </p>
                     </div>
                 </div>
