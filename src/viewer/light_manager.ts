@@ -26,15 +26,15 @@ export const SCENE_SKY_LIGHTS: Map<string, SkyLightEntry> = new Map();
  * Convert raw light data to THREE.Light object
  * Internal helper for conversion
  */
-function convertLightData(data: Record<string, unknown>): THREE.Light | Sky | null {
+function convertLightData(data: Record<string, any>): THREE.Light | Sky | null {
     return ligthtToThree(data as any);
 }
 
 /**
  * Determine light type from data
  */
-function getLightType(data: Record<string, unknown>): string {
-    return (data.type as { value: string }).value;
+function getLightType(data: Record<string, any>): string {
+    return data.type as string;
 }
 
 /**
@@ -89,10 +89,10 @@ export function lightManager(
  * Convert light data and manage it (internal API)
  * Used when data conversion is needed
  */
-export function lightManagerFromData(data: Record<string, unknown>): void {
-    const backendGuid = (data.guid as { value: string })?.value;
+export function lightManagerFromData(data: Record<string, any>): void {
+    const backendGuid = data.guid as string;
     const lightType = getLightType(data);
-    const showHelper = (data.helper as { value: boolean })?.value ?? false;
+    const showHelper = (data.helper as boolean) ?? false;
 
     if (!backendGuid) {
         console.warn("Light data missing backendGuid");

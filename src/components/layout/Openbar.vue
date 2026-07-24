@@ -72,6 +72,29 @@
                     {{ item.props.text }}
                 </span>
             </div>
+
+            <div v-else-if="item.component === 'Select'" class="select-container">
+                <Select
+                    :model-value="item.props.defaultValue"
+                    @update:model-value="(value) => {
+                        item.props.defaultValue = value;
+                        handleAction(item.action, value);
+                    }"
+                >
+                    <SelectTrigger class="w-full">
+                        <SelectValue :placeholder="item.props.placeholder ?? 'Select an option'" />
+                    </SelectTrigger>
+                    <SelectContent class="z-[4000]">
+                        <SelectItem
+                            v-for="option in item.props.options"
+                            :key="option"
+                            :value="option"
+                        >
+                            {{ option }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
         <Button variant="secondary" size="icon" class="mb-4" @click="toggleSideBar()">
             <ArrowBigLeftDash />
@@ -103,6 +126,13 @@ import {
     NumberFieldInput,
 } from "@/components/ui/number-field";
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { theme } from "@/store/store";
 import { useHover } from "@/composables/useHover";
 import { watchEffect } from "vue";
@@ -187,6 +217,12 @@ div#openbar.is-hidden {
     display: flex;
     align-items: center;
     gap: 8px; /* Space between the checkbox and its label text */
+}
+
+.select-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
 }
 
 Button.mb-4 {

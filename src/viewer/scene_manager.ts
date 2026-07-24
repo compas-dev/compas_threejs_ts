@@ -22,23 +22,19 @@ import { AnimationLoop } from "./animation_loop";
 import { ResizeManager } from "./resize_manager";
 
 // Type definition for update data structure
-interface UpdateValue<T> {
-    value: T;
-}
-
 interface SceneUpdateData {
-    type?: UpdateValue<string>;
-    damping?: UpdateValue<boolean>;
-    show?: UpdateValue<boolean>;
-    enabled?: UpdateValue<boolean>;
-    fov?: UpdateValue<number>;
-    zoom?: UpdateValue<number>;
-    x?: UpdateValue<number>;
-    y?: UpdateValue<number>;
-    z?: UpdateValue<number>;
-    preset?: UpdateValue<ViewPreset>;
-    color?: UpdateValue<string>;
-    guid?: UpdateValue<string>;
+    type?: string;
+    damping?: boolean;
+    show?: boolean;
+    enabled?: boolean;
+    fov?: number;
+    zoom?: number;
+    x?: number;
+    y?: number;
+    z?: number;
+    preset?: ViewPreset;
+    color?: string;
+    guid?: string;
 }
 
 /**
@@ -109,55 +105,55 @@ class SceneManager {
      * Process configuration updates from external sources
      */
     public handleSceneUpdate(data: SceneUpdateData): void {
-        const updateType = data.type?.value;
+        const updateType = data.type;
 
         switch (updateType) {
             case "background_color":
                 this.updateBackgroundColor(data);
                 break;
             case "controls_damping":
-                this.controls.enableDamping = Boolean(data.damping?.value);
+                this.controls.enableDamping = Boolean(data.damping);
                 break;
             case "world_axis":
-                this.axesHelper.visible = Boolean(data.show?.value);
+                this.axesHelper.visible = Boolean(data.show);
                 break;
             case "picker":
-                pickerEnabled.value = Boolean(data.enabled?.value);
+                pickerEnabled.value = Boolean(data.enabled);
                 break;
             case "camera_fov":
-                this.camera.fov = Number(data.fov?.value);
+                this.camera.fov = Number(data.fov);
                 this.camera.updateProjectionMatrix();
                 break;
             case "camera_zoom":
-                this.camera.zoom = Number(data.zoom?.value);
+                this.camera.zoom = Number(data.zoom);
                 this.camera.updateProjectionMatrix();
                 break;
             case "camera_position":
                 this.camera.position.set(
-                    Number(data.x?.value),
-                    Number(data.y?.value),
-                    Number(data.z?.value)
+                    Number(data.x),
+                    Number(data.y),
+                    Number(data.z)
                 );
                 this.controls.update();
                 break;
             case "camera_target":
                 this.controls.target.set(
-                    Number(data.x?.value),
-                    Number(data.y?.value),
-                    Number(data.z?.value)
+                    Number(data.x),
+                    Number(data.y),
+                    Number(data.z)
                 );
                 this.controls.update();
                 break;
             case "camera_view":
                 {
-                    const preset = data.preset?.value as ViewPreset;
+                    const preset = data.preset as ViewPreset;
                     if (preset) {
                         this.viewPresetManager.applyPreset(preset);
                     }
                 }
                 break;
             case "show_edges":
-                showEdges.value = Boolean(data.show?.value);
+                showEdges.value = Boolean(data.show);
                 break;
             default:
                 console.warn("Unknown scene update type:", updateType);
@@ -165,7 +161,7 @@ class SceneManager {
     }
 
     private updateBackgroundColor(data: SceneUpdateData): void {
-        let color = String(data.color?.value);
+        let color = String(data.color);
         color = color.replace("#", "0x");
         const colorValue = parseInt(color);
         setUserBackgroundColor(colorValue);
@@ -201,7 +197,7 @@ export type { ViewPreset };
 /**
  * Handler for scene configuration updates from external sources
  */
-export function sceneManager(data: Record<string, unknown>): void {
+export function sceneManager(data: Record<string, any>): void {
     sceneMgrInstance.handleSceneUpdate(data as SceneUpdateData);
 }
 

@@ -30,13 +30,13 @@ export function initializeThemeManager(scene: THREE.Scene): void {
 }
 
 interface ThemeUpdateData {
-    mode?: { value: string };
+    mode?: string;
 }
 
 export function themeManager(data: ThemeUpdateData): void {
-    if (data.mode?.value === "dark") {
+    if (data.mode === "dark") {
         goDarkMode();
-    } else if (data.mode?.value === "light") {
+    } else if (data.mode === "light") {
         goLightMode();
     }
 }

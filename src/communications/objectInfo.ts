@@ -22,13 +22,16 @@ export function objectInfoManager(data: Record<string, unknown> | null) {
     }
 }
 
-export function objectActionManager(data: Record<string, unknown>) {
+export function objectActionManager(data: Record<string, any>) {
     const action = {
-        guid: data.guid.value,
-        label: data.label.value,
-        type: data.type.value,
-        objectGuid: data.object_guid.value,
-        text: data.text.value,
+        guid: data.guid,
+        label: data.label,
+        type: data.type,
+        objectGuid: data.object_guid,
+        text: data.text,
+        options: data.options,
+        placeholder: data.placeholder,
+        defaultValue: data.default_value,
     };
     objectActionsState.push(action);
 }

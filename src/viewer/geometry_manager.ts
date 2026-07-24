@@ -148,16 +148,16 @@ export function geometryManager(obj: any) {
     }
 }
 
-export function geometryHandler(data: Record<string, unknown>) {
-    const guid = String((data.guid as { value: string })?.value || "");
-    const type = (data.type as { value: string })?.value;
+export function geometryHandler(data: Record<string, any>) {
+    const guid = data.guid as string;
+    const type = data.type as string;
 
     switch (type) {
         case "remove":
             removeObject(guid);
             break;
         case "set_visibility":
-            setObjectVisibility(guid, Boolean((data.visible as { value: boolean })?.value));
+            setObjectVisibility(guid, Boolean(data.visible));
             break;
         case "toggle_visibility":
             toggleObjectVisibility(guid);

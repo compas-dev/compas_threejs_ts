@@ -71,10 +71,10 @@ export function materialManager(
  * Convert material data and manage it (internal API)
  * Used when data conversion is needed
  */
-export function materialManagerFromData(data: Record<string, unknown>): void {
-  const materialBackendGuid = (data.guid as { value: string })?.value;
-  const geometryBackendGuid = (data.geometry_guid as { value: string })?.value;
-  const materialType = (data.type as { value: string })?.value;
+export function materialManagerFromData(data: Record<string, any>): void {
+  const materialBackendGuid = data.guid as string;
+  const geometryBackendGuid = data.geometry_guid as string;
+  const materialType = data.type as string;
 
   if (!materialBackendGuid) {
     console.warn("Material data missing materialBackendGuid");

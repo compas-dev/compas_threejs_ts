@@ -1,5 +1,4 @@
-import { getObjectFromMessage } from "@gramaziokohler/compas-pb-ts";
-import { Dictionary } from "@gramaziokohler/compas-pb-ts";
+import { getObjectFromMessage, Dictionary, List } from "@gramaziokohler/compas-pb-ts";
 import { lightManagerFromData } from "../viewer/light_manager";
 import { geometryManager, geometryHandler } from "../viewer/geometry_manager";
 import { materialManagerFromData } from "../viewer/material_manager";
@@ -28,8 +27,8 @@ export function decodeWebsocketMessage(message: Uint8Array) {
 }
 
 function analyzeDictionary(dictionary: Dictionary) {
-    const data = dictionary.data.items;
-    switch (data.dispatch.value) {
+    const data = dictionary.asDict;
+    switch (data.dispatch) {
         case "material":
             materialManagerFromData(data);
             break;
@@ -63,6 +62,6 @@ function analyzeDictionary(dictionary: Dictionary) {
             geometryHandler(data);
             break;
         default:
-            console.warn("Unknown dispatch value:", data.dispatch.value);
+            console.warn("Unknown dispatch value:", data.dispatch);
     }
 }

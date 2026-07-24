@@ -16,6 +16,7 @@ export class PickerManager {
     private messenger: PickerMessenger;
     private transformControlsManager: TransformControlsManager;
     private mousePositionManager: MousePositionManager;
+    private canvas: HTMLCanvasElement;
 
     private pickedObject: THREE.Object3D | null = null;
 
@@ -28,6 +29,7 @@ export class PickerManager {
     ) {
         // Get canvas for mouse position tracking
         const canvas = rendererElement as HTMLCanvasElement;
+        this.canvas = canvas;
 
         // Initialize components
         this.objectPicker = new ObjectPicker(camera);
@@ -50,6 +52,7 @@ export class PickerManager {
     private setupMouseEventListeners(): void {
         window.addEventListener("mousedown", (event) => {
             if (event.button !== 0) return; // Only left-click
+            if (event.target !== this.canvas) return; // Ignore clicks on UI overlays (including teleported dropdowns/popovers)
             if (this.transformControlsManager.isDragging) return;
 
             const normalizedPos = this.mousePositionManager.getNormalizedPosition(event);

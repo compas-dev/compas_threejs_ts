@@ -37,6 +37,28 @@
                     >
                         {{ action.text }}
                     </Button>
+
+                    <Select
+                        v-else-if="action.type === 'select'"
+                        :model-value="action.defaultValue"
+                        @update:model-value="(value) => {
+                            action.defaultValue = value;
+                            handleObjectAction(action, value);
+                        }"
+                    >
+                        <SelectTrigger class="w-full">
+                            <SelectValue :placeholder="action.placeholder ?? 'Select an option'" />
+                        </SelectTrigger>
+                        <SelectContent class="z-[4000]">
+                            <SelectItem
+                                v-for="option in action.options"
+                                :key="option"
+                                :value="option"
+                            >
+                                {{ option }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -63,6 +85,13 @@ import { blockPicker, pickerEnabled } from "../../store/store";
 import { objectBarData } from "../../store/store";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { hideObjectInfo } from "@/communications/objectInfo";
 import { handleObjectAction } from "@/communications/objectInfo";
 import { handleAction } from "@/communications/sidebarStore";
