@@ -7,6 +7,8 @@
             <ViewGroup />
             <div class="toolbar-divider" />
             <DisplayGroup />
+            <div class="toolbar-divider" />
+            <CompasTimberGroup />
         </div>
     </div>
 </template>
@@ -15,6 +17,7 @@
 import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
 import ViewGroup from "@/components/tools/views/ViewGroup.vue";
 import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
+import CompasTimberGroup from "@/components/tools/compas_timber_tools/CompasTimberGroup.vue";
 import { theme } from "@/store/store";
 import { blockPicker, pickerEnabled } from "../../store/store";
 import { useHover } from "@/composables/useHover";

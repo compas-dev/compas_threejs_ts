@@ -39,6 +39,7 @@ const handleFileChange = (event: Event) => {
           json_data: jsonContent
         }
 
+        console.log('Payload to send:', payload)
 
         // 5. Send it across the wire using your existing WebSocket text helper
         // (Note: We cast to 'any' because your function signature uses Record<string, undefined>)
