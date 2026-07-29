@@ -61,10 +61,6 @@ class SceneManager {
         this.labelRenderer = createLabelRenderer(window.innerWidth, window.innerHeight);
         this.controls = createControls(this.camera, this.renderer.domElement);
 
-        // Attach renderers to DOM
-        document.body.appendChild(this.renderer.domElement);
-        document.body.appendChild(this.labelRenderer.domElement);
-
         // Initialize helper systems
         this.viewPresetManager = new ViewPresetManager(this.camera, this.controls);
         this.animationLoop = new AnimationLoop(
@@ -91,6 +87,16 @@ class SceneManager {
 
         // Start the animation loop
         this.animationLoop.start();
+    }
+
+    /**
+     * Mount the renderer canvases into the given container and size them to it.
+     * Must be called once the container exists in the DOM (e.g. from App.vue's onMounted).
+     */
+    public attachToContainer(container: HTMLElement): void {
+        container.appendChild(this.renderer.domElement);
+        container.appendChild(this.labelRenderer.domElement);
+        this.resizeManager.observe(container);
     }
 
     private applyInitialTheme(): void {
@@ -193,6 +199,13 @@ export const renderer = sceneMgrInstance.renderer;
 export const labelRenderer = sceneMgrInstance.labelRenderer;
 export const controls = sceneMgrInstance.controls;
 export type { ViewPreset };
+
+/**
+ * Mount the renderer canvases into the given container and size them to it.
+ */
+export function attachSceneToContainer(container: HTMLElement): void {
+    sceneMgrInstance.attachToContainer(container);
+}
 
 /**
  * Handler for scene configuration updates from external sources

@@ -1,9 +1,13 @@
 <template>
-    <div class="toolbar theme" id="toolbar">
-        <h1 class="text-lg font-bold" :class="{ dark: theme.value === 'dark' }">COMPAS ThreeJs</h1>
-        <TransformGroup />
-        <ViewGroup />
-        <DisplayGroup />
+    <div class="toolbar" id="toolbar">
+        <h1 class="text-lg font-bold" :class="{ dark: theme.value === 'dark' }">TIMBER Viewer</h1>
+        <div class="toolbar-controls">
+            <TransformGroup />
+            <div class="toolbar-divider" />
+            <ViewGroup />
+            <div class="toolbar-divider" />
+            <DisplayGroup />
+        </div>
     </div>
 </template>
 
@@ -26,16 +30,33 @@ watchEffect(() => {
 <style scoped>
 .toolbar {
     position: relative;
+    flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
-    gap: 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     z-index: 1001;
-    border-radius: 10px;
-    padding: 12px;
+    padding: 10px 20px;
     margin: 0px;
-    height: auto;
     width: 100%;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
     pointer-events: auto;
+}
+
+.toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
 }
 
 :deep(.toolbar-group) {

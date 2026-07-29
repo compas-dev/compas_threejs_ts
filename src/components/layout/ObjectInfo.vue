@@ -1,108 +1,43 @@
 <template>
-    <div class="right-bar">
-        <div
-            class="theme object-info"
-            :class="{ 'is-hidden': !objectBarData.isVisible }"
-            id="info-panel"
-        >
-            <div id="data-container">
-                <div class="metadata item">
-                    <h1
-                        class="text-lg font-bold section-title"
-                        :class="{ dark: theme.value === 'dark' }"
-                    >
-                        METADATA
-                    </h1>
-                    <div v-for="(value, key) in objectBarData.data" :key="key" class="data-entry">
-                        <p>
-                            <strong> {{ key }}:</strong> {{ value }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="data-container">
-                <h1
-                    class="text-lg font-bold section-title"
-                    :class="{ dark: theme.value === 'dark' }"
-                >
-                    FUNCTIONS
-                </h1>
-                <div v-for="action in objectActionsState" :key="action" class="single_data">
-                    <Button
-                        v-if="action.type === 'button'"
-                        variant="outline"
-                        @click="handleObjectAction(action)"
-                        class="w-full"
-                    >
-                        {{ action.text }}
-                    </Button>
-
-                    <Select
-                        v-else-if="action.type === 'select'"
-                        :model-value="action.defaultValue"
-                        @update:model-value="(value) => {
-                            action.defaultValue = value;
-                            handleObjectAction(action, value);
-                        }"
-                    >
-                        <SelectTrigger class="w-full">
-                            <SelectValue :placeholder="action.placeholder ?? 'Select an option'" />
-                        </SelectTrigger>
-                        <SelectContent class="z-[4000]">
-                            <SelectItem
-                                v-for="option in action.options"
-                                :key="option"
-                                :value="option"
-                            >
-                                {{ option }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-
-            <Button variant="secondary" size="icon" id="closeObjectBar" @click="toggleObjectBar()">
-                <ArrowBigRightDash />
+    <div class="right-bar" id="info-panel" :class="{ 'is-hidden': !objectBarData.isVisible }">
+        <div class="theme metadata-panel" id="metadata-panel">
+            <Button
+                variant="ghost"
+                size="icon-sm"
+                id="closeObjectBar"
+                @click="toggleObjectBar()"
+            >
+                <X />
             </Button>
+            <h2 class="metadata-title" :class="{ dark: theme.value === 'dark' }">Metadata</h2>
+            <dl class="metadata-list">
+                <template v-for="(value, key) in objectBarData.data" :key="key">
+                    <dt>{{ key }}</dt>
+                    <dd>{{ value }}</dd>
+                </template>
+            </dl>
         </div>
-
-        <Button
-            variant="secondary"
-            size="icon"
-            id="openObjectBar"
-            :class="{ 'is-hidden': !objectBarData.isVisible }"
-            @click="toggleObjectBar()"
-        >
-            <ArrowBigLeftDash />
-        </Button>
     </div>
+
+    <Button
+        variant="secondary"
+        size="icon"
+        id="openObjectBar"
+        :class="{ 'is-hidden': !objectBarData.isVisible }"
+        @click="toggleObjectBar()"
+    >
+        <ArrowBigLeftDash />
+    </Button>
 </template>
 
 <script setup>
-import { objectActionsState } from "../../store/store";
-import { blockPicker, pickerEnabled } from "../../store/store";
 import { objectBarData } from "../../store/store";
+import { blockPicker } from "../../store/store";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { hideObjectInfo } from "@/communications/objectInfo";
-import { handleObjectAction } from "@/communications/objectInfo";
-import { handleAction } from "@/communications/sidebarStore";
 import { useHover } from "@/composables/useHover";
 import { watchEffect } from "vue";
-import { ArrowBigLeftDash, ArrowBigRightDash } from "lucide-vue-next";
+import { ArrowBigLeftDash, X } from "lucide-vue-next";
 import { theme } from "@/store/store";
-
-const geoInformation = objectBarData.data
-    ? Object.fromEntries(Object.entries(objectBarData.data).filter(([key]) => key !== "dispatch"))
-    : {};
 
 const { isHovered } = useHover("info-panel");
 
@@ -117,13 +52,15 @@ const toggleObjectBar = () => {
 
 <style scoped>
 div.right-bar {
-    position: fixed;
+    position: absolute;
     top: 0;
     right: 0;
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
     padding: 20px; /* Padding around the content */
+    z-index: 1000;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* WIDTH */
     width: 30vw;
@@ -132,65 +69,53 @@ div.right-bar {
     pointer-events: none;
 }
 
-/* 'scoped' means these styles only apply to this module */
-div.object-info {
-    z-index: 1000; /* Ensure it appears above other content */
-    padding: 20px;
-    max-width: 400px;
-    border-radius: 10px;
-    height: 100%;
-    margin: 0px;
-    right: 0%;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    flex-direction: column;
-    color: var(--foreground);
-    pointer-events: auto;
-}
-
-div.is-hidden {
+div.right-bar.is-hidden {
     transform: translateX(+150%);
-    /*display: none;*/
     pointer-events: none;
 }
 
-div#data-container {
+/* 'scoped' means these styles only apply to this module */
+.metadata-panel {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    gap: 30px;
-}
-div.item {
-    display: flex;
-    flex-direction: column; /* Stack label on top of the component */
-    align-items: left;
-}
-
-h1.section-title {
-    margin-bottom: 10px;
-    color: var(--foreground);
-    background: color-mix(in oklab, var(--background) 25%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    /*border: 1px solid rgba(255, 255, 255, 0.2);*/
-    padding: 5px;
-    padding-left: 10px;
     border-radius: 10px;
-    box-shadow:
-        1px 1px 3px 0px color-mix(in oklab, var(--foreground) 35%, transparent) inset,
-        -1px -1px 3px 0px color-mix(in oklab, var(--background) 70%, transparent) inset;
+    padding: 16px;
+    color: var(--foreground);
+    pointer-events: auto;
+    max-height: 100%;
+    overflow-y: auto;
 }
 
-div.data-entry {
-    margin-bottom: 8px;
-    padding: 0 0 0 10px;
+.metadata-title {
+    margin: 0 24px 8px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--foreground);
+}
+
+.metadata-list {
+    margin: 0;
+    font-size: 12.5px;
+}
+
+.metadata-list dt {
+    color: var(--muted-foreground);
+    margin-top: 8px;
+}
+
+.metadata-list dt:first-child {
+    margin-top: 0;
+}
+
+.metadata-list dd {
+    margin: 2px 0 0 0;
+    color: var(--foreground);
+    word-break: break-word;
 }
 
 Button#closeObjectBar {
-    position: relative;
-    align-self: flex-end;
-    margin-top: auto;
+    position: absolute;
+    top: 8px;
+    right: 8px;
 }
 
 Button#openObjectBar {

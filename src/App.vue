@@ -1,20 +1,24 @@
 <template>
     <div class="app-container" :class="{ dark: theme.value === 'dark' }">
-        <!-- <Toolbar />
-        <Openbar v-if="sideBarInfoState.isVisible" /> -->
-        <Sidebar />
-        <div ref="threeContainer" class="three-container"></div>
-        <ThemeIndicator />
-        <ObjectInfo />
+        <Toolbar />
+        <ObjectActionsToolbar />
+        <div class="workspace">
+            <Sidebar />
+            <div ref="threeContainer" class="three-container"></div>
+            <ObjectInfo />
+            <ThemeIndicator />
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import ObjectInfo from "./components/layout/ObjectInfo.vue";
-import { renderer, labelRenderer } from "./viewer/scene_manager";
+import { attachSceneToContainer } from "./viewer/scene_manager";
 import { initializeWebSocketConnection } from "./communications/websocket";
 import Sidebar from "@/components/layout/Sidebar.vue";
+import Toolbar from "@/components/layout/Toolbar.vue";
+import ObjectActionsToolbar from "@/components/layout/ObjectActionsToolbar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
 import { theme } from "@/store/store";
 
@@ -22,8 +26,7 @@ const threeContainer = ref<HTMLDivElement | null>(null);
 
 onMounted(() => {
     if (threeContainer.value) {
-        threeContainer.value.appendChild(renderer.domElement);
-        threeContainer.value.appendChild(labelRenderer.domElement);
+        attachSceneToContainer(threeContainer.value);
         initializeWebSocketConnection();
     }
 });
@@ -33,16 +36,24 @@ onMounted(() => {
 div.app-container {
     padding: 0px;
     margin: 0px;
-    display: inline-flex;
+    display: flex;
+    flex-direction: column;
     height: 100vh; /* Full viewport height */
-    width: 100%; /* Full viewport width */ /* Ensure it doesn't exceed viewport width */
+    width: 100%; /* Full viewport width */
     overflow: hidden;
     position: relative;
 }
 
+div.workspace {
+    position: relative;
+    flex: 1 1 auto; /* Fill the space left by the docked toolbar */
+    min-height: 0;
+    overflow: hidden;
+}
+
 div.three-container {
-    flex: 1; /* Take up remaining space */
-    position: fixed; /* Ensure it can contain absolutely positioned children if needed */
+    position: absolute;
+    inset: 0;
     overflow: hidden; /* Hide any overflow from the Three.js canvas */
 }
 </style>

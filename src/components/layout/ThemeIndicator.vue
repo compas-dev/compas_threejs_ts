@@ -68,7 +68,7 @@ onMounted(() => {
 
 <style scoped>
 .theme-indicator {
-    position: fixed;
+    position: absolute;
     top: 18px;
     right: 18px;
     z-index: 1105;

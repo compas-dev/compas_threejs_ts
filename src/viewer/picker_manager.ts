@@ -5,7 +5,7 @@ import { PickerMessenger } from "./picker_messenger";
 import { TransformControlsManager, TransformMode } from "./transform_controls_manager";
 import { MousePositionManager } from "./mouse_position_manager";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { pickerEnabled, pickerMode } from "@/store/store";
+import { pickerEnabled, pickerMode, selectedObjectGuid } from "@/store/store";
 
 /**
  * Main picker manager that orchestrates object picking, highlighting, and transformation
@@ -129,6 +129,7 @@ export class PickerManager {
 
         this.materialHighlighter.highlight(this.pickedObject, guid);
         this.transformControlsManager.attach(this.pickedObject);
+        selectedObjectGuid.value = guid ?? null;
 
         // Send message to backend
         if (guid) {
@@ -142,7 +143,15 @@ export class PickerManager {
             this.pickedObject = null;
             this.transformControlsManager.detach();
             this.messenger.resetObjectInfo();
+            selectedObjectGuid.value = null;
         }
+    }
+
+    /**
+     * Deselect the currently picked object, if any (used by UI actions like "hide").
+     */
+    public deselect(): void {
+        this.handleNothingPicked();
     }
 
     private dehighlightCurrentObject(): void {

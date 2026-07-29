@@ -19,6 +19,9 @@ export function objectInfoManager(data: Record<string, unknown> | null) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { dispatch, ...rest } = data;
         objectBarData.data = rest;
+        // A fresh object_infos message always marks the start of a (re)selection,
+        // so drop any actions left over from whatever was selected before.
+        objectActionsState.splice(0, objectActionsState.length);
     }
 }
 

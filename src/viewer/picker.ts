@@ -55,6 +55,17 @@ export function getPickerManager(): PickerManager | null {
     return pickerManagerInstance;
 }
 
+/**
+ * Deselect the currently picked object, if any
+ */
+export function deselectCurrentObject(): void {
+    if (!pickerManagerInstance) {
+        console.warn("Picker system not initialized. Call initializePicker() first.");
+        return;
+    }
+    pickerManagerInstance.deselect();
+}
+
 // Re-export types for convenience
 export type { TransformMode } from "./transform_controls_manager";
 export { PickerManager } from "./picker_manager";
