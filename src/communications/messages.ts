@@ -9,6 +9,7 @@ import { textManager } from "../viewer/text_manager";
 import { textTagManager } from "../viewer/text_tag_manager";
 import { objectInfoManager } from "./objectInfo";
 import { objectActionManager } from "./objectInfo";
+import { spinnerManager } from "../viewer/spinner_manager";
 
 export function dispatchMessage(message: Uint8Array) {
     const object = decodeWebsocketMessage(message);
@@ -60,6 +61,9 @@ function analyzeDictionary(dictionary: Dictionary) {
             return;
         case "handle_geometry":
             geometryHandler(data);
+            break;
+        case "spinner":
+            spinnerManager(data);
             break;
         default:
             console.warn("Unknown dispatch value:", data.dispatch);

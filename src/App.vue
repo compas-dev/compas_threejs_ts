@@ -8,6 +8,7 @@
             <ObjectInfo />
             <ThemeIndicator />
         </div>
+        <Spinner />
     </div>
 </template>
 
@@ -20,6 +21,7 @@ import Sidebar from "@/components/layout/Sidebar.vue";
 import Toolbar from "@/components/layout/Toolbar.vue";
 import ObjectActionsToolbar from "@/components/layout/ObjectActionsToolbar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
+import Spinner from "@/components/layout/Spinner.vue";
 import { theme } from "@/store/store";
 
 const threeContainer = ref<HTMLDivElement | null>(null);

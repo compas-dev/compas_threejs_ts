@@ -89,6 +89,24 @@ export function sendDataMessage(data: Record<string, any>): boolean {
   }
 }
 
+// Sends a pre-built JSON string as-is, skipping JSON.parse/stringify.
+// Use for large payloads (e.g. uploaded model files) where re-parsing
+// the content just to re-stringify it would double the work for no benefit.
+export function sendRawMessage(jsonString: string): boolean {
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    try {
+      websocket.send(jsonString);
+      return true;
+    } catch (error) {
+      console.error("Failed to send raw data:", error);
+      return false;
+    }
+  } else {
+    console.error("WebSocket is not open. Unable to send message.");
+    return false;
+  }
+}
+
 export function stringToArrayBuffer(str: string): ArrayBuffer {
   const encoder = new TextEncoder();
   const uint8Array = encoder.encode(str);

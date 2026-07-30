@@ -29,7 +29,7 @@ import { ref } from "vue";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { sendDataMessage } from "@/communications/websocket";
+import { sendRawMessage } from "@/communications/websocket";
 
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -48,22 +48,24 @@ function handleFileChange(event: Event) {
         reader.onload = (e: ProgressEvent<FileReader>) => {
             try {
                 const textContent = e.target?.result as string;
-                const jsonContent = JSON.parse(textContent);
 
-                const payload = {
-                    dispatch: "other_action",
-                    action: "load_timber_model",
-                    json_data: jsonContent,
-                };
+                // Splice the raw file text straight into the envelope instead of
+                // JSON.parse-ing it just to have sendDataMessage JSON.stringify it
+                // right back — for large models that double pass was the bottleneck.
+                const message = `{"dispatch":"other_action","action":"load_timber_model","json_data":${textContent}}`;
 
-                const success = sendDataMessage(payload as any);
+                const success = sendRawMessage(message);
 
                 if (success) {
                     console.log("Successfully sent timber model JSON payload via WS");
                 }
             } catch (error) {
-                console.error("Failed to parse or send uploaded timber model file:", error);
+                console.error("Failed to send uploaded timber model file:", error);
             }
+        };
+
+        reader.onerror = () => {
+            console.error("Failed to read uploaded timber model file:", reader.error);
         };
 
         reader.readAsText(file);
