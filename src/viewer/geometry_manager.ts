@@ -13,7 +13,6 @@ export function getObjectMaterial(obj: { guid: string }): THREE.Material | null 
     const materialEntry = getMaterialByGeometry(obj.guid);
     return materialEntry?.material || null;
 }
-
 function getMaterialByGeometry(guid: string): { material: THREE.Material } | undefined {
     const object = SCENE_GEOMETRIES[guid];
     if (object && "material" in object) {
@@ -28,15 +27,14 @@ export function addObject(obj: undefined) {
     let material = getObjectMaterial(obj);
     if (!material) {
         material = new THREE.MeshStandardMaterial({
-            color: 0x088ff,
-            roughness: 0.5,
-            metalness: 0.5,
+            color: 0x0092d2,
+            roughness: 0.7,
+            metalness: 0.05,
         });
     }
 
     // Get the threejs geometry
     const three_geometry = convertToThreeJSGeometry(obj);
-    console.log(three_geometry);
 
     // Assign the material
     if (three_geometry instanceof THREE.Mesh) {

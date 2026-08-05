@@ -19,12 +19,17 @@ import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
 import { theme } from "@/store/store";
 
 const threeContainer = ref<HTMLDivElement | null>(null);
+const props = withDefaults(defineProps<{ connectWebSocket?: boolean }>(), {
+    connectWebSocket: true,
+});
 
 onMounted(() => {
     if (threeContainer.value) {
         threeContainer.value.appendChild(renderer.domElement);
         threeContainer.value.appendChild(labelRenderer.domElement);
-        initializeWebSocketConnection();
+        if (props.connectWebSocket) {
+            initializeWebSocketConnection();
+        }
     }
 });
 </script>
