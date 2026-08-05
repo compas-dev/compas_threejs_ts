@@ -4,6 +4,7 @@
         <ProcessJoinery />
         <TimberModelTreeView />
         <TimberModelGraphView />
+        <TimberModelElementsList />
     </div>
 </template>
 
@@ -15,5 +16,6 @@ import { LoadTimberModel } from "./index";
 import ProcessJoinery from "./ProcessJoinery.vue";
 import { TimberModelTreeView } from "./index";
 import { TimberModelGraphView } from "./index";
+import { TimberModelElementsList } from "./index";
 </script>
 S

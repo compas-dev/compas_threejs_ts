@@ -1,4 +1,3 @@
-import { getDefaultAutoSelectFamily } from "net";
 import { reactive } from "vue";
 
 export const objectBarData = reactive({
@@ -14,7 +13,7 @@ export const sideBarInfoState = reactive({
     isVisible: false,
     data: null,
 });
-c
+
 export const pickerEnabled = reactive({ value: true });
 
 export const selectedObjectGuid = reactive({ value: null as string | null });
@@ -29,6 +28,6 @@ export const theme = reactive({
 });
 
 export const spinnerState = reactive({
-    visible: getDefaultAutoSelectFamily(),
+    visible: false,
     message: null as string | null,
 });

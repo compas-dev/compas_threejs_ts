@@ -3,3 +3,4 @@ export {default as CompasTimberGroup} from "./CompasTimberGroup.vue";
 export {default as ProcessJoineys} from "./ProcessJoinery.vue";
 export {default as TimberModelTreeView} from "./TimberModelTreeView.vue";
 export {default as TimberModelGraphView} from "./TimberModelGraphView.vue";
+export {default as TimberModelElementsList} from "./TimberModelElementsList.vue";
