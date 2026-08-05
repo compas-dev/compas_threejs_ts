@@ -1,8 +1,10 @@
 import { dispatchMessage } from "./messages";
 
 let websocket: WebSocket | null = null;
+let connectionEnabled = false;
 
 export function initializeWebSocketConnection(): void {
+  connectionEnabled = true;
   // Read parameters from the current browser URL
   const urlParams = new URLSearchParams(window.location.search);
   const customHost = urlParams.get("ws_host") || "127.0.0.1";
@@ -43,7 +45,10 @@ export function initializeWebSocketConnection(): void {
           // e.g., if it takes plain objects or needs conversion:
           // dispatchMessage(jsonData);
         } catch (error) {
-          console.error("❌ Failed to parse incoming WebSocket text message:", error);
+          console.error(
+            "❌ Failed to parse incoming WebSocket text message:",
+            error,
+          );
         }
       } else {
         console.warn("❓ Received unknown data format:", event.data);
@@ -66,10 +71,10 @@ export function sendWebSocketMessage(message: ArrayBuffer): boolean {
   if (websocket && websocket.readyState === WebSocket.OPEN) {
     websocket.send(message);
     return true;
-  } else {
+  } else if (connectionEnabled) {
     console.error("WebSocket is not open. Unable to send message.");
-    return false;
   }
+  return false;
 }
 
 export function sendDataMessage(data: Record<string, any>): boolean {
@@ -83,10 +88,10 @@ export function sendDataMessage(data: Record<string, any>): boolean {
       console.error("Failed to send data:", error);
       return false;
     }
-  } else {
+  } else if (connectionEnabled) {
     console.error("WebSocket is not open. Unable to send message.");
-    return false;
   }
+  return false;
 }
 
 export function stringToArrayBuffer(str: string): ArrayBuffer {
