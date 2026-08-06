@@ -40,6 +40,7 @@ import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
 window.compasViewer = {
   mode: "embedded",
   defaultLighting: true,
+  showToolbar: false,
 };
 await import("../dist/assets/index.js");
 
@@ -58,6 +59,10 @@ the normal `websocket` behavior. The bundle adds `dispatch` to that same
 `compasViewer` object when it loads. Set `defaultLighting` to add the viewer's
 standalone lighting rig; geometries without a material use its standard COMPAS
 blue material.
+
+Set `showToolbar` to `false` before importing the bundle to hide the tool
+palette. It defaults to `true`, preserving the standalone and WebSocket viewer
+behavior.
 
 `pbDumpBytes` is the TypeScript equivalent of Python's `compas_pb.pb_dump_bts`: it adds the complete COMPAS-Protobuf message envelope around any supported wrapper object.
 

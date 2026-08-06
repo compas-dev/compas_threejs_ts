@@ -10,6 +10,7 @@ declare global {
     compasViewer?: {
       mode?: "websocket" | "embedded";
       defaultLighting?: boolean;
+      showToolbar?: boolean;
       dispatch?: typeof dispatchMessage;
       reset?: typeof resetViewer;
       send?: (message: unknown) => boolean | void;
@@ -20,6 +21,7 @@ declare global {
 const compasViewer = (window.compasViewer ??= {});
 const app = createApp(App, {
   connectWebSocket: compasViewer.mode !== "embedded",
+  showToolbar: compasViewer.showToolbar !== false,
 });
 app.mount("#app");
 
