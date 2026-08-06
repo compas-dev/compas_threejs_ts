@@ -3,6 +3,7 @@ import "./style.css";
 import App from "./App.vue";
 import { dispatchMessage } from "./communications/messages";
 import { addDefaultLighting } from "./viewer/scene_manager";
+import { resetViewer } from "./viewer/reset";
 
 declare global {
   interface Window {
@@ -10,6 +11,8 @@ declare global {
       mode?: "websocket" | "embedded";
       defaultLighting?: boolean;
       dispatch?: typeof dispatchMessage;
+      reset?: typeof resetViewer;
+      send?: (message: unknown) => boolean | void;
     };
   }
 }
@@ -26,3 +29,4 @@ if (compasViewer.defaultLighting) {
 
 // Expose the existing decoder/dispatcher to pages that embed the built bundle.
 compasViewer.dispatch = dispatchMessage;
+compasViewer.reset = resetViewer;

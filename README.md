@@ -60,3 +60,18 @@ standalone lighting rig; geometries without a material use its standard COMPAS
 blue material.
 
 `pbDumpBytes` is the TypeScript equivalent of Python's `compas_pb.pb_dump_bts`: it adds the complete COMPAS-Protobuf message envelope around any supported wrapper object.
+
+Embedded hosts can call `window.compasViewer.reset()` before replacing a scene.
+The dispatcher also walks protobuf lists and dictionaries recursively, rendering
+the supported geometry objects they contain. To receive picker and UI messages
+without a WebSocket, provide a host callback before importing the bundle:
+
+```js
+window.compasViewer = {
+  mode: "embedded",
+  send(message) {
+    hostTransport.postMessage(message);
+    return true;
+  },
+};
+```

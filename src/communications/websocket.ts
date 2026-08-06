@@ -71,6 +71,8 @@ export function sendWebSocketMessage(message: ArrayBuffer): boolean {
   if (websocket && websocket.readyState === WebSocket.OPEN) {
     websocket.send(message);
     return true;
+  } else if (sendToEmbeddedHost(message)) {
+    return true;
   } else if (connectionEnabled) {
     console.error("WebSocket is not open. Unable to send message.");
   }
@@ -88,10 +90,20 @@ export function sendDataMessage(data: Record<string, any>): boolean {
       console.error("Failed to send data:", error);
       return false;
     }
+  } else if (sendToEmbeddedHost(data)) {
+    return true;
   } else if (connectionEnabled) {
     console.error("WebSocket is not open. Unable to send message.");
   }
   return false;
+}
+
+function sendToEmbeddedHost(message: unknown): boolean {
+  const host = window.compasViewer;
+  if (host?.mode !== "embedded" || !host.send) {
+    return false;
+  }
+  return host.send(message) !== false;
 }
 
 export function stringToArrayBuffer(str: string): ArrayBuffer {
