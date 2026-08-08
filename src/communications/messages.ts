@@ -1,4 +1,4 @@
-import { getObjectFromMessage, Dictionary, List } from "@gramaziokohler/compas-pb-ts";
+import { pbLoadBytes } from "@gramaziokohler/compas-pb-ts";
 import { lightManagerFromData } from "../viewer/light_manager";
 import { geometryManager, geometryHandler } from "../viewer/geometry_manager";
 import { materialManagerFromData } from "../viewer/material_manager";
@@ -16,14 +16,6 @@ export function dispatchMessage(message: Uint8Array) {
 }
 
 function dispatchObject(object: any): void {
-    if (object instanceof Dictionary) {
-        dispatchObject(object.asDict);
-        return;
-    }
-    if (object instanceof List) {
-        dispatchObject(object.asList);
-        return;
-    }
     if (Array.isArray(object)) {
         object.forEach(dispatchObject);
         return;
@@ -42,7 +34,7 @@ function dispatchObject(object: any): void {
 }
 
 export function decodeWebsocketMessage(message: Uint8Array) {
-    const object = getObjectFromMessage(message);
+    const object = pbLoadBytes(message);
     return object;
 }
 
