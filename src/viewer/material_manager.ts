@@ -217,10 +217,7 @@ function applyMaterialToGeometry(
     return;
   }
 
-  if (
-    object instanceof THREE.ArrowHelper ||
-    object instanceof THREE.PlaneHelpers
-  ) {
+  if (object instanceof THREE.ArrowHelper) {
     object.setColor((material as any).color);
   }
 }

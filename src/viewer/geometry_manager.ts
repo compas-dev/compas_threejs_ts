@@ -51,10 +51,7 @@ export function addObject(obj: undefined) {
             material = convertToPointsMaterial(material);
         }
         three_geometry.material = material;
-    } else if (
-        three_geometry instanceof THREE.ArrowHelper ||
-        three_geometry instanceof THREE.PlaneHelpers
-    ) {
+    } else if (three_geometry instanceof THREE.ArrowHelper) {
         three_geometry.setColor(material.color);
     }
 
