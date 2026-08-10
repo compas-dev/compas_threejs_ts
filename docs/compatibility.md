@@ -10,11 +10,12 @@ release of `@gramaziokohler/compas-threejs`.
   This does not affect Python users of the bundled static application.
 - Three.js is a peer dependency so applications and the viewer share one
   Three.js runtime. Vue is an internal runtime dependency and is not exposed by
-  the public API.
+  the public API. The rationale for all direct packages is recorded in the
+  [dependency policy](dependencies.md).
 - Rendering is browser-only and requires WebGL 2.
 - Importing the library must remain safe in non-browser tooling and must not
   access the DOM until a viewer is explicitly created.
-- Development, CI, and release automation use Node.js 22.
+- Development, CI, and release automation require Node.js 22.12 or newer.
 - The supported browser policy is the latest two stable major releases of
   Chrome, Edge, Firefox, and Safari at the time of a package release.
 - Browser support is verified by automated tests where CI runners are

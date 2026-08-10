@@ -7,11 +7,11 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "dist"), // ✅ build goes into dist
+    outDir: path.resolve(import.meta.dirname, "dist"), // ✅ build goes into dist
     emptyOutDir: true, // clears old build
     sourcemap: false, // no sourcemaps needed
     rollupOptions: {
