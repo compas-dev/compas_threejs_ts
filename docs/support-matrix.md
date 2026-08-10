@@ -14,33 +14,40 @@ Status vocabulary:
 
 ## Geometry and datastructures
 
-| COMPAS object  | Current behavior                           | 1.0 target                                                          |
-| -------------- | ------------------------------------------ | ------------------------------------------------------------------- |
-| Box            | Candidate mesh conversion                  | Supported                                                           |
-| Capsule        | Candidate mesh conversion                  | Supported                                                           |
-| Circle         | Candidate filled-disc conversion           | Decide curve versus surface semantics, then support                 |
-| Cone           | Candidate mesh conversion                  | Supported                                                           |
-| Cylinder       | Candidate mesh conversion                  | Supported                                                           |
-| Frame          | Candidate axes-helper conversion           | Supported                                                           |
-| Line           | Candidate line conversion                  | Supported                                                           |
-| Plane          | Candidate finite plane-mesh conversion     | Supported with documented display size                              |
-| Point          | Candidate points conversion                | Supported                                                           |
-| Pointcloud     | Candidate points conversion                | Supported                                                           |
-| Polyline       | Candidate line conversion                  | Supported                                                           |
-| Sphere         | Candidate mesh conversion                  | Supported                                                           |
-| Torus          | Candidate mesh conversion                  | Supported                                                           |
-| Vector         | Candidate arrow-helper conversion          | Supported                                                           |
-| Mesh           | Candidate fan-triangulated mesh conversion | Supported after robust triangulation review                         |
-| Polyhedron     | Candidate fan-triangulated mesh conversion | Supported after robust triangulation review                         |
-| Arc            | Missing; placeholder throws                | Implement and support                                               |
-| Bezier         | Missing; placeholder throws                | Implement and support                                               |
-| Ellipse        | Missing; placeholder throws                | Implement and support                                               |
-| Hyperbola      | Missing; placeholder throws                | Implement and support                                               |
-| Parabola       | Missing; placeholder throws                | Implement and support                                               |
-| Polygon        | Missing; placeholder throws                | Implement and support                                               |
-| Graph          | No viewer conversion                       | Explicitly unsupported in 1.0 unless a rendering design is approved |
-| PolyhedronFace | Missing standalone conversion              | Internal helper, not a top-level public viewer object               |
-| MeshFaceList   | Missing standalone conversion              | Internal helper, not a top-level public viewer object               |
+| COMPAS object  | Current behavior                           | 1.0 target                                                    |
+| -------------- | ------------------------------------------ | ------------------------------------------------------------- |
+| Box            | Candidate mesh conversion                  | Supported                                                     |
+| Capsule        | Candidate mesh conversion                  | Supported                                                     |
+| Circle         | Candidate filled-disc conversion           | Decide curve versus surface semantics, then support           |
+| Cone           | Candidate mesh conversion                  | Supported                                                     |
+| Cylinder       | Candidate mesh conversion                  | Supported                                                     |
+| Frame          | Candidate axes-helper conversion           | Supported                                                     |
+| Line           | Candidate line conversion                  | Supported                                                     |
+| Plane          | Candidate finite plane-mesh conversion     | Supported with documented display size                        |
+| Point          | Candidate points conversion                | Supported                                                     |
+| Pointcloud     | Candidate points conversion                | Supported                                                     |
+| Polyline       | Candidate line conversion                  | Supported                                                     |
+| Sphere         | Candidate mesh conversion                  | Supported                                                     |
+| Torus          | Candidate mesh conversion                  | Supported                                                     |
+| Vector         | Candidate arrow-helper conversion          | Supported                                                     |
+| Mesh           | Candidate fan-triangulated mesh conversion | Supported after robust triangulation review                   |
+| Polyhedron     | Candidate fan-triangulated mesh conversion | Supported after robust triangulation review                   |
+| Arc            | Missing; placeholder throws                | Implement and support                                         |
+| Bezier         | Missing; placeholder throws                | Implement and support                                         |
+| Ellipse        | Missing; placeholder throws                | Implement and support                                         |
+| Hyperbola      | Missing; placeholder throws                | Implement and support                                         |
+| Parabola       | Missing; placeholder throws                | Implement and support                                         |
+| Polygon        | Missing; placeholder throws                | Implement and support                                         |
+| Graph          | No viewer conversion                       | Support using the `compas.scene.GraphObject` display contract |
+| PolyhedronFace | Missing standalone conversion              | Internal helper, not a top-level public viewer object         |
+| MeshFaceList   | Missing standalone conversion              | Internal helper, not a top-level public viewer object         |
+
+In COMPAS 2.15, the backend-independent scene abstraction is named
+`compas.scene.GraphObject`. Graph support should mirror its node positions,
+node and edge visibility, per-element colors, node size, edge width, and world
+transformation. The TypeScript protobuf wrapper already contains node keys,
+attribute columns, edges, and their attributes; the frontend still needs to
+materialize and render them.
 
 ## Mathematical COMPAS objects
 

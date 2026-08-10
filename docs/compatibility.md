@@ -5,7 +5,9 @@ release of `@gramaziokohler/compas-threejs`.
 
 ## Package and runtime
 
-- The npm package is ESM-only.
+- The npm package is ESM-only: JavaScript consumers use standard `import` and
+  `export` syntax. We will not publish a separate CommonJS build for `require()`.
+  This does not affect Python users of the bundled static application.
 - Rendering is browser-only and requires WebGL 2.
 - Importing the library must remain safe in non-browser tooling and must not
   access the DOM until a viewer is explicitly created.
@@ -27,9 +29,8 @@ release of `@gramaziokohler/compas-threejs`.
 - Cross-language fixtures are generated with a recorded Python package version
   and are decoded during the TypeScript test suite.
 
-The sibling Python project's current lockfile still resolves `compas_pb 0.5.0`.
-That dependency and lockfile must be upgraded before the two projects can make
-a joint compatible release.
+The sibling Python project requires `compas_pb >=1,<2`, and its lockfile is
+validated against the same 1.x wire format as the frontend fixtures.
 
 ## Python application compatibility
 
@@ -56,8 +57,9 @@ The 1.0 package will expose:
 - An instance-based ESM library API.
 - An explicit stylesheet entry.
 - A standalone static application build for the Python package.
-- An optional global `window.compasViewer` compatibility adapter for existing
-  embedded integrations.
+
+The prototype `window.compasViewer` integration is not public API and will be
+removed when its VS Code consumer migrates to the instance-based ESM API.
 
 Internal source paths are not public API. Consumers must not depend on `src`,
 hashed build internals, or unlisted package subpaths.

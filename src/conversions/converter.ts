@@ -41,12 +41,12 @@ const UNIMPLEMENTED_RENDERABLES = [
     Arc,
     Bezier,
     Ellipse,
+    Graph,
     Hyperbola,
     Parabola,
     Polygon,
 ];
 const NON_RENDERABLES = [
-    Graph,
     Projection,
     Quaternion,
     Reflection,

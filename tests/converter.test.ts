@@ -1,4 +1,4 @@
-import { Box, Quaternion } from "@gramaziokohler/compas-pb-ts";
+import { Box, Graph, Quaternion } from "@gramaziokohler/compas-pb-ts";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
@@ -46,6 +46,30 @@ describe("convertToThreeJSGeometry", () => {
             new UnsupportedCompasObjectError(
                 quaternion,
                 "is data, not renderable scene geometry",
+            ),
+        );
+    });
+
+    it("classifies Graph as planned renderable geometry", () => {
+        const graph = new Graph({
+            data: {
+                guid: "graph-guid",
+                name: "Graph",
+                nodeKeys: [],
+                nodeAttributes: [],
+                attributes: {},
+                defaultNodeAttributes: {},
+                defaultEdgeAttributes: {},
+                edgeU: [],
+                edgeV: [],
+                edgeAttributes: [],
+            },
+        });
+
+        expect(() => convertToThreeJSGeometry(graph)).toThrowError(
+            new UnsupportedCompasObjectError(
+                graph,
+                "does not have an implemented renderer",
             ),
         );
     });
