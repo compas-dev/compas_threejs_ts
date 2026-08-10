@@ -12,12 +12,20 @@
     "bugs": {
         "url": "https://github.com/gramaziokohler/compas_threejs_ts/issues"
     },
-    "keywords": ["compas", "threejs", "viewer", "protobuf", "geometry"],
+    "keywords": [
+        "compas",
+        "threejs",
+        "viewer",
+        "protobuf",
+        "geometry"
+    ],
     "type": "module",
     "scripts": {
         "dev": "vite",
         "build": "vue-tsc --noEmit && vite build",
         "preview": "vite preview",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
         "lint:fix": "eslint . --ext .ts,.tsx --fix",
         "format": "prettier --write \"src/**/*.{ts,tsx,vue,json}\"",
@@ -56,6 +64,7 @@
         "typescript-eslint": "^8.62.1",
         "vite": "^7.3.1",
         "vite-tsconfig-paths": "^6.1.0",
+        "vitest": "^4.1.10",
         "vue-component-type-helpers": "^3.2.4",
         "vue-tsc": "^3.1.5"
     }

@@ -1,0 +1,19 @@
+{
+  "generator": "compas_pb.core.serialize_message(deterministic=True)",
+  "python_package_version": "1.1.0",
+  "wire_version": "1.0.0",
+  "fixtures": {
+    "box.pb.b64": {
+      "bytes": 190,
+      "sha256": "90dc221ca6f7ee23cc92e6896bb77a57c3b652a1332219c17d1c85c9384a7736"
+    },
+    "nested.pb.b64": {
+      "bytes": 420,
+      "sha256": "15cef92fbe8270f04b4d7af1c9b8e7eac7de098c911e7df042ff2893fbf163a2"
+    },
+    "scene.pb.b64": {
+      "bytes": 111,
+      "sha256": "58496c912a0fdffbf577b18a35992d54b053d00d5127b5e2f369301c30451435"
+    }
+  }
+}

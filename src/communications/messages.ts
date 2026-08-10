@@ -1,4 +1,4 @@
-import { pbLoadBytes } from "@gramaziokohler/compas-pb-ts";
+import { decodeMessage } from "./decode";
 import { lightManagerFromData } from "../viewer/light_manager";
 import { geometryManager, geometryHandler } from "../viewer/geometry_manager";
 import { materialManagerFromData } from "../viewer/material_manager";
@@ -34,8 +34,7 @@ function dispatchObject(object: any): void {
 }
 
 export function decodeWebsocketMessage(message: Uint8Array) {
-    const object = pbLoadBytes(message);
-    return object;
+    return decodeMessage(message);
 }
 
 function analyzeDictionary(data: Record<string, any>) {
