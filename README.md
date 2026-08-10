@@ -9,6 +9,10 @@ npm run dev
 
 The viewer connects to `ws://127.0.0.1:9001/ws?workspace=main` by default. The host, port, and workspace can be changed with the `ws_host`, `ws_port`, and `workspace` URL parameters.
 
+See the [compatibility policy](docs/compatibility.md) and
+[COMPAS support matrix](docs/support-matrix.md) for the public 1.0 contract and
+current implementation status.
+
 ## Embed the built viewer and dispatch a box
 
 The generated JavaScript entry exposes the frontend's existing message dispatcher as `window.compasViewer.dispatch`. The standalone example uses the published `@gramaziokohler/compas-pb-ts` 2.x package to create, serialize, and dispatch a box:
