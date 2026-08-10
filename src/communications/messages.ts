@@ -1,4 +1,4 @@
-import { getObjectFromMessage, Dictionary, List } from "@gramaziokohler/compas-pb-ts";
+import { pbLoadBytes } from "@gramaziokohler/compas-pb-ts";
 import { lightManagerFromData } from "../viewer/light_manager";
 import { geometryManager, geometryHandler } from "../viewer/geometry_manager";
 import { materialManagerFromData } from "../viewer/material_manager";
@@ -12,22 +12,33 @@ import { objectActionManager } from "./objectInfo";
 
 export function dispatchMessage(message: Uint8Array) {
     const object = decodeWebsocketMessage(message);
-    if (object instanceof Dictionary) {
+    dispatchObject(object);
+}
+
+function dispatchObject(object: any): void {
+    if (Array.isArray(object)) {
+        object.forEach(dispatchObject);
+        return;
+    }
+    if (object && typeof object === "object" && typeof object.dispatch === "string") {
         analyzeDictionary(object);
         return;
-    } else {
-        // It is a geometry type
+    }
+    if (object && typeof object === "object" && object.bytes instanceof Uint8Array && "guid" in object) {
         geometryManager(object);
+        return;
+    }
+    if (object && typeof object === "object") {
+        Object.values(object).forEach(dispatchObject);
     }
 }
 
 export function decodeWebsocketMessage(message: Uint8Array) {
-    const object = getObjectFromMessage(message);
+    const object = pbLoadBytes(message);
     return object;
 }
 
-function analyzeDictionary(dictionary: Dictionary) {
-    const data = dictionary.asDict;
+function analyzeDictionary(data: Record<string, any>) {
     switch (data.dispatch) {
         case "material":
             materialManagerFromData(data);

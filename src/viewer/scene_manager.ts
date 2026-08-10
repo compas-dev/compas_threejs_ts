@@ -52,6 +52,7 @@ class SceneManager {
     private animationLoop: AnimationLoop;
     private resizeManager: ResizeManager;
     private axesHelper: THREE.AxesHelper;
+    private defaultLights: THREE.Light[] = [];
 
     constructor() {
         // Create core THREE.js components
@@ -174,6 +175,25 @@ class SceneManager {
         this.viewPresetManager.applyPreset(preset);
     }
 
+    /** Add an idempotent, general-purpose lighting rig for standalone scenes. */
+    public addDefaultLighting(): void {
+        if (this.defaultLights.length > 0) {
+            return;
+        }
+
+        const lights = [
+            new THREE.DirectionalLight(0xffffff, 1.0),
+            new THREE.DirectionalLight(0xffffff, 0.5),
+            new THREE.DirectionalLight(0xffffff, 0.5),
+            new THREE.AmbientLight(0xffffff, 0.5),
+        ];
+        lights[0].position.set(30, -10, 30);
+        lights[1].position.set(-30, -20, 30);
+        lights[2].position.set(-30, 20, 10);
+        lights.forEach((light) => this.scene.add(light));
+        this.defaultLights = lights;
+    }
+
     /**
      * Dispose of all resources
      */
@@ -206,4 +226,9 @@ export function sceneManager(data: Record<string, any>): void {
  */
 export function setCameraViewPreset(preset: ViewPreset): void {
     sceneMgrInstance.setCameraViewPreset(preset);
+}
+
+/** Add the viewer's standalone default lighting rig. */
+export function addDefaultLighting(): void {
+    sceneMgrInstance.addDefaultLighting();
 }

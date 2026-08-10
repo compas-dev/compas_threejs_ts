@@ -2,7 +2,7 @@
     <div class="app-container" :class="{ dark: theme.value === 'dark' }">
         <!-- <Toolbar />
         <Openbar v-if="sideBarInfoState.isVisible" /> -->
-        <Sidebar />
+        <Sidebar :show-toolbar="props.showToolbar" />
         <div ref="threeContainer" class="three-container"></div>
         <ThemeIndicator />
         <ObjectInfo />
@@ -19,12 +19,21 @@ import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
 import { theme } from "@/store/store";
 
 const threeContainer = ref<HTMLDivElement | null>(null);
+const props = withDefaults(
+    defineProps<{ connectWebSocket?: boolean; showToolbar?: boolean }>(),
+    {
+        connectWebSocket: true,
+        showToolbar: true,
+    },
+);
 
 onMounted(() => {
     if (threeContainer.value) {
         threeContainer.value.appendChild(renderer.domElement);
         threeContainer.value.appendChild(labelRenderer.domElement);
-        initializeWebSocketConnection();
+        if (props.connectWebSocket) {
+            initializeWebSocketConnection();
+        }
     }
 });
 </script>

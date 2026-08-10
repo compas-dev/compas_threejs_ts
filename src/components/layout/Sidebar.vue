@@ -1,6 +1,6 @@
 <template>
     <div id="sidebar">
-        <Toolbar />
+        <Toolbar v-if="showToolbar" />
         <Openbar v-if="sideBarInfoState.isVisible" />
     </div>
 </template>
@@ -9,6 +9,10 @@
 import Toolbar from "@/components/layout/Toolbar.vue";
 import Openbar from "@/components/layout/Openbar.vue";
 import { sideBarInfoState } from "@/store/store.ts";
+
+withDefaults(defineProps<{ showToolbar?: boolean }>(), {
+    showToolbar: true,
+});
 </script>
 
 <style scoped>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Embedded COMPAS ThreeJS box</title>
+  <link rel="stylesheet" href="../dist/assets/index.css" />
+  <script type="importmap">
+      {
+        "imports": {
+          "@gramaziokohler/compas-pb-ts": "../node_modules/@gramaziokohler/compas-pb-ts/dist/index.js",
+          "@bufbuild/protobuf/wire": "../node_modules/@bufbuild/protobuf/dist/esm/wire/index.js"
+        }
+      }
+    </script>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+
+    window.compasViewer = {
+      mode: "embedded",
+      defaultLighting: true,
+    };
+    await import("../dist/assets/index.js");
+
+    const box = new Box({
+      data: {
+        guid: crypto.randomUUID(),
+        name: "Box",
+        frame: {
+          point: { x: 0, y: 0, z: 0 },
+          xaxis: { x: 2, y: 0, z: 0 },
+          yaxis: { x: 0, y: 1, z: 0 },
+        },
+        xsize: 1,
+        ysize: 10,
+        zsize: 1,
+      },
+    });
+
+    window.compasViewer.dispatch(pbDumpBytes(box));
+  </script>
+</body>
+</html>
