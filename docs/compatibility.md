@@ -68,6 +68,16 @@ consumers, including the VS Code extension, use `createViewer` directly.
 Internal source paths are not public API. Consumers must not depend on `src`,
 hashed build internals, or unlisted package subpaths.
 
+## Error behavior
+
+The public `onError` callback receives `CompasViewerError`, which distinguishes
+decoding, invalid-message, unsupported-message, connection, lifecycle, and
+rendering failures with stable codes. Known command variants validate every
+field consumed by the viewer before applying state changes. When no callback is
+configured, synchronous `dispatch` and lifecycle failures throw; asynchronous
+connection and asset-loading failures are logged because they cannot be thrown
+back to the original caller.
+
 ## Future organization migration
 
 The initial package is published as `@gramaziokohler/compas-threejs`. A future

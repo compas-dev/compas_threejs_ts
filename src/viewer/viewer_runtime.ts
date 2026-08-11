@@ -1,9 +1,30 @@
 import { decodeMessage } from "../communications/decode";
 import { ViewerConnection } from "../communications/viewer_connection";
-import { convertToThreeJSGeometry } from "../conversions";
-import { ligthtToThree } from "../conversions/lights";
+import {
+  convertToThreeJSGeometry,
+  UnsupportedCompasObjectError,
+} from "../conversions";
+import { lightToThree } from "../conversions/lights";
 import { materialToThree } from "../conversions/material";
+import { asCompasViewerError, CompasViewerError } from "../library/errors";
 import type { CompasViewerOptions } from "../library/types";
+import {
+  parseViewerCommand,
+  readGeometryGuid,
+  readNonEmptyString,
+  type CameraViewPreset,
+  type CommandRecord,
+  type HandleGeometryCommand,
+  type LightCommand,
+  type MaterialCommand,
+  type ObjectActionCommand,
+  type ObjectInfosCommand,
+  type SceneCommand,
+  type TextCommand,
+  type TextTagCommand,
+  type UiCommand,
+  type ViewerCommand,
+} from "./viewer_commands";
 import {
   createViewerStore,
   type DynamicComponent,
@@ -23,17 +44,7 @@ import {
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 
-export type ViewPreset =
-  | "top"
-  | "bottom"
-  | "front"
-  | "back"
-  | "left"
-  | "right"
-  | "front_left"
-  | "front_right"
-  | "back_left"
-  | "back_right";
+export type ViewPreset = CameraViewPreset;
 
 export interface SavedView {
   id: string;
@@ -164,7 +175,14 @@ export class ViewerRuntime {
       ...options.websocket,
       send: options.send,
       dispatch: (message) => this.dispatch(message),
-      onError: (error) => this.reportError(error),
+      onError: (error) =>
+        this.reportAsyncError(
+          asCompasViewerError(
+            error,
+            "connection_error",
+            "The viewer WebSocket connection failed",
+          ),
+        ),
     });
   }
 
@@ -177,21 +195,54 @@ export class ViewerRuntime {
     this.renderer.domElement.addEventListener("mousedown", this.onPointerDown);
     this.root.addEventListener("keydown", this.onKeyDown);
     if (this.options.defaultLighting) this.addDefaultLighting();
-    if ((this.options.mode ?? "embedded") === "websocket")
-      this.connection.start();
+    if ((this.options.mode ?? "embedded") === "websocket") {
+      try {
+        this.connection.start();
+      } catch (error) {
+        this.reportOrThrow(
+          asCompasViewerError(
+            error,
+            "connection_error",
+            "Unable to start the viewer WebSocket connection",
+          ),
+        );
+      }
+    }
     this.startAnimation();
     this.resize();
   }
 
   dispatch(message: Uint8Array): void {
     this.assertUsable();
+    let decoded: unknown;
     try {
-      this.dispatchObject(decodeMessage(message));
+      decoded = decodeMessage(message);
+    } catch (error) {
+      this.reportOrThrow(
+        asCompasViewerError(
+          error,
+          "decode_error",
+          "Unable to decode the COMPAS Protobuf message",
+        ),
+      );
+      return;
+    }
+
+    try {
+      this.dispatchObject(decoded);
     } catch (error) {
       const normalized =
-        error instanceof Error ? error : new Error(String(error));
-      if (this.options.onError) this.options.onError(normalized);
-      else throw normalized;
+        error instanceof UnsupportedCompasObjectError
+          ? new CompasViewerError("unsupported_message", error.message, {
+              cause: error,
+              details: { objectType: error.objectType },
+            })
+          : asCompasViewerError(
+              error,
+              "render_error",
+              "Unable to apply the viewer message",
+            );
+      this.reportOrThrow(normalized);
     }
   }
 
@@ -356,20 +407,17 @@ export class ViewerRuntime {
       return;
     }
     if (!object || typeof object !== "object") return;
-    const record = object as Record<string, unknown>;
+    const record = object as CommandRecord;
     if (typeof record.dispatch === "string") {
-      this.dispatchCommand(record);
-    } else if (
-      record.bytes instanceof Uint8Array &&
-      typeof record.guid === "string"
-    ) {
+      this.dispatchCommand(parseViewerCommand(record));
+    } else if (record.bytes instanceof Uint8Array) {
       this.manageGeometry(record);
     } else {
       Object.values(record).forEach((item) => this.dispatchObject(item));
     }
   }
 
-  private dispatchCommand(data: Record<string, unknown>): void {
+  private dispatchCommand(data: ViewerCommand): void {
     switch (data.dispatch) {
       case "material":
         this.manageMaterial(data);
@@ -381,15 +429,20 @@ export class ViewerRuntime {
         this.manageScene(data);
         break;
       case "theme":
-        this.applyTheme(data.mode === "dark" ? "dark" : "light");
+        this.applyTheme(data.mode);
         break;
       case "ui":
         this.manageUi(data);
         break;
       case "text":
         void this.manageText(data).catch((error) =>
-          this.reportError(
-            error instanceof Error ? error : new Error(String(error)),
+          this.reportAsyncError(
+            asCompasViewerError(
+              error,
+              "render_error",
+              "Unable to create text geometry",
+              { dispatch: data.dispatch, guid: data.guid },
+            ),
           ),
         );
         break;
@@ -405,13 +458,11 @@ export class ViewerRuntime {
       case "handle_geometry":
         this.handleGeometry(data);
         break;
-      default:
-        console.warn("Unknown dispatch value:", data.dispatch);
     }
   }
 
-  private manageGeometry(object: Record<string, unknown>): void {
-    const guid = String(object.guid);
+  private manageGeometry(object: CommandRecord): void {
+    const guid = readNonEmptyString(object, "guid");
     const converted = convertToThreeJSGeometry(object);
     const existing = this.geometries.get(guid);
     if (existing) {
@@ -431,27 +482,23 @@ export class ViewerRuntime {
     }
   }
 
-  private manageMaterial(data: Record<string, unknown>): void {
-    const guid = String(data.guid ?? "");
-    const geometryGuid = String(
-      data.geometry_guid ?? data.geometryBackendGuid ?? "",
-    );
-    const material = materialToThree(data as never);
-    if (!guid || !geometryGuid || !material) return;
+  private manageMaterial(data: MaterialCommand): void {
+    const guid = data.guid;
+    const geometryGuid = readGeometryGuid(data);
+    const material = materialToThree(data);
     this.materials.get(guid)?.material.dispose();
     this.materials.set(guid, {
       material,
-      materialType: String(data.type ?? "unknown"),
+      materialType: data.type,
     });
     this.geometryMaterials.set(geometryGuid, guid);
     const object = this.geometries.get(geometryGuid);
     if (object) this.assignMaterial(object, material);
   }
 
-  private manageLight(data: Record<string, unknown>): void {
-    const guid = String(data.guid ?? "");
-    const light = ligthtToThree(data as never);
-    if (!guid || !light) return;
+  private manageLight(data: LightCommand): void {
+    const guid = data.guid;
+    const light = lightToThree(data);
     this.removeLight(guid);
     const objects: THREE.Object3D[] = [light];
     if (light instanceof Sky) {
@@ -466,130 +513,125 @@ export class ViewerRuntime {
     this.lights.set(guid, { objects });
   }
 
-  private manageScene(data: Record<string, unknown>): void {
+  private manageScene(data: SceneCommand): void {
     switch (data.type) {
       case "background_color":
-        this.scene.background = new THREE.Color(String(data.color));
+        this.scene.background = new THREE.Color(data.color);
         break;
       case "controls_damping":
-        this.controls.enableDamping = Boolean(data.damping);
+        this.controls.enableDamping = data.damping;
         break;
       case "world_axis":
-        this.axesHelper.visible = Boolean(data.show);
+        this.axesHelper.visible = data.show;
         break;
       case "picker":
-        this.store.pickerEnabled.value = Boolean(data.enabled);
+        this.store.pickerEnabled.value = data.enabled;
         break;
       case "camera_fov":
-        this.camera.fov = Number(data.fov);
+        this.camera.fov = data.fov;
         this.camera.updateProjectionMatrix();
         break;
       case "camera_zoom":
-        this.camera.zoom = Number(data.zoom);
+        this.camera.zoom = data.zoom;
         this.camera.updateProjectionMatrix();
         break;
       case "camera_position":
-        this.camera.position.set(
-          Number(data.x),
-          Number(data.y),
-          Number(data.z),
-        );
+        this.camera.position.set(data.x, data.y, data.z);
         this.controls.update();
         break;
       case "camera_target":
-        this.controls.target.set(
-          Number(data.x),
-          Number(data.y),
-          Number(data.z),
-        );
+        this.controls.target.set(data.x, data.y, data.z);
         this.controls.update();
         break;
       case "camera_view":
-        this.setCameraViewPreset(data.preset as ViewPreset);
+        this.setCameraViewPreset(data.preset);
         break;
       case "show_edges":
-        this.store.showEdges.value = Boolean(data.show);
+        this.store.showEdges.value = data.show;
         break;
-      default:
-        console.warn("Unknown scene update type:", data.type);
     }
   }
 
-  private manageUi(data: Record<string, unknown>): void {
-    const type = String(data.type);
+  private manageUi(data: UiCommand): void {
     const common = {
       id: ++this.componentId,
-      label: data.label as string | undefined,
-      action: String(data.guid ?? ""),
+      action: data.guid,
+      ...(data.label === undefined ? {} : { label: data.label }),
     };
-    let component: DynamicComponent | null = null;
-    if (type === "button" || type === "load_json_button") {
+    let component: DynamicComponent;
+    if (data.type === "button" || data.type === "load_json_button") {
       component = {
         ...common,
-        component: type === "button" ? "Button" : "LoadJsonButton",
+        component: data.type === "button" ? "Button" : "LoadJsonButton",
         props: {
-          text: String(data.text ?? ""),
-          variant: String(data.variant ?? "secondary"),
+          text: data.text,
+          variant: data.variant,
         },
-      } as DynamicComponent;
-    } else if (type === "slider") {
+      };
+    } else if (data.type === "slider") {
       component = {
         ...common,
         component: "Slider",
         props: {
-          min: Number(data.min),
-          max: Number(data.max),
-          step: Number(data.step),
-          defaultValue: [Number(data.default_value)],
+          min: data.min,
+          max: data.max,
+          step: data.step,
+          defaultValue: [data.default_value],
         },
       };
-    } else if (type === "number_field") {
+    } else if (data.type === "number_field") {
       component = {
         ...common,
         component: "NumberField",
         props: {
-          min: Number(data.min),
-          max: Number(data.max),
-          step: Number(data.step),
-          value: [Number(data.value)],
+          min: data.min,
+          max: data.max,
+          step: data.step,
+          value: [data.value],
         },
       };
-    } else if (type === "checkbox") {
+    } else if (data.type === "checkbox") {
       component = {
         ...common,
         component: "Checkbox",
         props: {
-          text: String(data.text ?? ""),
-          defaultValue: Boolean(data.default_value),
+          text: data.text,
+          defaultValue: data.default_value,
         },
       };
-    } else if (type === "select") {
+    } else {
       component = {
         ...common,
         component: "Select",
         props: {
-          options: (data.options as string[]) ?? [],
-          placeholder: data.placeholder as string | undefined,
-          defaultValue: data.default_value as string | undefined,
+          options: data.options,
+          ...(data.placeholder === undefined
+            ? {}
+            : { placeholder: data.placeholder }),
+          ...(data.default_value === undefined
+            ? {}
+            : { defaultValue: data.default_value }),
         },
       };
     }
-    if (component) {
-      this.store.sidebarComponents.push(component);
-      this.store.sideBarInfoState.isVisible = true;
-    }
+    this.store.sidebarComponents.push(component);
+    this.store.sideBarInfoState.isVisible = true;
   }
 
-  private manageObjectAction(data: Record<string, unknown>): void {
+  private manageObjectAction(data: ObjectActionCommand): void {
     this.store.objectActionsState.push({
-      guid: String(data.guid ?? ""),
-      label: data.label as string | undefined,
-      type: String(data.type ?? ""),
-      objectGuid: String(data.object_guid ?? ""),
-      text: data.text as string | undefined,
-      options: data.options as string[] | undefined,
-      placeholder: data.placeholder as string | undefined,
-      defaultValue: data.default_value,
+      guid: data.guid,
+      type: data.type,
+      objectGuid: data.object_guid,
+      ...(data.label === undefined ? {} : { label: data.label }),
+      ...(data.text === undefined ? {} : { text: data.text }),
+      ...(data.options === undefined ? {} : { options: data.options }),
+      ...(data.placeholder === undefined
+        ? {}
+        : { placeholder: data.placeholder }),
+      ...(data.default_value === undefined
+        ? {}
+        : { defaultValue: data.default_value }),
     });
   }
 
@@ -670,24 +712,23 @@ export class ViewerRuntime {
     }
   }
 
-  private manageTextTag(data: Record<string, unknown>): void {
-    const guid = String(data.guid ?? "");
+  private manageTextTag(data: TextTagCommand): void {
+    const guid = data.guid;
     const element = document.createElement("div");
     element.className = "text-tag";
-    element.textContent = String(data.text ?? "");
-    if (data.color) element.style.color = String(data.color);
+    element.textContent = data.text;
+    if (data.color) element.style.color = data.color;
     const tag = new CSS2DObject(element);
-    tag.position.set(Number(data.x), Number(data.y), Number(data.z));
+    tag.position.set(data.x, data.y, data.z);
     const existing = this.geometries.get(guid);
     if (existing) this.scene.remove(existing);
     this.scene.add(tag);
     this.geometries.set(guid, tag);
   }
 
-  private async manageText(data: Record<string, unknown>): Promise<void> {
-    if (data.type !== "text_geometry") return;
-    const fontName = String(data.font ?? "helvetiker");
-    const fontWeight = String(data.weight ?? "regular");
+  private async manageText(data: TextCommand): Promise<void> {
+    const fontName = data.font ?? "helvetiker";
+    const fontWeight = data.weight ?? "regular";
     const cacheKey = `${fontName}_${fontWeight}`;
     let font = this.fonts.get(cacheKey);
     if (!font) {
@@ -697,10 +738,10 @@ export class ViewerRuntime {
       this.fonts.set(cacheKey, font);
     }
 
-    const geometry = new TextGeometry(String(data.text ?? ""), {
+    const geometry = new TextGeometry(data.text, {
       font,
-      size: Number(data.size),
-      depth: Number(data.depth),
+      size: data.size,
+      depth: data.depth,
     });
     if (data.centered) {
       geometry.computeBoundingBox();
@@ -710,24 +751,16 @@ export class ViewerRuntime {
     }
 
     const direction = new THREE.Vector3(
-      Number(data.direction_x),
-      Number(data.direction_y),
-      Number(data.direction_z),
+      data.direction_x,
+      data.direction_y,
+      data.direction_z,
     ).normalize();
-    const up = new THREE.Vector3(
-      Number(data.up_x),
-      Number(data.up_y),
-      Number(data.up_z),
-    ).normalize();
+    const up = new THREE.Vector3(data.up_x, data.up_y, data.up_z).normalize();
     const normal = new THREE.Vector3().crossVectors(direction, up).normalize();
     const transform = new THREE.Matrix4().makeBasis(direction, up, normal);
-    transform.setPosition(
-      Number(data.point_x),
-      Number(data.point_y),
-      Number(data.point_z),
-    );
+    transform.setPosition(data.point_x, data.point_y, data.point_z);
 
-    const guid = String(data.guid ?? "");
+    const guid = data.guid;
     const materialGuid = this.geometryMaterials.get(guid);
     const material = materialGuid
       ? this.materials.get(materialGuid)?.material
@@ -746,8 +779,8 @@ export class ViewerRuntime {
     this.geometries.set(guid, mesh);
   }
 
-  private handleGeometry(data: Record<string, unknown>): void {
-    const guid = String(data.guid ?? "");
+  private handleGeometry(data: HandleGeometryCommand): void {
+    const guid = data.guid;
     const object = this.geometries.get(guid);
     if (!object) return;
     if (data.type === "remove") {
@@ -756,7 +789,7 @@ export class ViewerRuntime {
       this.geometries.delete(guid);
       this.geometryMaterials.delete(guid);
     } else if (data.type === "set_visibility") {
-      object.visible = Boolean(data.visible);
+      object.visible = data.visible;
     } else if (data.type === "toggle_visibility") {
       object.visible = !object.visible;
     }
@@ -921,20 +954,28 @@ export class ViewerRuntime {
     return { x: vector.x, y: vector.y, z: vector.z };
   }
 
-  private withoutDispatch(
-    data: Record<string, unknown>,
-  ): Record<string, unknown> {
+  private withoutDispatch(data: ObjectInfosCommand): Record<string, unknown> {
     const rest = { ...data };
     delete rest.dispatch;
     return rest;
   }
 
-  private reportError(error: Error): void {
+  private reportOrThrow(error: CompasViewerError): void {
+    if (this.options.onError) this.options.onError(error);
+    else throw error;
+  }
+
+  private reportAsyncError(error: CompasViewerError): void {
     if (this.options.onError) this.options.onError(error);
     else console.error(error);
   }
 
   private assertUsable(): void {
-    if (this.disposed) throw new Error("COMPAS viewer has been disposed");
+    if (this.disposed) {
+      throw new CompasViewerError(
+        "lifecycle_error",
+        "The COMPAS viewer has been disposed",
+      );
+    }
   }
 }

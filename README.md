@@ -46,6 +46,9 @@ const viewer = createViewer(document.querySelector<HTMLElement>("#viewer")!, {
   send(message) {
     hostTransport.postMessage(message);
   },
+  onError(error) {
+    console.error(error.code, error.message, error.details);
+  },
 });
 
 const box = new Box({
@@ -65,6 +68,13 @@ viewer.dispose();
 `embedded` is the default mode and does not open or retry a WebSocket. The optional
 `send` callback receives picker and UI messages. `defaultLighting` adds the
 standalone lighting rig, and `showToolbar` controls the built-in toolbar.
+
+`onError` receives a `CompasViewerError` with a stable `code` and optional
+`details`. Synchronous dispatch and lifecycle errors are thrown when no callback
+is provided. Asynchronous connection and asset-loading errors are reported to
+the callback, or to the console when no callback is configured. The current
+codes are `decode_error`, `invalid_message`, `unsupported_message`,
+`connection_error`, `lifecycle_error`, and `render_error`.
 
 `pbDumpBytes` is the TypeScript equivalent of Python's `compas_pb.pb_dump_bts`: it adds the complete COMPAS-Protobuf message envelope around any supported wrapper object.
 

@@ -10,5 +10,12 @@ describe("public library entry", () => {
     expect(library.createViewer).toBeTypeOf("function");
     expect(globalThis.window).toBeUndefined();
     expect(globalThis.document).toBeUndefined();
+    expect(() => library.createViewer({} as HTMLElement)).toThrowError(
+      expect.objectContaining<
+        Partial<InstanceType<typeof library.CompasViewerError>>
+      >({
+        code: "lifecycle_error",
+      }),
+    );
   });
 });

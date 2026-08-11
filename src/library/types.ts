@@ -1,3 +1,5 @@
+import type { CompasViewerError } from "./errors";
+
 export type ViewerMode = "embedded" | "websocket";
 
 export interface ViewerWebSocketOptions {
@@ -13,7 +15,7 @@ export interface CompasViewerOptions {
   defaultLighting?: boolean;
   showToolbar?: boolean;
   send?: (message: unknown) => boolean | void;
-  onError?: (error: Error) => void;
+  onError?: (error: CompasViewerError) => void;
 }
 
 export interface CompasViewer {

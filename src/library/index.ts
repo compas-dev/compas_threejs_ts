@@ -4,6 +4,7 @@ import "../style.css";
 import App from "../App.vue";
 import { viewerRuntimeKey } from "../viewer/viewer_context";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
+import { CompasViewerError } from "./errors";
 import type { CompasViewer, CompasViewerOptions } from "./types";
 
 export type {
@@ -12,6 +13,11 @@ export type {
   ViewerMode,
   ViewerWebSocketOptions,
 } from "./types";
+export {
+  type CompasViewerErrorCode,
+  type CompasViewerErrorOptions,
+} from "./errors";
+export { CompasViewerError };
 
 export function createViewer(
   container: HTMLElement,
@@ -21,7 +27,10 @@ export function createViewer(
     typeof HTMLElement === "undefined" ||
     !(container instanceof HTMLElement)
   ) {
-    throw new TypeError("createViewer requires an HTMLElement container");
+    throw new CompasViewerError(
+      "lifecycle_error",
+      "createViewer requires an HTMLElement container",
+    );
   }
 
   const runtime = markRaw(new ViewerRuntime(container, options));

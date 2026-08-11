@@ -1,6 +1,6 @@
 /** @vitest-environment happy-dom */
 
-import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+import { Box, pbDumpBytes, Quaternion } from "@gramaziokohler/compas-pb-ts";
 import { nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -26,7 +26,7 @@ vi.mock("three", async () => {
   return { ...actual, WebGLRenderer };
 });
 
-import { createViewer } from "../src/library";
+import { CompasViewerError, createViewer } from "../src/library";
 import * as THREE from "three";
 
 const viewers: Array<{ dispose(): void }> = [];
@@ -80,6 +80,66 @@ describe("createViewer", () => {
 
     expect(container.childElementCount).toBe(0);
     expect(() => viewer.dispose()).not.toThrow();
+  });
+
+  it("reports decoding and unsupported-object errors through onError", () => {
+    const errors: CompasViewerError[] = [];
+    const container = document.createElement("div");
+    document.body.append(container);
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      showToolbar: false,
+      onError: (error) => errors.push(error),
+    });
+    viewers.push(viewer);
+
+    viewer.dispatch(new Uint8Array());
+    viewer.dispatch(
+      pbDumpBytes(
+        new Quaternion({
+          data: {
+            guid: "quaternion-guid",
+            name: "Quaternion",
+            w: 0.5,
+            x: 0.5,
+            y: 0.5,
+            z: 0.5,
+          },
+        }),
+      ),
+    );
+
+    expect(errors.map((error) => error.code)).toEqual([
+      "decode_error",
+      "unsupported_message",
+    ]);
+    expect(errors.every((error) => error instanceof CompasViewerError)).toBe(
+      true,
+    );
+  });
+
+  it("throws structured errors when no callback handles them", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      showToolbar: false,
+    });
+    viewers.push(viewer);
+
+    expect(() => viewer.dispatch(new Uint8Array())).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "decode_error",
+      }),
+    );
+
+    viewer.dispose();
+    viewers.pop();
+    expect(() => viewer.dispatch(boxBytes("disposed-box"))).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "lifecycle_error",
+      }),
+    );
   });
 
   it("keeps two viewer roots independent", async () => {

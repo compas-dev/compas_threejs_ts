@@ -42,8 +42,7 @@ const handleFileChange = (event: Event) => {
           json_data: jsonContent,
         };
 
-        // 5. Send it across the wire using your existing WebSocket text helper
-        // (Note: We cast to 'any' because your function signature uses Record<string, undefined>)
+        // 5. Send it across the wire using the viewer's WebSocket text helper
         const success = runtime.sendData(payload);
 
         if (success) {

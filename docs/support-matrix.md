@@ -102,9 +102,10 @@ that path must either be implemented and tested or explicitly removed.
 
 - Direct converter calls throw `UnsupportedCompasObjectError` with the detected
   object type and a useful reason.
-- The viewer dispatcher will catch that error at the message boundary, report
-  it through the public error callback, and leave existing viewer state intact.
-- Malformed envelopes and malformed command dictionaries use separate decoding
-  and validation errors.
+- The viewer dispatcher catches that error at the message boundary and reports
+  `unsupported_message` through the public error callback (or throws it when no
+  callback is configured).
+- Malformed envelopes report `decode_error`; malformed known command
+  dictionaries report `invalid_message` before their handlers mutate state.
 - Unsupported data is never silently added, recursively misinterpreted, or
   passed to `THREE.Scene.add`.
