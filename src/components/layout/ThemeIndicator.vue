@@ -19,7 +19,8 @@ const { theme } = useViewerRuntime().store;
 const showThemeIndicator = ref(false);
 const themeIndicatorMode = ref<BackgroundMode>(theme.value);
 
-let themeIndicatorTimer: ReturnType<typeof window.setTimeout> | null = null;
+// `window.setTimeout` returns a DOM handle (number), not a Node.js Timeout.
+let themeIndicatorTimer: number | null = null;
 let isInitialMode = true;
 
 function triggerThemeIndicator(mode: BackgroundMode) {

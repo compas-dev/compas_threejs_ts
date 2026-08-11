@@ -10,7 +10,15 @@ import type {
   SunlightCommand,
 } from "../viewer/viewer_commands";
 
-export function lightToThree(data: LightCommand): THREE.Light {
+/**
+ * Build the Three.js object for a light command.
+ *
+ * The return type is `THREE.Object3D` rather than `THREE.Light` because the
+ * `sky` variant produces a `Sky`, which is a `THREE.Mesh` carrying a sky
+ * shader, not a light source. `ViewerRuntime.manageLight` adds the companion
+ * sun and ambient lights for that case.
+ */
+export function lightToThree(data: LightCommand): THREE.Object3D {
   const lightType = data.type;
 
   switch (lightType) {
@@ -98,44 +106,36 @@ function buildSunlight(data: SunlightCommand): THREE.DirectionalLight {
 
 function buildSky(data: SkyCommand): Sky {
   const sky = new Sky();
-  const sun = new THREE.DirectionalLight(0xffffff, 1.0);
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
 
   sky.scale.setScalar(1000);
-  sky.material.uniforms["up"].value = new THREE.Vector3(0, 0, 1);
-  sky.material.uniforms["turbidity"].value = data.turbidity;
-  sky.material.uniforms["rayleigh"].value = data.rayleigh;
-  sky.material.uniforms["mieCoefficient"].value = data.mie_coefficient;
-  sky.material.uniforms["mieDirectionalG"].value = data.mie_directional_g;
+  setSkyUniform(sky, "up", new THREE.Vector3(0, 0, 1));
+  setSkyUniform(sky, "turbidity", data.turbidity);
+  setSkyUniform(sky, "rayleigh", data.rayleigh);
+  setSkyUniform(sky, "mieCoefficient", data.mie_coefficient);
+  setSkyUniform(sky, "mieDirectionalG", data.mie_directional_g);
 
   const sunPosition = new THREE.Vector3();
   const phi = THREE.MathUtils.degToRad(90 - data.elevation);
   const theta = THREE.MathUtils.degToRad(data.azimuth);
   sunPosition.setFromSphericalCoords(1, phi, theta);
-  sky.material.uniforms["sunPosition"].value = sunPosition;
+  setSkyUniform(sky, "sunPosition", sunPosition);
 
-  sun.position.copy(sky.material.uniforms.sunPosition.value);
-  sun.color.copy(getSunColor(data.elevation));
-
-  ambient.color.copy(getSunColor(data.elevation)).multiplyScalar(0.6);
-
+  // TODO(release 7C): this function used to also build a directional sun and an
+  // ambient light, colored by elevation and positioned at `sunPosition`, then
+  // discard them without returning them. ViewerRuntime.manageLight instead adds
+  // its own hardcoded white lights at the world origin, so `elevation` and
+  // `azimuth` never affect the scene lighting. The dead code was removed here;
+  // reimplementing the intended behavior in manageLight is audit item B3 in the
+  // release plan.
   return sky;
 }
 
-function getSunColor(elevation: number): THREE.Color {
-  if (elevation > 10) return new THREE.Color(0xffffff); // White sun when high
-  if (elevation > 0) {
-    // Transition from yellow to white
-    const t = elevation / 10.0;
-    return new THREE.Color(0xffffcc).lerp(new THREE.Color(0xffffff), t);
+function setSkyUniform(sky: Sky, name: string, value: unknown): void {
+  const uniform = sky.material.uniforms[name];
+  if (!uniform) {
+    throw new Error(`The Three.js Sky shader has no "${name}" uniform`);
   }
-  if (elevation > -5) {
-    // Transition from orange to yellow
-    const t = (elevation + 5) / 5.0;
-    return new THREE.Color(0xffcc66).lerp(new THREE.Color(0xffffcc), t);
-  }
-  // Red sun below the horizon
-  return new THREE.Color(0xffcc66);
+  uniform.value = value;
 }
 
 function buildAmbientLight(data: AmbientLightCommand): THREE.AmbientLight {

@@ -43,7 +43,10 @@ defineProps<{
   active: boolean;
 }>();
 
-const emit = defineEmits<{
+// TODO(release 8A): TransformGroup binds @activated on the move, rotate, and
+// scale buttons, but none of them ever emits it, so setActiveTransform never
+// runs. Tracked as audit item B12 in the release plan.
+defineEmits<{
   (e: "activated"): void;
 }>();
 

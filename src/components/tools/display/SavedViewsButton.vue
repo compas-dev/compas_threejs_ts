@@ -105,7 +105,7 @@ watch(
     }
 
     const hasSelected = views.some((view) => view.id === id);
-    selectedId.value = hasSelected ? id : views[0].id;
+    selectedId.value = hasSelected ? id : (views[0]?.id ?? "");
   },
   { immediate: true },
 );

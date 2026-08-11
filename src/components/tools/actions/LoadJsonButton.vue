@@ -18,9 +18,8 @@ const triggerClick = () => {
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
 
-  if (target.files && target.files.length > 0) {
-    const file = target.files[0];
-
+  const file = target.files?.[0];
+  if (file) {
     // 1. Create a FileReader instance to read the file locally in the browser
     const reader = new FileReader();
 

@@ -28,7 +28,7 @@
           :step="item.props.step"
           :default-value="item.props.defaultValue"
           v-model="item.props.defaultValue"
-          @update:model-value="(value) => handleAction(item.action, value[0])"
+          @update:model-value="(value) => handleAction(item.action, value?.[0])"
           class="w-[80%]"
         />
         <span v-if="item.props.defaultValue" class="slider-value">
@@ -85,10 +85,10 @@
 
       <div v-else-if="item.component === 'Select'" class="select-container">
         <Select
-          :model-value="item.props.defaultValue"
+          :model-value="item.props.defaultValue ?? ''"
           @update:model-value="
             (value) => {
-              item.props.defaultValue = value;
+              item.props.defaultValue = typeof value === 'string' ? value : '';
               handleAction(item.action, value);
             }
           "

@@ -31,7 +31,7 @@ export interface NumberFieldComponent {
   id: number;
   component: "NumberField";
   label?: string;
-  props: { min: number; max: number; step: number; value: number[] };
+  props: { min: number; max: number; step: number; value: number };
   action: string;
 }
 

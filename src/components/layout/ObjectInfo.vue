@@ -35,7 +35,7 @@
         </h1>
         <div
           v-for="action in objectActionsState"
-          :key="action"
+          :key="action.guid"
           class="single_data"
         >
           <Button
@@ -49,10 +49,12 @@
 
           <Select
             v-else-if="action.type === 'select'"
-            :model-value="action.defaultValue"
+            :model-value="
+              typeof action.defaultValue === 'string' ? action.defaultValue : ''
+            "
             @update:model-value="
               (value) => {
-                action.defaultValue = value;
+                action.defaultValue = typeof value === 'string' ? value : '';
                 handleObjectAction(action, value);
               }
             "
@@ -97,9 +99,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -111,18 +112,13 @@ import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
 import { ArrowBigLeftDash, ArrowBigRightDash } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
+import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
 const { objectActionsState, objectBarData, blockPicker, theme } = runtime.store;
-const handleObjectAction = (action, value) =>
-  runtime.handleObjectAction(action, value);
-const infoPanel = ref(null);
-
-const geoInformation = objectBarData.data
-  ? Object.fromEntries(
-      Object.entries(objectBarData.data).filter(([key]) => key !== "dispatch"),
-    )
-  : {};
+const handleObjectAction = (action: ObjectAction, value?: unknown) =>
+  runtime.handleObjectAction({ ...action }, value);
+const infoPanel = ref<HTMLElement | null>(null);
 
 const { isHovered } = useHover(infoPanel);
 

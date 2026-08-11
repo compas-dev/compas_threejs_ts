@@ -35,5 +35,8 @@ export function asCompasViewerError(
   details?: Readonly<Record<string, unknown>>,
 ): CompasViewerError {
   if (error instanceof CompasViewerError) return error;
-  return new CompasViewerError(code, message, { cause: error, details });
+  return new CompasViewerError(code, message, {
+    cause: error,
+    ...(details === undefined ? {} : { details }),
+  });
 }

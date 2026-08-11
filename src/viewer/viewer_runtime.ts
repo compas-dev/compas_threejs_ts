@@ -173,7 +173,7 @@ export class ViewerRuntime {
 
     this.connection = new ViewerConnection({
       ...options.websocket,
-      send: options.send,
+      ...(options.send === undefined ? {} : { send: options.send }),
       dispatch: (message) => this.dispatch(message),
       onError: (error) =>
         this.reportAsyncError(
@@ -559,60 +559,67 @@ export class ViewerRuntime {
       ...(data.label === undefined ? {} : { label: data.label }),
     };
     let component: DynamicComponent;
-    if (data.type === "button" || data.type === "load_json_button") {
-      component = {
-        ...common,
-        component: data.type === "button" ? "Button" : "LoadJsonButton",
-        props: {
-          text: data.text,
-          variant: data.variant,
-        },
-      };
-    } else if (data.type === "slider") {
-      component = {
-        ...common,
-        component: "Slider",
-        props: {
-          min: data.min,
-          max: data.max,
-          step: data.step,
-          defaultValue: [data.default_value],
-        },
-      };
-    } else if (data.type === "number_field") {
-      component = {
-        ...common,
-        component: "NumberField",
-        props: {
-          min: data.min,
-          max: data.max,
-          step: data.step,
-          value: [data.value],
-        },
-      };
-    } else if (data.type === "checkbox") {
-      component = {
-        ...common,
-        component: "Checkbox",
-        props: {
-          text: data.text,
-          defaultValue: data.default_value,
-        },
-      };
-    } else {
-      component = {
-        ...common,
-        component: "Select",
-        props: {
-          options: data.options,
-          ...(data.placeholder === undefined
-            ? {}
-            : { placeholder: data.placeholder }),
-          ...(data.default_value === undefined
-            ? {}
-            : { defaultValue: data.default_value }),
-        },
-      };
+    switch (data.type) {
+      case "button":
+      case "load_json_button":
+        component = {
+          ...common,
+          component: data.type === "button" ? "Button" : "LoadJsonButton",
+          props: {
+            text: data.text,
+            variant: data.variant,
+          },
+        };
+        break;
+      case "slider":
+        component = {
+          ...common,
+          component: "Slider",
+          props: {
+            min: data.min,
+            max: data.max,
+            step: data.step,
+            defaultValue: [data.default_value],
+          },
+        };
+        break;
+      case "number_field":
+        component = {
+          ...common,
+          component: "NumberField",
+          props: {
+            min: data.min,
+            max: data.max,
+            step: data.step,
+            value: data.value,
+          },
+        };
+        break;
+      case "checkbox":
+        component = {
+          ...common,
+          component: "Checkbox",
+          props: {
+            text: data.text,
+            defaultValue: data.default_value,
+          },
+        };
+        break;
+      case "select":
+        component = {
+          ...common,
+          component: "Select",
+          props: {
+            options: data.options,
+            ...(data.placeholder === undefined
+              ? {}
+              : { placeholder: data.placeholder }),
+            ...(data.default_value === undefined
+              ? {}
+              : { defaultValue: data.default_value }),
+          },
+        };
+        break;
     }
     this.store.sidebarComponents.push(component);
     this.store.sideBarInfoState.isVisible = true;
@@ -860,15 +867,18 @@ export class ViewerRuntime {
 
   private addDefaultLighting(): void {
     if (this.defaultLights.length) return;
-    const lights = [
-      new THREE.DirectionalLight(0xffffff, 1),
-      new THREE.DirectionalLight(0xffffff, 0.5),
-      new THREE.DirectionalLight(0xffffff, 0.5),
+    const key = new THREE.DirectionalLight(0xffffff, 1);
+    key.position.set(30, -10, 30);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+    fill.position.set(-30, -20, 30);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+    rim.position.set(-30, 20, 10);
+    const lights: THREE.Light[] = [
+      key,
+      fill,
+      rim,
       new THREE.AmbientLight(0xffffff, 0.5),
     ];
-    lights[0].position.set(30, -10, 30);
-    lights[1].position.set(-30, -20, 30);
-    lights[2].position.set(-30, 20, 10);
     lights.forEach((light) => this.scene.add(light));
     this.defaultLights.push(...lights);
   }
@@ -955,8 +965,7 @@ export class ViewerRuntime {
   }
 
   private withoutDispatch(data: ObjectInfosCommand): Record<string, unknown> {
-    const rest = { ...data };
-    delete rest.dispatch;
+    const { dispatch: _dispatch, ...rest } = data;
     return rest;
   }
 
