@@ -28,16 +28,24 @@
   </head>
 
   <body>
-    <div id="viewer"></div>
+    <div id="viewer" aria-label="3D viewer"></div>
 
     <script type="module">
       import { createViewer } from "../dist-lib/index.js";
       import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
 
-      const viewer = createViewer(document.querySelector("#viewer"), {
+      const container = document.querySelector("#viewer");
+      if (!(container instanceof HTMLElement)) {
+        throw new Error("Viewer container was not found");
+      }
+
+      const viewer = createViewer(container, {
         mode: "embedded",
         defaultLighting: true,
         showToolbar: false,
+        onError(error) {
+          console.error(error.code, error.message, error.details);
+        },
       });
 
       const box = new Box({
@@ -46,16 +54,19 @@
           name: "Box",
           frame: {
             point: { x: 0, y: 0, z: 0 },
-            xaxis: { x: 2, y: 0, z: 0 },
+            xaxis: { x: 1, y: 0, z: 0 },
             yaxis: { x: 0, y: 1, z: 0 },
           },
-          xsize: 1,
-          ysize: 10,
+          xsize: 3,
+          ysize: 3,
           zsize: 1,
         },
       });
 
       viewer.dispatch(pbDumpBytes(box));
+      window.addEventListener("pagehide", () => viewer.dispose(), {
+        once: true,
+      });
     </script>
   </body>
 </html>
