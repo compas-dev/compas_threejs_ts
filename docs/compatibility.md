@@ -8,6 +8,9 @@ release of `@gramaziokohler/compas-threejs`.
 - The npm package is ESM-only: JavaScript consumers use standard `import` and
   `export` syntax. We will not publish a separate CommonJS build for `require()`.
   This does not affect Python users of the bundled static application.
+- Three.js is a peer dependency so applications and the viewer share one
+  Three.js runtime. Vue is an internal runtime dependency and is not exposed by
+  the public API.
 - Rendering is browser-only and requires WebGL 2.
 - Importing the library must remain safe in non-browser tooling and must not
   access the DOM until a viewer is explicitly created.
@@ -58,8 +61,8 @@ The 1.0 package will expose:
 - An explicit stylesheet entry.
 - A standalone static application build for the Python package.
 
-The prototype `window.compasViewer` integration is not public API and will be
-removed when its VS Code consumer migrates to the instance-based ESM API.
+The prototype `window.compasViewer` integration has been removed. Embedded
+consumers, including the VS Code extension, use `createViewer` directly.
 
 Internal source paths are not public API. Consumers must not depend on `src`,
 hashed build internals, or unlisted package subpaths.
