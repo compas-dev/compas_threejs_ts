@@ -42,16 +42,17 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && npm run build:app && npm run build:library",
+    "build": "npm run typecheck && npm run build:app && npm run build:library",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json && vue-tsc --noEmit -p tsconfig.core.json && vue-tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.node.json",
     "build:app": "vite build",
     "build:library": "vite build --config vite.config.library.ts && node scripts/copy-library-types.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,vue,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,vue,json}\""
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "vue": "^3.5.41"
@@ -65,12 +66,14 @@
     "@gramaziokohler/compas-pb-ts": "^2.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
+    "@types/three": "^0.182.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vueuse/core": "^14.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.10.0",
     "happy-dom": "^20.11.2",
     "lucide-vue-next": "^0.563.0",
     "prettier": "^3.9.6",
