@@ -1,0 +1,20 @@
+{
+  // The first-party, non-Vue core of the library: everything that the public
+  // API contract depends on. It is checked with every strict option, including
+  // `exactOptionalPropertyTypes`, which the vendored UI primitives cannot
+  // satisfy. Keep this include list free of modules that import `.vue` files.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.core.tsbuildinfo",
+    "exactOptionalPropertyTypes": true
+  },
+  "include": [
+    "src/communications/**/*.ts",
+    "src/composables/**/*.ts",
+    "src/conversions/**/*.ts",
+    "src/library/errors.ts",
+    "src/library/types.ts",
+    "src/library/public.d.ts",
+    "src/viewer/**/*.ts"
+  ]
+}

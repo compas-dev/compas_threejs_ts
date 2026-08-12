@@ -9,9 +9,15 @@ npm run dev
 
 The viewer connects to `ws://127.0.0.1:9001/ws?workspace=main` by default. The host, port, and workspace can be changed with the `ws_host`, `ws_port`, and `workspace` URL parameters.
 
-## Embed the built viewer and dispatch a box
+See the [compatibility policy](docs/compatibility.md) and
+[COMPAS support matrix](docs/support-matrix.md) for the public 1.0 contract and
+current implementation status.
 
-The generated JavaScript entry exposes the frontend's existing message dispatcher as `window.compasViewer.dispatch`. The standalone example uses the published `@gramaziokohler/compas-pb-ts` 2.x package to create, serialize, and dispatch a box:
+## Use the library build
+
+The public API creates an explicit viewer instance in a container. Importing the
+package does not mount anything or access the DOM; browser work starts when
+`createViewer` is called.
 
 ```bash
 npm install
@@ -25,17 +31,25 @@ Then open:
 http://localhost:8765/examples/embedded_box.html
 ```
 
-See `examples/embedded_box.html` for the complete example. Its essential code is:
+See `examples/embedded_box.html` for the complete local-build example. Its
+essential code is:
 
-```js
+```ts
+import { createViewer } from "@gramaziokohler/compas-threejs";
+import "@gramaziokohler/compas-threejs/style.css";
 import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
 
-window.compasViewer = {
+const viewer = createViewer(document.querySelector<HTMLElement>("#viewer")!, {
   mode: "embedded",
   defaultLighting: true,
   showToolbar: false,
-};
-await import("../dist/assets/index.js");
+  send(message) {
+    hostTransport.postMessage(message);
+  },
+  onError(error) {
+    console.error(error.code, error.message, error.details);
+  },
+});
 
 const box = new Box({
   data: {
@@ -43,19 +57,24 @@ const box = new Box({
   },
 });
 
-window.compasViewer.dispatch(pbDumpBytes(box));
+viewer.dispatch(pbDumpBytes(box));
+
+// Later:
+viewer.reset();
+viewer.resize();
+viewer.dispose();
 ```
 
-Set the mode before importing the viewer bundle. In `embedded` mode the viewer
-does not create or retry a WebSocket connection. Without this setting, it keeps
-the normal `websocket` behavior. The bundle adds `dispatch` to that same
-`compasViewer` object when it loads. Set `defaultLighting` to add the viewer's
-standalone lighting rig; geometries without a material use its standard COMPAS
-blue material.
+`embedded` is the default mode and does not open or retry a WebSocket. The optional
+`send` callback receives picker and UI messages. `defaultLighting` adds the
+standalone lighting rig, and `showToolbar` controls the built-in toolbar.
 
-Set `showToolbar` to `false` before importing the bundle to hide the tool
-palette. It defaults to `true`, preserving the standalone and WebSocket viewer
-behavior.
+`onError` receives a `CompasViewerError` with a stable `code` and optional
+`details`. Synchronous dispatch and lifecycle errors are thrown when no callback
+is provided. Asynchronous connection and asset-loading errors are reported to
+the callback, or to the console when no callback is configured. The current
+codes are `decode_error`, `invalid_message`, `unsupported_message`,
+`connection_error`, `lifecycle_error`, and `render_error`.
 
 `pbDumpBytes` is the TypeScript equivalent of Python's `compas_pb.pb_dump_bts`: it adds the complete COMPAS-Protobuf message envelope around any supported wrapper object.
 
@@ -64,17 +83,7 @@ and dictionaries are materialized recursively as plain JavaScript arrays and
 objects before dispatch. The npm package major and wire-format version are
 independent: `compas-pb-ts` 2.x still targets the `compas_pb` 1.x wire format.
 
-Embedded hosts can call `window.compasViewer.reset()` before replacing a scene.
 The dispatcher also walks protobuf lists and dictionaries recursively, rendering
-the supported geometry objects they contain. To receive picker and UI messages
-without a WebSocket, provide a host callback before importing the bundle:
-
-```js
-window.compasViewer = {
-  mode: "embedded",
-  send(message) {
-    hostTransport.postMessage(message);
-    return true;
-  },
-};
-```
+the supported geometry objects they contain. In `websocket` mode the standalone
+app reads `ws_host`, `ws_port`, and `workspace` from the URL, preserving the
+Python package integration.

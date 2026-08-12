@@ -1,13 +1,13 @@
 import * as THREE from "three";
+import type {
+  LineMaterialCommand,
+  MaterialCommand,
+  PhysicalMaterialCommand,
+  PointMaterialCommand,
+  StandardMaterialCommand,
+} from "../viewer/viewer_commands";
 
-interface MaterialData extends Record<string, unknown> {
-  type: string ;
-  color:  string ;
-}
-
-export function materialToThree(
-  materialData: MaterialData,
-): THREE.Material | null {
+export function materialToThree(materialData: MaterialCommand): THREE.Material {
   const materialType = materialData.type;
 
   switch (materialType) {
@@ -19,9 +19,6 @@ export function materialToThree(
       return buildPointsMaterial(materialData);
     case "physical_material":
       return buildPhysicalMaterial(materialData);
-    default:
-      console.warn(`Unknown material type: ${materialType}`);
-      return null;
   }
 }
 
@@ -31,18 +28,8 @@ function parseColor(colorString: string): number {
 }
 
 function buildStandardMaterial(
-  data: MaterialData & {
-    metalness: number;
-    roughness: number;
-    emissive: string;
-    emissive_intensity: number;
-    flat_shading: boolean;
-    wireframe: boolean;
-    transparent: boolean;
-    opacity: number;
-  },
+  data: StandardMaterialCommand,
 ): THREE.MeshStandardMaterial {
-  console.log("Building standard material with data:", data);
   const material = new THREE.MeshStandardMaterial({
     color: parseColor(data.color),
     metalness: data.metalness,
@@ -58,18 +45,14 @@ function buildStandardMaterial(
   return material;
 }
 
-function buildLineMaterial(data: MaterialData): THREE.LineBasicMaterial {
+function buildLineMaterial(data: LineMaterialCommand): THREE.LineBasicMaterial {
   const material = new THREE.LineBasicMaterial({
     color: parseColor(data.color),
   });
   return material;
 }
 
-function buildPointsMaterial(
-  data: MaterialData & {
-    size: number;
-  },
-): THREE.PointsMaterial {
+function buildPointsMaterial(data: PointMaterialCommand): THREE.PointsMaterial {
   const material = new THREE.PointsMaterial({
     color: parseColor(data.color),
     size: data.size,
@@ -78,35 +61,7 @@ function buildPointsMaterial(
 }
 
 function buildPhysicalMaterial(
-  data: MaterialData & {
-    metalness: number;
-    roughness: number;
-    emissive: string;
-    emissive_intensity: number;
-    flat_shading: boolean;
-    wireframe: boolean;
-    anisotropy: number;
-    anisotropy_rotation: number;
-    attenuation_color: string;
-    attenuation_distance: number;
-    clearcoat: number;
-    clearcoat_roughness: number;
-    dispersion: number;
-    ior: number;
-    iridescence: number;
-    iridescence_ior: number;
-    iridescence_thickness_start: number;
-    iridescence_thickness_end: number;
-    reflectivity: number;
-    sheen: number;
-    sheen_color: string;
-    sheenRoughness: number;
-    sheen_roughness: number;
-    specular_color: string;
-    specular_intensity: number;
-    thickness: number;
-    transmission: number;
-  },
+  data: PhysicalMaterialCommand,
 ): THREE.MeshPhysicalMaterial {
   const material = new THREE.MeshPhysicalMaterial({
     color: parseColor(data.color),

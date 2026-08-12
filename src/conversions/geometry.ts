@@ -1,32 +1,32 @@
 import {
-    Arc,
-    Bezier,
-    Box,
-    Capsule,
-    Circle,
-    Cone,
-    Cylinder,
-    Ellipse,
-    Frame,
-    Hyperbola,
-    Line,
-    Parabola,
-    Plane,
-    Point,
-    Pointcloud,
-    Polygon,
-    Polyline,
-    Projection,
-    Quaternion,
-    Reflection,
-    Rotation,
-    Scale,
-    Shear,
-    Sphere,
-    Torus,
-    Transformation,
-    Translation,
-    Vector,
+  Arc,
+  Bezier,
+  Box,
+  Capsule,
+  Circle,
+  Cone,
+  Cylinder,
+  Ellipse,
+  Frame,
+  Hyperbola,
+  Line,
+  Parabola,
+  Plane,
+  Point,
+  Pointcloud,
+  Polygon,
+  Polyline,
+  Projection,
+  Quaternion,
+  Reflection,
+  Rotation,
+  Scale,
+  Shear,
+  Sphere,
+  Torus,
+  Transformation,
+  Translation,
+  Vector,
 } from "@gramaziokohler/compas-pb-ts";
 
 import * as THREE from "three";
@@ -44,15 +44,86 @@ import * as THREE from "three";
  *          space into world coordinates
  */
 function buildTransformationFromFrame(frame: Frame): THREE.Matrix4 {
-    const position = new THREE.Vector3(frame.point!.x, frame.point!.y, frame.point!.z);
-    const xaxis = new THREE.Vector3(frame.xaxis!.x, frame.xaxis!.y, frame.xaxis!.z);
-    const yaxis = new THREE.Vector3(frame.yaxis!.x, frame.yaxis!.y, frame.yaxis!.z);
-    const zaxis = new THREE.Vector3().crossVectors(xaxis, yaxis);
+  const position = new THREE.Vector3(
+    frame.point!.x,
+    frame.point!.y,
+    frame.point!.z,
+  );
+  const xaxis = new THREE.Vector3(
+    frame.xaxis!.x,
+    frame.xaxis!.y,
+    frame.xaxis!.z,
+  );
+  const yaxis = new THREE.Vector3(
+    frame.yaxis!.x,
+    frame.yaxis!.y,
+    frame.yaxis!.z,
+  );
+  const zaxis = new THREE.Vector3().crossVectors(xaxis, yaxis);
 
-    const matrix = new THREE.Matrix4();
-    matrix.makeBasis(xaxis, yaxis, zaxis);
-    matrix.setPosition(position);
-    return matrix;
+  const matrix = new THREE.Matrix4();
+  matrix.makeBasis(xaxis, yaxis, zaxis);
+  matrix.setPosition(position);
+  return matrix;
+}
+
+/**
+ * Build a THREE.Matrix4 from a COMPAS flat 16-element matrix.
+ *
+ * This replaces five byte-identical copies of the same conversion. It
+ * reproduces their exact element ordering, which transposes the input:
+ * `THREE.Matrix4.set` takes its arguments in row-major order, and these
+ * conversions feed it the input's columns.
+ *
+ * TODO(release 7B): confirm the intended ordering against a Python-generated
+ * `Transformation` fixture before any of these values becomes a public
+ * conversion utility. All callers are currently rejected as non-renderable by
+ * `convertToThreeJSGeometry`, so the ordering is unreachable from the viewer.
+ *
+ * @param elements - flat 16-element COMPAS matrix
+ * @returns A THREE.Matrix4 built with the historical element ordering
+ * @throws Error when the matrix does not contain exactly 16 finite numbers
+ */
+function matrixFromElements(elements: readonly number[]): THREE.Matrix4 {
+  if (elements.length !== 16) {
+    throw new Error(
+      `A COMPAS transformation matrix must have 16 elements, received ${elements.length}`,
+    );
+  }
+  elements.forEach((value, index) => {
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        `A COMPAS transformation matrix must contain finite numbers, element ${index} is ${value}`,
+      );
+    }
+  });
+
+  const at = (index: number): number => elements[index] as number;
+  const matrix = new THREE.Matrix4();
+  // prettier-ignore
+  matrix.set(
+        at(0), at(4), at(8), at(12),
+        at(1), at(5), at(9), at(13),
+        at(2), at(6), at(10), at(14),
+        at(3), at(7), at(11), at(15),
+    );
+  return matrix;
+}
+
+/**
+ * Read a COMPAS point list into a flat Float32Array of positions.
+ *
+ * @param points - ordered COMPAS points
+ * @returns Flat `[x, y, z, ...]` positions suitable for a BufferAttribute
+ */
+function positionsFromPoints(points: readonly Point[]): Float32Array {
+  const positions = new Float32Array(points.length * 3);
+  points.forEach((point, index) => {
+    positions[index * 3] = point.x;
+    positions[index * 3 + 1] = point.y;
+    positions[index * 3 + 2] = point.z;
+  });
+  return positions;
 }
 
 /**
@@ -66,7 +137,7 @@ function buildTransformationFromFrame(frame: Frame): THREE.Matrix4 {
  * @returns A THREE object representing the arc (Line or Mesh)
  */
 export function arcToThreeJS(_arc: Arc) {
-    throw new Error("Method not implemented.");
+  throw new Error("Method not implemented.");
 }
 
 /**
@@ -81,7 +152,7 @@ export function arcToThreeJS(_arc: Arc) {
  * @returns A THREE object representing the Bezier curve
  */
 export function bezierToThreeJS(_bezier: Bezier) {
-    throw new Error("Method not implemented.");
+  throw new Error("Method not implemented.");
 }
 
 /**
@@ -95,14 +166,14 @@ export function bezierToThreeJS(_bezier: Bezier) {
  * @returns A THREE.Mesh containing a BoxGeometry transformed into world space
  */
 export function boxToThreeJS(box: Box) {
-    // geometry of the box
-    const box_geometry = new THREE.BoxGeometry(box.xsize, box.ysize, box.zsize);
-    // create transformation matrix from the frame
-    const matrix = buildTransformationFromFrame(box.frame!);
-    const boxMesh = new THREE.Mesh(box_geometry);
-    // apply the matrix to the geometry
-    boxMesh.applyMatrix4(matrix);
-    return boxMesh;
+  // geometry of the box
+  const box_geometry = new THREE.BoxGeometry(box.xsize, box.ysize, box.zsize);
+  // create transformation matrix from the frame
+  const matrix = buildTransformationFromFrame(box.frame!);
+  const boxMesh = new THREE.Mesh(box_geometry);
+  // apply the matrix to the geometry
+  boxMesh.applyMatrix4(matrix);
+  return boxMesh;
 }
 
 /**
@@ -116,17 +187,21 @@ export function boxToThreeJS(box: Box) {
  * @param radialSegments - number of radial segments around the capsule
  * @returns A THREE.Mesh representing the capsule
  */
-export function capsuleToThreeJS(capsule: Capsule, capSegments: number, radialSegments: number) {
-    const capsuleGeometry = new THREE.CapsuleGeometry(
-        capsule.radius,
-        capsule.height,
-        capSegments,
-        radialSegments
-    );
-    const capsuleMesh = new THREE.Mesh(capsuleGeometry);
-    const transformationMatrix = buildTransformationFromFrame(capsule.frame!);
-    capsuleMesh.applyMatrix4(transformationMatrix);
-    return capsuleMesh;
+export function capsuleToThreeJS(
+  capsule: Capsule,
+  capSegments: number,
+  radialSegments: number,
+) {
+  const capsuleGeometry = new THREE.CapsuleGeometry(
+    capsule.radius,
+    capsule.height,
+    capSegments,
+    radialSegments,
+  );
+  const capsuleMesh = new THREE.Mesh(capsuleGeometry);
+  const transformationMatrix = buildTransformationFromFrame(capsule.frame!);
+  capsuleMesh.applyMatrix4(transformationMatrix);
+  return capsuleMesh;
 }
 
 /**
@@ -140,12 +215,15 @@ export function capsuleToThreeJS(capsule: Capsule, capSegments: number, radialSe
  * @returns A THREE.Mesh representing the circle in world space
  */
 export function circleToThreeJS(circle: Circle, radialSegments: number) {
-    const circleGeometry = new THREE.CircleGeometry(circle.radius, radialSegments);
-    const matrix = buildTransformationFromFrame(circle.frame!);
+  const circleGeometry = new THREE.CircleGeometry(
+    circle.radius,
+    radialSegments,
+  );
+  const matrix = buildTransformationFromFrame(circle.frame!);
 
-    const circleMesh = new THREE.Mesh(circleGeometry);
-    circleMesh.applyMatrix4(matrix);
-    return circleMesh;
+  const circleMesh = new THREE.Mesh(circleGeometry);
+  circleMesh.applyMatrix4(matrix);
+  return circleMesh;
 }
 
 /**
@@ -159,11 +237,15 @@ export function circleToThreeJS(circle: Circle, radialSegments: number) {
  * @returns A THREE.Mesh representing the cone
  */
 export function coneToThreeJS(cone: Cone, radialSegments: number) {
-    const coneGeometry = new THREE.ConeGeometry(cone.radius, cone.height, radialSegments);
-    const coneMesh = new THREE.Mesh(coneGeometry);
-    const transformationMatrix = buildTransformationFromFrame(cone.frame!);
-    coneMesh.applyMatrix4(transformationMatrix);
-    return coneMesh;
+  const coneGeometry = new THREE.ConeGeometry(
+    cone.radius,
+    cone.height,
+    radialSegments,
+  );
+  const coneMesh = new THREE.Mesh(coneGeometry);
+  const transformationMatrix = buildTransformationFromFrame(cone.frame!);
+  coneMesh.applyMatrix4(transformationMatrix);
+  return coneMesh;
 }
 
 /**
@@ -178,17 +260,17 @@ export function coneToThreeJS(cone: Cone, radialSegments: number) {
  * @returns A THREE.Mesh representing the cylinder
  */
 export function cylinderToThreeJS(cylinder: Cylinder, radialSegments: number) {
-    const cylinder_geometry = new THREE.CylinderGeometry(
-        cylinder.radius,
-        cylinder.radius,
-        cylinder.height,
-        radialSegments
-    );
-    const cylinderMesh = new THREE.Mesh(cylinder_geometry);
-    // transform geometry to the correct position
-    const transform = buildTransformationFromFrame(cylinder.frame);
-    cylinderMesh.applyMatrix4(transform);
-    return cylinderMesh;
+  const cylinder_geometry = new THREE.CylinderGeometry(
+    cylinder.radius,
+    cylinder.radius,
+    cylinder.height,
+    radialSegments,
+  );
+  const cylinderMesh = new THREE.Mesh(cylinder_geometry);
+  // transform geometry to the correct position
+  const transform = buildTransformationFromFrame(cylinder.frame);
+  cylinderMesh.applyMatrix4(transform);
+  return cylinderMesh;
 }
 
 /**
@@ -203,7 +285,7 @@ export function cylinderToThreeJS(cylinder: Cylinder, radialSegments: number) {
  * @returns A THREE object representing the ellipse
  */
 export function ellipseToThreeJS(_ellipse: Ellipse, _radialSegments: number) {
-    throw Error("Method not implemented.");
+  throw Error("Method not implemented.");
 }
 
 /**
@@ -216,16 +298,16 @@ export function ellipseToThreeJS(_ellipse: Ellipse, _radialSegments: number) {
  * @returns THREE.AxesHelper placed at the frame's origin and orientation
  */
 export function frameToThreeJS(frame: Frame): THREE.AxesHelper {
-    const axesHelper = new THREE.AxesHelper(1);
-    axesHelper.setColors(
-        new THREE.Color(0xff0000),
-        new THREE.Color(0x00ff00),
-        new THREE.Color(0x0000ff)
-    );
-    const transformationMatrix = buildTransformationFromFrame(frame);
-    axesHelper.applyMatrix4(transformationMatrix);
+  const axesHelper = new THREE.AxesHelper(1);
+  axesHelper.setColors(
+    new THREE.Color(0xff0000),
+    new THREE.Color(0x00ff00),
+    new THREE.Color(0x0000ff),
+  );
+  const transformationMatrix = buildTransformationFromFrame(frame);
+  axesHelper.applyMatrix4(transformationMatrix);
 
-    return axesHelper;
+  return axesHelper;
 }
 
 /**
@@ -239,7 +321,7 @@ export function frameToThreeJS(frame: Frame): THREE.AxesHelper {
  * @returns A THREE.Line representing the hyperbola
  */
 export function hyperbolaToThreeJS(_hyperbola: Hyperbola): THREE.Line {
-    throw Error("Method not implemented.");
+  throw Error("Method not implemented.");
 }
 
 /**
@@ -251,12 +333,19 @@ export function hyperbolaToThreeJS(_hyperbola: Hyperbola): THREE.Line {
  * @param line - COMPAS Line protobuf object with `start` and `end` points
  * @returns THREE.Line for rendering the line segment
  */
-export function lineToThreeJS(line: Line): THREE.Mesh {
-    const start_point = new THREE.Vector3(line.start!.x, line.start!.y, line.start!.z);
-    const end_point = new THREE.Vector3(line.end!.x, line.end!.y, line.end!.z);
-    const geometry = new THREE.BufferGeometry().setFromPoints([start_point, end_point]);
-    const material = new THREE.LineBasicMaterial({ color: 0x0000ff });
-    return new THREE.Line(geometry, material);
+export function lineToThreeJS(line: Line): THREE.Line {
+  const start_point = new THREE.Vector3(
+    line.start!.x,
+    line.start!.y,
+    line.start!.z,
+  );
+  const end_point = new THREE.Vector3(line.end!.x, line.end!.y, line.end!.z);
+  const geometry = new THREE.BufferGeometry().setFromPoints([
+    start_point,
+    end_point,
+  ]);
+  const material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+  return new THREE.Line(geometry, material);
 }
 
 /**
@@ -269,7 +358,7 @@ export function lineToThreeJS(line: Line): THREE.Mesh {
  * @returns A THREE.Line representing the parabola
  */
 export function parabolaToThreeJS(_parabola: Parabola): THREE.Line {
-    throw Error("Method not implemented.");
+  throw Error("Method not implemented.");
 }
 
 /**
@@ -282,19 +371,25 @@ export function parabolaToThreeJS(_parabola: Parabola): THREE.Line {
  * @returns THREE.PlaneHelper visualizing the plane
  */
 export function planeToThreeJS(plane: Plane): THREE.Mesh {
-
-    const point = new THREE.Vector3(plane.point.x, plane.point.y, plane.point.z)
-    const normal = new THREE.Vector3(plane.normal.x, plane.normal.y, plane.normal.z)
-    const planeGeometry = new THREE.PlaneGeometry(1, 1);
-    const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
-    const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
-    // Position at point
-    planeMesh.position.copy(point);
-    // Orient the plane so its normal matches your normal
-    const quaternion = new THREE.Quaternion();
-    quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-    planeMesh.quaternion.copy(quaternion);
-    return planeMesh
+  const point = new THREE.Vector3(plane.point.x, plane.point.y, plane.point.z);
+  const normal = new THREE.Vector3(
+    plane.normal.x,
+    plane.normal.y,
+    plane.normal.z,
+  );
+  const planeGeometry = new THREE.PlaneGeometry(1, 1);
+  const planeMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff00ff,
+    side: THREE.DoubleSide,
+  });
+  const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+  // Position at point
+  planeMesh.position.copy(point);
+  // Orient the plane so its normal matches your normal
+  const quaternion = new THREE.Quaternion();
+  quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+  planeMesh.quaternion.copy(quaternion);
+  return planeMesh;
 }
 
 /**
@@ -306,11 +401,11 @@ export function planeToThreeJS(plane: Plane): THREE.Mesh {
  * @returns THREE.Points containing a single point
  */
 export function pointToThreeJS(point: Point): THREE.Points {
-    const geometry = new THREE.BufferGeometry();
-    const vertices = new Float32Array([point.x, point.y, point.z]);
-    geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
-    const material = new THREE.PointsMaterial({ size: 0.2, color: 0x0000ff });
-    return new THREE.Points(geometry, material);
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([point.x, point.y, point.z]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  const material = new THREE.PointsMaterial({ size: 0.2, color: 0x0000ff });
+  return new THREE.Points(geometry, material);
 }
 
 /**
@@ -323,17 +418,12 @@ export function pointToThreeJS(point: Point): THREE.Points {
  * @returns THREE.Points containing the pointcloud
  */
 export function pointcloudToThreeJS(pointcloud: Pointcloud): THREE.Points {
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(pointcloud.points.length * 3);
-    for (let i = 0; i < pointcloud.points.length; i++) {
-        positions[i * 3] = pointcloud.points[i].x;
-        positions[i * 3 + 1] = pointcloud.points[i].y;
-        positions[i * 3 + 2] = pointcloud.points[i].z;
-    }
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.PointsMaterial({ size: 0.2, color: 0xff00ff });
-    const points = new THREE.Points(geometry, material);
-    return points;
+  const geometry = new THREE.BufferGeometry();
+  const positions = positionsFromPoints(pointcloud.points);
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.PointsMaterial({ size: 0.2, color: 0xff00ff });
+  const points = new THREE.Points(geometry, material);
+  return points;
 }
 
 /**
@@ -348,7 +438,7 @@ export function pointcloudToThreeJS(pointcloud: Pointcloud): THREE.Points {
  * @returns THREE.Mesh representing the filled polygon
  */
 export function polygonToThreeJS(_polygon: Polygon): THREE.Mesh {
-    throw new Error("Not implemented");
+  throw new Error("Not implemented");
 }
 
 /**
@@ -361,17 +451,12 @@ export function polygonToThreeJS(_polygon: Polygon): THREE.Mesh {
  * @returns THREE.Line representing the polyline
  */
 export function polylineToThreeJS(polyline: Polyline): THREE.Line {
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(polyline.points.length * 3);
-    for (let i = 0; i < polyline.points.length; i++) {
-        positions[i * 3] = polyline.points[i].x;
-        positions[i * 3 + 1] = polyline.points[i].y;
-        positions[i * 3 + 2] = polyline.points[i].z;
-    }
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.LineBasicMaterial({ color: 0x000000 });
-    const line = new THREE.Line(geometry, material);
-    return line;
+  const geometry = new THREE.BufferGeometry();
+  const positions = positionsFromPoints(polyline.points);
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({ color: 0x000000 });
+  const line = new THREE.Line(geometry, material);
+  return line;
 }
 
 /**
@@ -386,29 +471,7 @@ export function polylineToThreeJS(polyline: Polyline): THREE.Line {
  * @returns THREE.Matrix4 with the projection matrix
  */
 export function projectionToThreeJS(projection: Projection): THREE.Matrix4 {
-    const elements = projection.matrix;
-    const matrix = new THREE.Matrix4();
-    // prettier-ignore
-    matrix.set(
-      elements[0],
-      elements[4],
-      elements[8],
-      elements[12],
-      elements[1],
-      elements[5],
-      elements[9],
-      elements[13],
-      elements[2],
-      elements[6],
-      elements[10],
-      elements[14],
-      elements[3],
-      elements[7],
-      elements[11],
-      elements[15],
-    );
-
-    return matrix;
+  return matrixFromElements(projection.matrix);
 }
 
 /**
@@ -422,7 +485,7 @@ export function projectionToThreeJS(projection: Projection): THREE.Matrix4 {
  * @returns THREE.Quaternion corresponding to the COMPAS quaternion
  */
 export function quaternionToThreeJS(_quaternion: Quaternion): THREE.Quaternion {
-    throw new Error("Not implemented");
+  throw new Error("Not implemented");
 }
 
 /**
@@ -436,29 +499,7 @@ export function quaternionToThreeJS(_quaternion: Quaternion): THREE.Quaternion {
  * @returns THREE.Matrix4 representing the reflection transform
  */
 export function reflectionToThreeJS(reflection: Reflection): THREE.Matrix4 {
-    const elements = reflection.matrix;
-    const matrix = new THREE.Matrix4();
-    // prettier-ignore
-    matrix.set(
-      elements[0],
-      elements[4],
-      elements[8],
-      elements[12],
-      elements[1],
-      elements[5],
-      elements[9],
-      elements[13],
-      elements[2],
-      elements[6],
-      elements[10],
-      elements[14],
-      elements[3],
-      elements[7],
-      elements[11],
-      elements[15],
-    );
-
-    return matrix;
+  return matrixFromElements(reflection.matrix);
 }
 
 /**
@@ -472,7 +513,7 @@ export function reflectionToThreeJS(reflection: Reflection): THREE.Matrix4 {
  * @returns THREE.Matrix4 representing the rotation
  */
 export function rotationToThreeJS(_rotation: Rotation): THREE.Matrix4 {
-    throw new Error("Not implemented");
+  throw new Error("Not implemented");
 }
 
 /**
@@ -485,29 +526,7 @@ export function rotationToThreeJS(_rotation: Rotation): THREE.Matrix4 {
  * @returns THREE.Matrix4 representing the scale transform
  */
 export function scaleToThreeJS(scale: Scale): THREE.Matrix4 {
-    const elements = scale.matrix;
-    const matrix = new THREE.Matrix4();
-    // prettier-ignore
-    matrix.set(
-      elements[0],
-      elements[4],
-      elements[8],
-      elements[12],
-      elements[1],
-      elements[5],
-      elements[9],
-      elements[13],
-      elements[2],
-      elements[6],
-      elements[10],
-      elements[14],
-      elements[3],
-      elements[7],
-      elements[11],
-      elements[15],
-    );
-
-    return matrix;
+  return matrixFromElements(scale.matrix);
 }
 
 /**
@@ -519,29 +538,7 @@ export function scaleToThreeJS(scale: Scale): THREE.Matrix4 {
  * @returns THREE.Matrix4 representing the shear transform
  */
 export function shearToThreeJS(shear: Shear): THREE.Matrix4 {
-    const elements = shear.matrix;
-    const matrix = new THREE.Matrix4();
-    // prettier-ignore
-    matrix.set(
-      elements[0],
-      elements[4],
-      elements[8],
-      elements[12],
-      elements[1],
-      elements[5],
-      elements[9],
-      elements[13],
-      elements[2],
-      elements[6],
-      elements[10],
-      elements[14],
-      elements[3],
-      elements[7],
-      elements[11],
-      elements[15],
-    );
-
-    return matrix;
+  return matrixFromElements(shear.matrix);
 }
 
 /**
@@ -556,15 +553,19 @@ export function shearToThreeJS(shear: Shear): THREE.Matrix4 {
  * @returns THREE.Mesh representing the sphere
  */
 export function sphereToThreeJS(
-    sphere: Sphere,
-    widthSegments: number = 64,
-    heightSegments: number = 64
+  sphere: Sphere,
+  widthSegments: number = 64,
+  heightSegments: number = 64,
 ): THREE.Mesh {
-    const sphereGeometry = new THREE.SphereGeometry(sphere.radius, widthSegments, heightSegments);
-    const sphereMesh = new THREE.Mesh(sphereGeometry);
-    const transformationMatrix = buildTransformationFromFrame(sphere.frame!);
-    sphereMesh.applyMatrix4(transformationMatrix);
-    return sphereMesh;
+  const sphereGeometry = new THREE.SphereGeometry(
+    sphere.radius,
+    widthSegments,
+    heightSegments,
+  );
+  const sphereMesh = new THREE.Mesh(sphereGeometry);
+  const transformationMatrix = buildTransformationFromFrame(sphere.frame!);
+  sphereMesh.applyMatrix4(transformationMatrix);
+  return sphereMesh;
 }
 
 /**
@@ -579,20 +580,20 @@ export function sphereToThreeJS(
  * @returns THREE.Mesh representing the torus
  */
 export function torusToThreeJS(
-    torus: Torus,
-    segmentsTubular: number = 64,
-    segmentsRadial: number = 64
+  torus: Torus,
+  segmentsTubular: number = 64,
+  segmentsRadial: number = 64,
 ): THREE.Mesh {
-    const torusGeometry = new THREE.TorusGeometry(
-        torus.radiusAxis,
-        torus.radiusPipe,
-        segmentsTubular,
-        segmentsRadial
-    );
-    const torusMesh = new THREE.Mesh(torusGeometry);
-    const transformationMatrix = buildTransformationFromFrame(torus.frame!);
-    torusMesh.applyMatrix4(transformationMatrix);
-    return torusMesh;
+  const torusGeometry = new THREE.TorusGeometry(
+    torus.radiusAxis,
+    torus.radiusPipe,
+    segmentsTubular,
+    segmentsRadial,
+  );
+  const torusMesh = new THREE.Mesh(torusGeometry);
+  const transformationMatrix = buildTransformationFromFrame(torus.frame!);
+  torusMesh.applyMatrix4(transformationMatrix);
+  return torusMesh;
 }
 
 /**
@@ -604,30 +605,10 @@ export function torusToThreeJS(
  * @param transformation - COMPAS Transformation with a flat 16-element matrix
  * @returns THREE.Matrix4 representing the transformation
  */
-export function transformationToThreeJS(transformation: Transformation): THREE.Matrix4 {
-    const elements = transformation.matrix;
-    const matrix = new THREE.Matrix4();
-    // prettier-ignore
-    matrix.set(
-      elements[0],
-      elements[4],
-      elements[8],
-      elements[12],
-      elements[1],
-      elements[5],
-      elements[9],
-      elements[13],
-      elements[2],
-      elements[6],
-      elements[10],
-      elements[14],
-      elements[3],
-      elements[7],
-      elements[11],
-      elements[15],
-    );
-
-    return matrix;
+export function transformationToThreeJS(
+  transformation: Transformation,
+): THREE.Matrix4 {
+  return matrixFromElements(transformation.matrix);
 }
 
 /**
@@ -641,7 +622,7 @@ export function transformationToThreeJS(transformation: Transformation): THREE.M
  * @returns THREE.Vector3 representing the translation
  */
 export function translationToThreeJS(_translation: Translation): THREE.Vector3 {
-    throw new Error("translationToThreeJS not implemented");
+  throw new Error("translationToThreeJS not implemented");
 }
 
 /**
@@ -655,18 +636,30 @@ export function translationToThreeJS(_translation: Translation): THREE.Vector3 {
  * @param origin - optional COMPAS Point specifying the arrow origin
  * @returns THREE.ArrowHelper representing the vector
  */
-export function vectorToThreeJS(sphere: Vector, origin?: Point): THREE.ArrowHelper {
-    const direction: THREE.Vector3 = new THREE.Vector3(sphere.x, sphere.y, sphere.z);
-    const length = direction.length();
-    direction.normalize();
-    let vectorOrigin: THREE.Vector3;
-    if (origin) {
-        vectorOrigin = new THREE.Vector3(origin.x, origin.y, origin.z);
-    } else {
-        vectorOrigin = new THREE.Vector3(0, 0, 0);
-    }
+export function vectorToThreeJS(
+  sphere: Vector,
+  origin?: Point,
+): THREE.ArrowHelper {
+  const direction: THREE.Vector3 = new THREE.Vector3(
+    sphere.x,
+    sphere.y,
+    sphere.z,
+  );
+  const length = direction.length();
+  direction.normalize();
+  let vectorOrigin: THREE.Vector3;
+  if (origin) {
+    vectorOrigin = new THREE.Vector3(origin.x, origin.y, origin.z);
+  } else {
+    vectorOrigin = new THREE.Vector3(0, 0, 0);
+  }
 
-    const arrowHelper = new THREE.ArrowHelper(direction, vectorOrigin, length, 0xff0000);
-    arrowHelper.setDirection(direction);
-    return arrowHelper;
+  const arrowHelper = new THREE.ArrowHelper(
+    direction,
+    vectorOrigin,
+    length,
+    0xff0000,
+  );
+  arrowHelper.setDirection(direction);
+  return arrowHelper;
 }

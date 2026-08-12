@@ -1,0 +1,62 @@
+import { createApp, markRaw } from "vue";
+
+import "../style.css";
+import App from "../App.vue";
+import { viewerRuntimeKey } from "../viewer/viewer_context";
+import { ViewerRuntime } from "../viewer/viewer_runtime";
+import { CompasViewerError } from "./errors";
+import type { CompasViewer, CompasViewerOptions } from "./types";
+
+export type {
+  CompasViewer,
+  CompasViewerOptions,
+  ViewerMode,
+  ViewerWebSocketOptions,
+} from "./types";
+export {
+  type CompasViewerErrorCode,
+  type CompasViewerErrorOptions,
+} from "./errors";
+export { CompasViewerError };
+
+export function createViewer(
+  container: HTMLElement,
+  options: CompasViewerOptions = {},
+): CompasViewer {
+  if (
+    typeof HTMLElement === "undefined" ||
+    !(container instanceof HTMLElement)
+  ) {
+    throw new CompasViewerError(
+      "lifecycle_error",
+      "createViewer requires an HTMLElement container",
+    );
+  }
+
+  const runtime = markRaw(new ViewerRuntime(container, options));
+  const app = createApp(App, {
+    runtime,
+    showToolbar: options.showToolbar ?? true,
+  });
+  app.provide(viewerRuntimeKey, runtime);
+  app.mount(container);
+
+  let disposed = false;
+  return {
+    dispatch(message) {
+      runtime.dispatch(message);
+    },
+    reset() {
+      runtime.reset();
+    },
+    resize() {
+      runtime.resize();
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      app.unmount();
+      runtime.dispose();
+    },
+  };
+}

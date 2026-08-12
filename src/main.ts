@@ -1,34 +1,9 @@
-import { createApp } from "vue";
-import "./style.css";
-import App from "./App.vue";
-import { dispatchMessage } from "./communications/messages";
-import { addDefaultLighting } from "./viewer/scene_manager";
-import { resetViewer } from "./viewer/reset";
+import { createViewer } from "./library";
 
-declare global {
-  interface Window {
-    compasViewer?: {
-      mode?: "websocket" | "embedded";
-      defaultLighting?: boolean;
-      showToolbar?: boolean;
-      dispatch?: typeof dispatchMessage;
-      reset?: typeof resetViewer;
-      send?: (message: unknown) => boolean | void;
-    };
-  }
-}
+const container = document.querySelector<HTMLElement>("#app");
+if (!container) throw new Error("Standalone viewer requires an #app container");
 
-const compasViewer = (window.compasViewer ??= {});
-const app = createApp(App, {
-  connectWebSocket: compasViewer.mode !== "embedded",
-  showToolbar: compasViewer.showToolbar !== false,
+createViewer(container, {
+  mode: "websocket",
+  showToolbar: true,
 });
-app.mount("#app");
-
-if (compasViewer.defaultLighting) {
-  addDefaultLighting();
-}
-
-// Expose the existing decoder/dispatcher to pages that embed the built bundle.
-compasViewer.dispatch = dispatchMessage;
-compasViewer.reset = resetViewer;
