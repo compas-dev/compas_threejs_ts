@@ -1,6 +1,11 @@
 /** @vitest-environment happy-dom */
 
-import { Box, pbDumpBytes, Quaternion } from "@gramaziokohler/compas-pb-ts";
+import {
+  Box,
+  Frame,
+  pbDumpBytes,
+  Quaternion,
+} from "@gramaziokohler/compas-pb-ts";
 import { nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +32,7 @@ vi.mock("three", async () => {
 });
 
 import { CompasViewerError, createViewer } from "../src/library";
+import { ViewerRuntime } from "../src/viewer/viewer_runtime";
 import * as THREE from "three";
 
 const viewers: Array<{ dispose(): void }> = [];
@@ -47,6 +53,20 @@ function boxBytes(guid: string): Uint8Array {
         xsize: 1,
         ysize: 2,
         zsize: 3,
+      },
+    }),
+  );
+}
+
+function frameBytes(guid: string): Uint8Array {
+  return pbDumpBytes(
+    new Frame({
+      data: {
+        guid,
+        name: "Frame",
+        point: { guid: "", name: "", x: 0, y: 0, z: 0 },
+        xaxis: { guid: "", name: "", x: 1, y: 0, z: 0 },
+        yaxis: { guid: "", name: "", x: 0, y: 1, z: 0 },
       },
     }),
   );
@@ -226,5 +246,47 @@ describe("createViewer", () => {
     expect(openedUrls).toEqual([
       "wss://viewer.test:9443/ws?workspace=secondary",
     ]);
+  });
+
+  it("preserves frame colors and releases viewer-owned materials", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, {
+      mode: "embedded",
+      defaultLighting: true,
+    });
+    runtime.attach(container);
+
+    const materialDispose = vi.spyOn(THREE.Material.prototype, "dispose");
+    runtime.dispatch(boxBytes("resource-box"));
+    expect(materialDispose).toHaveBeenCalled();
+    materialDispose.mockRestore();
+
+    runtime.dispatch(frameBytes("colored-frame"));
+    const frame = runtime.geometries.get("colored-frame");
+    expect(frame).toBeInstanceOf(THREE.AxesHelper);
+    expect(
+      (frame as THREE.AxesHelper).material instanceof THREE.Material
+        ? (frame as THREE.AxesHelper).material.vertexColors
+        : false,
+    ).toBe(true);
+
+    const registered = new THREE.MeshStandardMaterial();
+    const registeredDispose = vi.fn();
+    registered.dispose = registeredDispose;
+    const internals = runtime as unknown as {
+      materials: Map<
+        string,
+        { material: THREE.Material; materialType: string }
+      >;
+    };
+    internals.materials.set("registered-material", {
+      material: registered,
+      materialType: "standard_material",
+    });
+
+    runtime.dispose();
+
+    expect(registeredDispose).toHaveBeenCalledOnce();
   });
 });

@@ -1,6 +1,5 @@
 {
   "name": "@compas-dev/compas-threejs-ts",
-  "private": true,
   "version": "0.0.0",
   "description": "A Three.js viewer for COMPAS using TypeScript and Protobuf",
   "license": "MIT",
@@ -40,6 +39,9 @@
   "sideEffects": [
     "**/*.css"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && npm run build:app && npm run build:library",
@@ -47,8 +49,13 @@
     "build:app": "vite build",
     "build:library": "vite build --config vite.config.library.ts && node scripts/copy-library-types.mjs",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --exclude 'tests/browser/**'",
+    "test:watch": "vitest --exclude 'tests/browser/**'",
+    "test:browser": "npm run build && playwright test",
+    "test:package": "node scripts/test-package.mjs",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build:app && npm run build:library",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "prepublishOnly": "npm run check && npm run audit:prod",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -64,6 +71,7 @@
     "@bufbuild/protobuf": "^2.13.0",
     "@eslint/js": "^10.0.1",
     "@gramaziokohler/compas-pb-ts": "^2.0.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/three": "^0.182.0",
@@ -89,6 +97,7 @@
     "vue-tsc": "^3.3.9"
   },
   "allowScripts": {
+    "fsevents@2.3.2": true,
     "vue-demi@0.14.10": true,
     "fsevents@2.3.3": true
   }

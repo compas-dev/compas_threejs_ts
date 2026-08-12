@@ -393,7 +393,11 @@ export class ViewerRuntime {
     this.resetAfterDispose();
     this.controls.dispose();
     this.transformControls.detach();
+    this.transformControls.dispose();
     this.scene.remove(this.transformHelper);
+    this.scene.remove(this.axesHelper);
+    this.disposeObject(this.axesHelper);
+    this.clearDefaultLighting();
     this.highlightMaterial.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -486,14 +490,18 @@ export class ViewerRuntime {
     const guid = data.guid;
     const geometryGuid = readGeometryGuid(data);
     const material = materialToThree(data);
-    this.materials.get(guid)?.material.dispose();
+    const previous = this.materials.get(guid)?.material;
+    this.geometryMaterials.set(geometryGuid, guid);
+    for (const [objectGuid, materialGuid] of this.geometryMaterials) {
+      if (materialGuid !== guid) continue;
+      const object = this.geometries.get(objectGuid);
+      if (object) this.assignMaterial(object, material);
+    }
     this.materials.set(guid, {
       material,
       materialType: data.type,
     });
-    this.geometryMaterials.set(geometryGuid, guid);
-    const object = this.geometries.get(geometryGuid);
-    if (object) this.assignMaterial(object, material);
+    previous?.dispose();
   }
 
   private manageLight(data: LightCommand): void {
@@ -809,19 +817,31 @@ export class ViewerRuntime {
       : undefined;
     if (material) {
       this.assignMaterial(object, material);
+    } else if (object instanceof THREE.AxesHelper) {
+      // Preserve the helper's per-axis vertex colors.
+      return;
     } else if (object instanceof THREE.Mesh) {
-      object.material = new THREE.MeshStandardMaterial({
-        color: 0x0092d2,
-        roughness: 0.7,
-        metalness: 0.05,
-      });
+      this.replaceMaterial(
+        object,
+        new THREE.MeshStandardMaterial({
+          color: 0x0092d2,
+          roughness: 0.7,
+          metalness: 0.05,
+        }),
+      );
     } else if (object instanceof THREE.Line) {
-      object.material = new THREE.LineBasicMaterial({ color: 0x0092d2 });
+      this.replaceMaterial(
+        object,
+        new THREE.LineBasicMaterial({ color: 0x0092d2 }),
+      );
     } else if (object instanceof THREE.Points) {
-      object.material = new THREE.PointsMaterial({
-        color: 0x0092d2,
-        size: 0.5,
-      });
+      this.replaceMaterial(
+        object,
+        new THREE.PointsMaterial({
+          color: 0x0092d2,
+          size: 0.5,
+        }),
+      );
     } else if (object instanceof THREE.ArrowHelper) {
       object.setColor(0x0092d2);
     }
@@ -831,25 +851,53 @@ export class ViewerRuntime {
     object: THREE.Object3D,
     material: THREE.Material,
   ): void {
-    if (object instanceof THREE.Mesh) object.material = material;
+    if (object instanceof THREE.AxesHelper) return;
+    if (object instanceof THREE.Mesh) this.replaceMaterial(object, material);
     else if (object instanceof THREE.Line) {
-      object.material =
+      this.replaceMaterial(
+        object,
         material instanceof THREE.LineBasicMaterial
           ? material
           : new THREE.LineBasicMaterial({
               color: this.materialColor(material),
-            });
+            }),
+      );
     } else if (object instanceof THREE.Points) {
-      object.material =
+      this.replaceMaterial(
+        object,
         material instanceof THREE.PointsMaterial
           ? material
           : new THREE.PointsMaterial({
               color: this.materialColor(material),
               size: 0.5,
-            });
+            }),
+      );
     } else if (object instanceof THREE.ArrowHelper) {
       object.setColor(this.materialColor(material));
     }
+  }
+
+  private replaceMaterial(
+    object: RenderableObject,
+    material: THREE.Material | THREE.Material[],
+  ): void {
+    const previous = object.material;
+    object.material = material;
+    const materials = Array.isArray(previous) ? previous : [previous];
+    for (const replaced of materials) {
+      if (replaced && !this.includesMaterial(material, replaced)) {
+        this.disposeUnregisteredMaterial(replaced);
+      }
+    }
+  }
+
+  private includesMaterial(
+    material: THREE.Material | THREE.Material[],
+    candidate: THREE.Material,
+  ): boolean {
+    return Array.isArray(material)
+      ? material.includes(candidate)
+      : material === candidate;
   }
 
   private materialColor(material: THREE.Material): THREE.Color {
@@ -886,12 +934,23 @@ export class ViewerRuntime {
   private removeLight(guid: string): void {
     const entry = this.lights.get(guid);
     if (!entry) return;
-    entry.objects.forEach((object) => this.scene.remove(object));
+    entry.objects.forEach((object) => {
+      this.scene.remove(object);
+      this.disposeObject(object);
+    });
     this.lights.delete(guid);
   }
 
   private clearLights(): void {
     for (const guid of this.lights.keys()) this.removeLight(guid);
+  }
+
+  private clearDefaultLighting(): void {
+    for (const light of this.defaultLights) {
+      this.scene.remove(light);
+      this.disposeObject(light);
+    }
+    this.defaultLights.splice(0);
   }
 
   private startAnimation(): void {
@@ -924,6 +983,7 @@ export class ViewerRuntime {
 
   private disposeObject(object: THREE.Object3D): void {
     object.traverse((child) => {
+      if (child instanceof THREE.Light) child.dispose();
       const renderable = child as RenderableObject;
       renderable.geometry?.dispose();
       if (Array.isArray(renderable.material)) {
@@ -952,6 +1012,7 @@ export class ViewerRuntime {
     for (const object of this.geometries.values()) this.disposeObject(object);
     this.geometries.clear();
     this.clearLights();
+    for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();
     this.geometryMaterials.clear();
   }

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Embedded COMPAS ThreeJS kitchen sink</title>
+    <link rel="stylesheet" href="../dist-lib/style.css" />
+    <style>
+      html,
+      body,
+      #viewer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      .example-title {
+        position: fixed;
+        z-index: 10;
+        top: 1rem;
+        left: 1rem;
+        max-width: 24rem;
+        padding: 0.75rem 1rem;
+        color: #172033;
+        background: rgb(255 255 255 / 88%);
+        border: 1px solid rgb(23 32 51 / 12%);
+        border-radius: 0.75rem;
+        box-shadow: 0 0.5rem 2rem rgb(23 32 51 / 12%);
+        font:
+          500 0.875rem/1.45 Inter,
+          sans-serif;
+        pointer-events: none;
+      }
+
+      .example-title strong {
+        display: block;
+        margin-bottom: 0.2rem;
+        font-size: 1rem;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "../node_modules/vue/dist/vue.esm-browser.js",
+          "three": "../node_modules/three/build/three.module.js",
+          "three/": "../node_modules/three/",
+          "@gramaziokohler/compas-pb-ts": "../node_modules/@gramaziokohler/compas-pb-ts/dist/index.js",
+          "@bufbuild/protobuf/wire": "../node_modules/@bufbuild/protobuf/dist/esm/wire/index.js"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <aside class="example-title">
+      <strong>Embedded geometry kitchen sink</strong>
+      The 16 geometry types supported in 1.0, arranged in a 4×4 grid and
+      dispatched through the public protobuf API.
+    </aside>
+    <div id="viewer" aria-label="COMPAS geometry kitchen sink"></div>
+    <script type="module" src="./embedded_kitchen_sink.js"></script>
+  </body>
+</html>
