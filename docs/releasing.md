@@ -7,6 +7,10 @@ Releases are prepared by Release Please and published to npm by GitHub Actions.
 3. The resulting GitHub release triggers publication of
    `@compas-dev/compas-threejs-ts` through npm Trusted Publishing.
 
+For the first release, keep the curated notes currently under `Unreleased` in
+`CHANGELOG.md` under Release Please's generated `1.0.0` heading, removing any
+duplicate generated entries during review of the release pull request.
+
 The first public release is pinned to `1.0.0` in
 `release-please-config.json`. Remove `release-as` and `bootstrap-sha` from that
 file after the first release so later versions are derived from conventional
