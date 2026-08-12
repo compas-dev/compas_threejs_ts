@@ -35,8 +35,8 @@ See `examples/embedded_box.html` for the complete local-build example. Its
 essential code is:
 
 ```ts
-import { createViewer } from "@gramaziokohler/compas-threejs";
-import "@gramaziokohler/compas-threejs/style.css";
+import { createViewer } from "@compas-dev/compas-threejs-ts";
+import "@compas-dev/compas-threejs-ts/style.css";
 import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
 
 const viewer = createViewer(document.querySelector<HTMLElement>("#viewer")!, {

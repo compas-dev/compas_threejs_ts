@@ -70,6 +70,51 @@ describe("viewer command validation", () => {
     );
   });
 
+  it("allows the unbounded PhysicalMaterial attenuation default", () => {
+    const command = {
+      dispatch: "material",
+      type: "physical_material",
+      guid: "material-guid",
+      geometry_guid: "geometry-guid",
+      color: "#ffffff",
+      metalness: 0,
+      roughness: 1,
+      emissive: "#000000",
+      emissive_intensity: 0,
+      flat_shading: false,
+      wireframe: false,
+      anisotropy: 0,
+      anisotropy_rotation: 0,
+      attenuation_color: "#ffffff",
+      clearcoat: 0,
+      clearcoat_roughness: 0,
+      dispersion: 0,
+      ior: 1.5,
+      iridescence: 0,
+      iridescence_ior: 1.3,
+      iridescence_thickness_start: 100,
+      iridescence_thickness_end: 400,
+      reflectivity: 0.5,
+      sheen: 0,
+      sheen_color: "#000000",
+      sheen_roughness: 1,
+      specular_color: "#ffffff",
+      specular_intensity: 1,
+      thickness: 0,
+      transmission: 0,
+    };
+
+    expect(parseViewerCommand(command)).toEqual(command);
+    expect(() =>
+      parseViewerCommand({ ...command, attenuation_distance: Infinity }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "invalid_message",
+        details: expect.objectContaining({ field: "attenuation_distance" }),
+      }),
+    );
+  });
+
   it("accepts the Sky payload emitted by the Python package", () => {
     expect(
       parseViewerCommand({

@@ -65,7 +65,7 @@ export interface PhysicalMaterialCommand extends MaterialCommandBase {
   anisotropy: number;
   anisotropy_rotation: number;
   attenuation_color: string;
-  attenuation_distance: number;
+  attenuation_distance?: number;
   clearcoat: number;
   clearcoat_roughness: number;
   dispersion: number;
@@ -583,7 +583,6 @@ function validateMaterial(record: CommandRecord): void {
   readNumberFields(record, [
     "anisotropy",
     "anisotropy_rotation",
-    "attenuation_distance",
     "clearcoat",
     "clearcoat_roughness",
     "dispersion",
@@ -599,6 +598,9 @@ function validateMaterial(record: CommandRecord): void {
     "thickness",
     "transmission",
   ]);
+  if (record.attenuation_distance !== undefined) {
+    readFiniteNumber(record, "attenuation_distance");
+  }
   for (const field of ["attenuation_color", "sheen_color", "specular_color"]) {
     readString(record, field);
   }

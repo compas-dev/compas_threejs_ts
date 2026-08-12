@@ -1,16 +1,16 @@
 {
-  "name": "@gramaziokohler/compas-threejs",
+  "name": "@compas-dev/compas-threejs-ts",
   "private": true,
   "version": "0.0.0",
   "description": "A Three.js viewer for COMPAS using TypeScript and Protobuf",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gramaziokohler/compas_threejs_ts.git"
+    "url": "git+https://github.com/compas-dev/compas_threejs_ts.git"
   },
-  "homepage": "https://github.com/gramaziokohler/compas_threejs_ts#readme",
+  "homepage": "https://github.com/compas-dev/compas_threejs_ts#readme",
   "bugs": {
-    "url": "https://github.com/gramaziokohler/compas_threejs_ts/issues"
+    "url": "https://github.com/compas-dev/compas_threejs_ts/issues"
   },
   "keywords": [
     "compas",
