@@ -2,15 +2,6 @@
 
 ## 1.0.0 (2026-08-13)
 
-
-### Features
-
-* complete TypeScript release preparation ([fde7f39](https://github.com/compas-dev/compas_threejs_ts/commit/fde7f39ed658a0cddcd9e6dd0ace49f1078a5632))
-
-## Changelog
-
-## Unreleased
-
 ### Highlights
 
 - First public release of the reusable COMPAS Three.js viewer as
