@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.0...v1.0.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* make npm publication retryable ([4d72110](https://github.com/compas-dev/compas_threejs_ts/commit/4d72110a6a1302c7535da4abccabc733c8adc802))
+
 ## 1.0.0 (2026-08-13)
 
 ### Highlights
