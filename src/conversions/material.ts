@@ -75,7 +75,9 @@ function buildPhysicalMaterial(
     anisotropy: data.anisotropy,
     anisotropyRotation: data.anisotropy_rotation,
     attenuationColor: parseColor(data.attenuation_color),
-    attenuationDistance: data.attenuation_distance,
+    ...(data.attenuation_distance === undefined
+      ? {}
+      : { attenuationDistance: data.attenuation_distance }),
     clearcoat: data.clearcoat,
     clearcoatRoughness: data.clearcoat_roughness,
     dispersion: data.dispersion,

@@ -35,8 +35,8 @@ See `examples/embedded_box.html` for the complete local-build example. Its
 essential code is:
 
 ```ts
-import { createViewer } from "@gramaziokohler/compas-threejs";
-import "@gramaziokohler/compas-threejs/style.css";
+import { createViewer } from "@compas-dev/compas-threejs-ts";
+import "@compas-dev/compas-threejs-ts/style.css";
 import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
 
 const viewer = createViewer(document.querySelector<HTMLElement>("#viewer")!, {
@@ -87,3 +87,12 @@ The dispatcher also walks protobuf lists and dictionaries recursively, rendering
 the supported geometry objects they contain. In `websocket` mode the standalone
 app reads `ws_host`, `ws_port`, and `workspace` from the URL, preserving the
 Python package integration.
+
+For a broader visual smoke test, open
+`examples/embedded_kitchen_sink.html`. It uses the same public embedded API to
+display every geometry and helper type included in the 1.0 support matrix in a
+labelled 4×4 grid.
+
+Maintainers can find the dependency policy in
+[`docs/dependencies.md`](docs/dependencies.md) and the automated release flow in
+[`docs/releasing.md`](docs/releasing.md).

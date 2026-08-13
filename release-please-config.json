@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "release-as": "1.0.0",
+  "include-component-in-tag": false,
+  "bootstrap-sha": "61bae1e100fdcce9da64d50474a09536d29caac0",
+  "packages": {
+    ".": {
+      "package-name": "@compas-dev/compas-threejs-ts"
+    }
+  }
+}

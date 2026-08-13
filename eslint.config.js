@@ -37,6 +37,27 @@ export default [
     },
   },
   {
+    files: ["examples/**/*.js"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        crypto: "readonly",
+        document: "readonly",
+        HTMLElement: "readonly",
+        window: "readonly",
+      },
+    },
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
+  {
     // Vendored shadcn-vue primitives keep their generated single-word names
     // so they stay in sync with upstream and with the shadcn CLI.
     //

@@ -39,6 +39,7 @@ JavaScript contains no imports from them.
 | Package                                                               | Role                                                  |
 | --------------------------------------------------------------------- | ----------------------------------------------------- |
 | `vitest`, `happy-dom`                                                 | Unit, compatibility, import, and DOM lifecycle tests. |
+| `@playwright/test`                                                    | Chromium smoke tests for the embedded viewer example. |
 | `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-config-prettier` | JavaScript and TypeScript static analysis.            |
 | `prettier`                                                            | Source formatting checks.                             |
 
@@ -47,10 +48,19 @@ JavaScript contains no imports from them.
 - Unused direct dependencies are removed rather than left available for future
   use.
 - Install scripts are denied by default. `vue-demi@0.14.10` is pinned and
-  allowed to select its Vue 3 compatibility files; optional `fsevents@2.3.3` is
-  pinned and allowed to build Vite's macOS file-watching integration.
+  allowed to select its Vue 3 compatibility files; optional `fsevents@2.3.2`
+  and `fsevents@2.3.3` are pinned and allowed to build the macOS file-watching
+  integrations used by the supported toolchain.
 - Production and complete dependency trees must have no unreviewed critical or
   high advisories before release.
 - Bundling a package does not exempt it from the complete-tree audit.
 - Major build-tool upgrades require the same tests, builds, and packed-consumer
   checks as runtime dependency changes.
+
+## Bundled font
+
+The viewer self-hosts the Inter variable font so the standalone Python build
+does not contact a third-party font service. The WOFF2 file is pinned from the
+official `rsms/inter` repository at commit
+`353b61b9f4430d5f420d56605a6e7993e0941470` and is distributed under the SIL
+Open Font License in `public/licenses/Inter-LICENSE.txt`.
