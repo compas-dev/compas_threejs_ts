@@ -7,6 +7,9 @@ package-lock.json
 # Untracked local release working record.
 RELEASE_PLAN.md
 
+# Generated and maintained by Release Please.
+CHANGELOG.md
+
 # Deterministic Python-generated protobuf fixtures; the bytes and the manifest
 # are committed together and must not be reformatted.
 tests/fixtures/python/
