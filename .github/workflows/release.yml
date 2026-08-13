@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the current package version to npm
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: release-please
@@ -26,7 +32,7 @@ jobs:
 
   publish:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish == true)
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -42,7 +48,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Upgrade npm for Trusted Publishing
-        run: npm install --global npm@latest
+        run: npm install --global npm@11.19.0
 
       - run: npm ci
 
