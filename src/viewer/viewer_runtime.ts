@@ -656,7 +656,9 @@ export class ViewerRuntime {
 
   private manageSpinner(data: SpinnerCommand): void {
     this.store.spinnerState.visible = data.visible;
-    this.store.spinnerState.message = data.visible ? (data.message ?? null) : null;
+    this.store.spinnerState.message = data.visible
+      ? (data.message ?? null)
+      : null;
   }
 
   private pickFromPointer(event: MouseEvent): void {

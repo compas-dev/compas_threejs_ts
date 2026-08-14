@@ -1,9 +1,17 @@
 <template>
   <Teleport to="body">
     <div v-if="spinnerState.visible" class="global-spinner-overlay theme">
-      <LoaderCircle class="global-spinner-icon" :size="96" :stroke-width="1.5" />
-      <p v-if="spinnerState.message" class="global-spinner-official-text">{{ spinnerState.message }}</p>
-      <p v-if="funnyMessage" class="global-spinner-funny-text">{{ funnyMessage }}</p>
+      <LoaderCircle
+        class="global-spinner-icon"
+        :size="96"
+        :stroke-width="1.5"
+      />
+      <p v-if="spinnerState.message" class="global-spinner-official-text">
+        {{ spinnerState.message }}
+      </p>
+      <p v-if="funnyMessage" class="global-spinner-funny-text">
+        {{ funnyMessage }}
+      </p>
     </div>
   </Teleport>
 </template>
