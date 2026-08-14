@@ -1,5 +1,12 @@
 # Changelog
 
+
+## Unreleased
+
+### Added
+
+- Added per-object hide and a show-all-objects control.
+
 ## [1.0.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.0...v1.0.1) (2026-08-13)
 
 ### Bug Fixes
