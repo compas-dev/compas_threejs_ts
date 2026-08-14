@@ -33,6 +33,12 @@
         >
           FUNCTIONS
         </h1>
+        <div v-if="selectedObjectGuid.value" class="single_data">
+          <Button variant="outline" class="w-full" @click="handleHide">
+            <EyeOff class="size-4" />
+            Hide
+          </Button>
+        </div>
         <div
           v-for="action in objectActionsState"
           :key="action.guid"
@@ -110,15 +116,22 @@ import {
 } from "@/components/ui/select";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
-import { ArrowBigLeftDash, ArrowBigRightDash } from "lucide-vue-next";
+import { ArrowBigLeftDash, ArrowBigRightDash, EyeOff } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
-const { objectActionsState, objectBarData, blockPicker, theme } = runtime.store;
+const { objectActionsState, objectBarData, blockPicker, theme, selectedObjectGuid } =
+  runtime.store;
 const handleObjectAction = (action: ObjectAction, value?: unknown) =>
   runtime.handleObjectAction({ ...action }, value);
 const infoPanel = ref<HTMLElement | null>(null);
+
+function handleHide() {
+  if (!selectedObjectGuid.value) return;
+  runtime.hideObjectByGuid(selectedObjectGuid.value);
+  runtime.deselectObject();
+}
 
 const { isHovered } = useHover(infoPanel);
 
