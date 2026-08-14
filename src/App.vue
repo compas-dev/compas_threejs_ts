@@ -5,15 +5,13 @@
     <Sidebar :show-toolbar="props.showToolbar" />
     <div ref="threeContainer" class="three-container"></div>
     <ThemeIndicator />
-    <ObjectInfo />
-    <ObjectActions />
+    <RightSidebar />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import ObjectInfo from "./components/layout/ObjectInfo.vue";
-import ObjectActions from "./components/layout/ObjectActions.vue";
+import RightSidebar from "./components/layout/RightSidebar.vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
 import type { ViewerRuntime } from "@/viewer/viewer_runtime";
