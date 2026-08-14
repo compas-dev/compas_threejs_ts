@@ -26,57 +26,6 @@
         </div>
       </div>
 
-      <div class="data-container">
-        <h1
-          class="text-lg font-bold section-title"
-          :class="{ dark: theme.value === 'dark' }"
-        >
-          FUNCTIONS
-        </h1>
-        <div
-          v-for="action in objectActionsState"
-          :key="action.guid"
-          class="single_data"
-        >
-          <Button
-            v-if="action.type === 'button'"
-            variant="outline"
-            @click="handleObjectAction(action)"
-            class="w-full"
-          >
-            {{ action.text }}
-          </Button>
-
-          <Select
-            v-else-if="action.type === 'select'"
-            :model-value="
-              typeof action.defaultValue === 'string' ? action.defaultValue : ''
-            "
-            @update:model-value="
-              (value) => {
-                action.defaultValue = typeof value === 'string' ? value : '';
-                handleObjectAction(action, value);
-              }
-            "
-          >
-            <SelectTrigger class="w-full">
-              <SelectValue
-                :placeholder="action.placeholder ?? 'Select an option'"
-              />
-            </SelectTrigger>
-            <SelectContent class="z-[4000]">
-              <SelectItem
-                v-for="option in action.options"
-                :key="option"
-                :value="option"
-              >
-                {{ option }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       <Button
         variant="secondary"
         size="icon"
@@ -101,23 +50,13 @@
 
 <script setup lang="ts">
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
 import { ArrowBigLeftDash, ArrowBigRightDash } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
-import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
-const { objectActionsState, objectBarData, blockPicker, theme } = runtime.store;
-const handleObjectAction = (action: ObjectAction, value?: unknown) =>
-  runtime.handleObjectAction({ ...action }, value);
+const { objectBarData, blockPicker, theme } = runtime.store;
 const infoPanel = ref<HTMLElement | null>(null);
 
 const { isHovered } = useHover(infoPanel);
