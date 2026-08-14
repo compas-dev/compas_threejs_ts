@@ -23,9 +23,9 @@ as with Python Breps.
 
 | Status              | Commands                                                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Included            | Basic materials and lights, scene and theme settings, UI controls, text tags, metadata, object actions, removal, and visibility |
+| Included            | Basic materials and lights, scene and theme settings, UI controls, text tags, metadata, object actions, removal, and visibility, Spinner. |
 | Included callbacks  | Object picking, UI actions, object actions, loaded JSON, and custom host actions                                                |
-| Deferred or limited | Spinner, text geometry fonts, advanced physical-material options, Sky, and RectAreaLight                                        |
+| Deferred or limited | Text geometry fonts, advanced physical-material options, Sky, and RectAreaLight                                        |
 
 Python-to-browser commands use binary protobuf envelopes. Browser-to-Python
 callbacks use JSON text.
