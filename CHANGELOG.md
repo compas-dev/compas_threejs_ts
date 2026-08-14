@@ -1,5 +1,13 @@
 # Changelog
 
+
+## Unreleased
+
+### Changed
+
+- Split the backend-driven action buttons out of the ObjectInfo panel into
+  their own ObjectActions panel.
+
 ## [1.0.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.0...v1.0.1) (2026-08-13)
 
 ### Bug Fixes
