@@ -6,6 +6,7 @@
     <div ref="threeContainer" class="three-container"></div>
     <ThemeIndicator />
     <ObjectInfo />
+    <Spinner />
   </div>
 </template>
 
@@ -14,6 +15,7 @@ import { onMounted, ref } from "vue";
 import ObjectInfo from "./components/layout/ObjectInfo.vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
+import Spinner from "@/components/layout/Spinner.vue";
 import type { ViewerRuntime } from "@/viewer/viewer_runtime";
 
 const threeContainer = ref<HTMLDivElement | null>(null);
