@@ -121,8 +121,13 @@ import { useViewerRuntime } from "@/viewer/viewer_context";
 import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
-const { objectActionsState, objectBarData, blockPicker, theme, selectedObjectGuid } =
-  runtime.store;
+const {
+  objectActionsState,
+  objectBarData,
+  blockPicker,
+  theme,
+  selectedObjectGuid,
+} = runtime.store;
 const handleObjectAction = (action: ObjectAction, value?: unknown) =>
   runtime.handleObjectAction({ ...action }, value);
 const infoPanel = ref<HTMLElement | null>(null);

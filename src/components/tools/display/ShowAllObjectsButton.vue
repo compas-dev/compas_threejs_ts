@@ -2,7 +2,12 @@
   <TooltipProvider :delay-duration="600">
     <Tooltip>
       <TooltipTrigger>
-        <Button variant="secondary" size="icon" class="toolbar-button" @click="handleClick">
+        <Button
+          variant="secondary"
+          size="icon"
+          class="toolbar-button"
+          @click="handleClick"
+        >
           <Eye />
         </Button>
       </TooltipTrigger>
@@ -16,7 +21,12 @@
 <script setup lang="ts">
 import { Eye } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 
 const runtime = useViewerRuntime();
