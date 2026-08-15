@@ -471,7 +471,7 @@ export class ViewerRuntime {
 
   private manageGeometry(object: CommandRecord): void {
     const converted = convertToThreeJSGeometry(object);
-    const externalGuid = readOptionalGeometryGuid(object);
+    const externalGuid = resolveExternalGeometryGuid(object);
     const sceneKey = externalGuid ?? converted.uuid;
     const existing = this.geometries.get(sceneKey);
     if (existing) {
@@ -1060,7 +1060,9 @@ export class ViewerRuntime {
   }
 }
 
-function readOptionalGeometryGuid(object: CommandRecord): string | undefined {
+function resolveExternalGeometryGuid(
+  object: CommandRecord,
+): string | undefined {
   if (object.guid === undefined || object.guid === "") return undefined;
   return readNonEmptyString(object, "guid");
 }
