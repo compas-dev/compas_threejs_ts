@@ -1,0 +1,26 @@
+name: verify-pr-checklist
+
+on:
+  pull_request:
+    types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: compas-dev/compas-actions/release-check@v1
+
+  changelog:
+    name: Check changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: compas-dev/compas-actions/pr-checks@v1
+        with:
+          changelog-path: CHANGELOG.md
+          skip-label: no changelog
