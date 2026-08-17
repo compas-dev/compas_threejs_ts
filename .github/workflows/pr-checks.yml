@@ -1,0 +1,73 @@
+name: pr-checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changelog:
+    name: Check changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Release Please generates CHANGELOG.md from conventional commits, so a
+      # pull request earns its changelog entry by using them, not by editing
+      # the generated file.
+      #
+      # The title is an error because it is one edit away from correct, and it
+      # is what a squash merge records. Commit subjects are only warnings,
+      # because fixing them means a rebase and a force push; the commit-msg
+      # hook in .githooks is what keeps them clean.
+      - name: Require conventional commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          SKIP_LABEL: no changelog
+        run: |
+          . .githooks/conventional-commit.sh
+
+          if jq --exit-status --arg label "$SKIP_LABEL" \
+            'any(.pull_request.labels[]?; .name == $label)' \
+            "$GITHUB_EVENT_PATH" >/dev/null; then
+            echo "Changelog check skipped by label: $SKIP_LABEL"
+            exit 0
+          fi
+
+          base_sha=$(jq --raw-output '.pull_request.base.sha' "$GITHUB_EVENT_PATH")
+          head_sha=$(jq --raw-output '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
+
+          for commit in "$base_sha" "$head_sha"; do
+            if ! git cat-file -e "$commit^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "$commit"
+            fi
+          done
+
+          unconventional=0
+          while IFS=$'\t' read -r sha subject; do
+            if ! is_conventional_commit "$subject"; then
+              echo "::warning::Commit ${sha:0:8} is not a conventional commit: $subject"
+              unconventional=$((unconventional + 1))
+            fi
+          done < <(git log --no-merges --format='%H%x09%s' "$base_sha..$head_sha")
+
+          if [[ "$unconventional" -gt 0 ]]; then
+            echo "::warning::$unconventional commit subject(s) will be missing from CHANGELOG.md. Enable the local hook with 'npm install' to catch these before they are committed."
+          fi
+
+          if [[ ! "$PR_TITLE" =~ $CONVENTIONAL_COMMIT_PATTERN ]]; then
+            echo "::error::Pull request title is not a conventional commit: $PR_TITLE"
+            echo "::error::Retitle this pull request with a type prefix such as 'fix: ', 'feat: ' or 'docs: ', or apply the '$SKIP_LABEL' label"
+            exit 1
+          fi
