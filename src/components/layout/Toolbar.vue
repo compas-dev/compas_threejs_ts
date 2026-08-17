@@ -4,6 +4,7 @@
       COMPAS ThreeJs
     </h1>
     <TransformGroup />
+    <AddObjectGroup />
     <ViewGroup />
     <DisplayGroup />
   </div>
@@ -11,6 +12,7 @@
 
 <script setup lang="ts">
 import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
+import AddObjectGroup from "@/components/tools/objects/AddObjectGroup.vue";
 import ViewGroup from "@/components/tools/views/ViewGroup.vue";
 import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
 import { useViewerRuntime } from "@/viewer/viewer_context";
