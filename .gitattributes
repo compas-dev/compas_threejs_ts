@@ -1,0 +1,6 @@
+# Git hooks run under the bash bundled with Git for Windows, which cannot
+# execute a script that has CRLF line endings. Because a commit-msg hook that
+# fails to start blocks every commit, keep these files LF on all platforms
+# regardless of the contributor's core.autocrlf setting.
+.githooks/** text eol=lf
+*.sh text eol=lf
