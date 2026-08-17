@@ -103,6 +103,10 @@ export class ViewerRuntime {
 
   private readonly materials = new Map<string, MaterialEntry>();
   private readonly geometryMaterials = new Map<string, string>();
+  private readonly externalGeometryGuids = new WeakMap<
+    THREE.Object3D,
+    string
+  >();
   private readonly lights = new Map<string, LightEntry>();
   private readonly fonts = new Map<string, Font>();
   private readonly axesHelper = new THREE.AxesHelper(5);
@@ -487,16 +491,20 @@ export class ViewerRuntime {
   }
 
   private manageGeometry(object: CommandRecord): void {
-    const guid = readNonEmptyString(object, "guid");
     const converted = convertToThreeJSGeometry(object);
-    const existing = this.geometries.get(guid);
+    const externalGuid = resolveExternalGeometryGuid(object);
+    const sceneKey = externalGuid ?? converted.uuid;
+    const existing = this.geometries.get(sceneKey);
     if (existing) {
       this.scene.remove(existing);
       this.disposeObject(existing);
     }
-    this.applyGeometryMaterial(guid, converted);
+    if (externalGuid) {
+      this.externalGeometryGuids.set(converted, externalGuid);
+    }
+    this.applyGeometryMaterial(sceneKey, converted);
     this.scene.add(converted);
-    this.geometries.set(guid, converted);
+    this.geometries.set(sceneKey, converted);
     if (this.store.showEdges.value && converted instanceof THREE.Mesh) {
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(converted.geometry),
@@ -733,8 +741,10 @@ export class ViewerRuntime {
   private findGeometryGuid(object: THREE.Object3D): string | undefined {
     let current: THREE.Object3D | null = object;
     while (current) {
-      for (const [guid, candidate] of this.geometries) {
-        if (candidate === current) return guid;
+      for (const candidate of this.geometries.values()) {
+        if (candidate === current) {
+          return this.externalGeometryGuids.get(candidate);
+        }
       }
       current = current.parent;
     }
@@ -1075,4 +1085,11 @@ export class ViewerRuntime {
       );
     }
   }
+}
+
+function resolveExternalGeometryGuid(
+  object: CommandRecord,
+): string | undefined {
+  if (object.guid === undefined || object.guid === "") return undefined;
+  return readNonEmptyString(object, "guid");
 }

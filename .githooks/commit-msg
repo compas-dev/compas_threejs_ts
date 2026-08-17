@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#
+# Reject a commit subject that Release Please cannot turn into a changelog
+# entry. Enabled by the `prepare` script in package.json, which points
+# core.hooksPath at this directory.
+#
+# Use `git commit --no-verify` to bypass it deliberately.
+
+set -e
+
+hooks_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+. "$hooks_dir/conventional-commit.sh"
+
+# The subject is the first line that is neither a comment nor leading blank.
+subject=$(grep -v '^#' "$1" | sed '/./,$!d' | head -n 1)
+
+if is_conventional_commit "$subject"; then
+  exit 0
+fi
+
+cat >&2 <<EOF
+
+Not a conventional commit subject:
+
+  $subject
+
+Release Please builds CHANGELOG.md and the next version number from the
+commit history, and silently ignores anything it cannot parse.
+
+Use one of:
+
+  build:  chore:  ci:  docs:  feat:  fix:
+  perf:   refactor:   revert:   style:   test:
+
+For example:
+
+  fix: render geometry without external guid
+  feat(viewer): add instance-based public API
+  feat!: drop the legacy global viewer entry point
+
+Only feat, fix, perf and revert reach the changelog; the rest are valid but
+hidden. Add a scope in parentheses, and mark a breaking change with '!'.
+
+EOF
+exit 1
