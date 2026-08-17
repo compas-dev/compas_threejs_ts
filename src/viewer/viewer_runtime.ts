@@ -122,6 +122,7 @@ export class ViewerRuntime {
   private disposed = false;
   private pickedObject: THREE.Object3D | null = null;
   private pickedMaterial: THREE.Material | THREE.Material[] | null = null;
+  private dragStartMatrix: THREE.Matrix4 | null = null;
   private readonly highlightMaterial = new THREE.MeshStandardMaterial({
     color: "orange",
     emissive: "yellow",
@@ -161,6 +162,19 @@ export class ViewerRuntime {
     this.transformHelper = this.transformControls.getHelper();
     this.transformControls.addEventListener("dragging-changed", (event) => {
       this.controls.enabled = !event.value;
+      if (event.value) {
+        // Capture the object's world matrix as it stood right before this drag, so the
+        // delta sent to the backend on release is relative to it - NOT relative to
+        // identity. Conversion bakes each object's frame into its own position/quaternion
+        // (via THREE.Object3D.applyMatrix4, which decomposes into position/quaternion/
+        // scale rather than baking into vertex data), so a freshly-built object already
+        // sits at its absolute world placement, not at the origin.
+        this.dragStartMatrix =
+          this.transformControls.object?.matrix.clone() ?? null;
+      }
+    });
+    this.transformControls.addEventListener("mouseUp", () => {
+      this.sendObjectTransform();
     });
     this.scene.add(this.transformHelper);
 
@@ -269,6 +283,67 @@ export class ViewerRuntime {
       object_guid: action.objectGuid,
       value: value ?? null,
     });
+  }
+
+  /**
+   * Asks the backend to create a new geometry object of `type` (e.g. "box", "sphere",
+   * "point") with the given numeric `params`, spawned at the camera's current orbit
+   * target so it appears in view. The backend constructs the real COMPAS object and
+   * broadcasts it back via the existing add_geometry path - it arrives here exactly
+   * like any object added by a running script, so no new receive-side handling is
+   * needed. Pick it up with the transform gizmo afterwards to position it precisely.
+   */
+  createGeometry(type: string, params: Record<string, number>): void {
+    const point = this.vectorData(this.controls.target);
+    this.sendData({
+      dispatch: "create_geometry",
+      type,
+      point: [point.x, point.y, point.z],
+      params,
+    });
+  }
+
+  /**
+   * Reads the current color/metalness/roughness of the object at `guid`, for
+   * pre-filling the material editor when it opens. Returns null if the object has no
+   * material yet, or its material isn't a "standard_material" (e.g. a Point's
+   * PointMaterial has an entirely different property set) - editing those is out of
+   * scope for this control.
+   */
+  getMaterialSnapshot(
+    guid: string,
+  ): { color: string; metalness: number; roughness: number } | null {
+    const materialGuid = this.geometryMaterials.get(guid);
+    if (!materialGuid) return null;
+    const entry = this.materials.get(materialGuid);
+    if (!entry || entry.materialType !== "standard_material") return null;
+    const material = entry.material as THREE.MeshStandardMaterial;
+    return {
+      color: `#${material.color.getHexString()}`,
+      metalness: material.metalness,
+      roughness: material.roughness,
+    };
+  }
+
+  /**
+   * Applies a material edit both locally (instant visual feedback on the live
+   * THREE.Material - no need to wait for the backend round trip) and sends it to the
+   * backend so the corresponding live Material Python instance is updated the same way,
+   * e.g. via `examples/objects_action.py`'s "Make it blue" action.
+   */
+  setMaterial(
+    guid: string,
+    fields: { color?: string; metalness?: number; roughness?: number },
+  ): void {
+    const materialGuid = this.geometryMaterials.get(guid);
+    const entry = materialGuid ? this.materials.get(materialGuid) : undefined;
+    if (entry && entry.materialType === "standard_material") {
+      const material = entry.material as THREE.MeshStandardMaterial;
+      if (fields.color !== undefined) material.color.set(fields.color);
+      if (fields.metalness !== undefined) material.metalness = fields.metalness;
+      if (fields.roughness !== undefined) material.roughness = fields.roughness;
+    }
+    this.sendData({ dispatch: "material_edit", guid, ...fields });
   }
 
   hideObjectInfo(): void {
@@ -467,8 +542,25 @@ export class ViewerRuntime {
 
   private manageGeometry(object: CommandRecord): void {
     const guid = readNonEmptyString(object, "guid");
-    const converted = convertToThreeJSGeometry(object);
     const existing = this.geometries.get(guid);
+    if (
+      existing &&
+      this.transformControls.dragging &&
+      existing === this.transformControls.object
+    ) {
+      // The user is actively dragging this exact object with the gizmo - drop this
+      // incoming update instead of rebuilding it out from under them. This matters a lot
+      // for a continuously self-animating object (e.g. a spinning torus with an `App.loop`
+      // callback): its backend loop keeps calling update_geometry many times a second,
+      // and every one of those would otherwise swap in a freshly-converted mesh sitting at
+      // the backend's last-known (not-yet-moved) position, fighting the drag to a
+      // standstill so it looks like the object "snaps back" on release. The next update
+      // after the drag ends - the echo of our own object_transform, or the animation's
+      // next tick - resyncs to the real backend state.
+      return;
+    }
+    const converted = convertToThreeJSGeometry(object);
+    const wasSelected = existing !== undefined && existing === this.pickedObject;
     if (existing) {
       this.scene.remove(existing);
       this.disposeObject(existing);
@@ -483,6 +575,18 @@ export class ViewerRuntime {
       );
       edges.layers.set(1);
       converted.add(edges);
+    }
+    // If the replaced object was selected (e.g. this update is the echo of a gizmo edit
+    // the user just made), carry the selection - highlight material and gizmo attachment
+    // - over to the newly-built object instead of silently losing it.
+    if (wasSelected) {
+      this.pickedObject = converted;
+      if ("material" in converted) {
+        const renderable = converted as RenderableObject;
+        this.pickedMaterial = renderable.material ?? null;
+        renderable.material = this.highlightMaterial;
+      }
+      this.transformControls.attach(converted);
     }
   }
 
@@ -687,6 +791,7 @@ export class ViewerRuntime {
     }
     this.transformControls.attach(picked);
     const guid = this.findGeometryGuid(picked);
+    this.store.pickedObjectGuid.value = guid ?? null;
     if (guid) this.sendData({ dispatch: "object_picked", guid });
   }
 
@@ -701,6 +806,7 @@ export class ViewerRuntime {
     this.pickedObject = null;
     this.pickedMaterial = null;
     this.transformControls.detach();
+    this.store.pickedObjectGuid.value = null;
     this.store.objectBarData.data = null;
     this.store.objectActionsState.splice(0);
   }
@@ -714,6 +820,43 @@ export class ViewerRuntime {
       current = current.parent;
     }
     return undefined;
+  }
+
+  /**
+   * Sends the object currently attached to the transform gizmo back to the backend as a
+   * delta transform, once dragging ends. Geometry conversion (`applyMatrix4` in
+   * `conversions/geometry.ts`) decomposes each object's frame into its own
+   * position/quaternion/scale (that's what `Object3D.applyMatrix4` does - it does NOT
+   * bake into vertex data), so `object.matrix` is already the object's absolute world
+   * placement both before and after a drag, not a delta relative to identity. What the
+   * backend needs is the delta between the placement captured at drag-start
+   * (`dragStartMatrix`, set in the `dragging-changed` listener above) and the placement
+   * after the drag - sending the absolute matrix instead would have the backend compose
+   * it on top of the object's current state a second time, landing it somewhere else
+   * entirely (this was the cause of a "moves to another location" bug).
+   */
+  private sendObjectTransform(): void {
+    const object = this.transformControls.object;
+    const startMatrix = this.dragStartMatrix;
+    this.dragStartMatrix = null;
+    if (!object || !startMatrix) return;
+
+    const delta = object.matrix.clone().multiply(startMatrix.clone().invert());
+    if (delta.equals(new THREE.Matrix4())) return;
+
+    const guid = this.findGeometryGuid(object);
+    if (!guid) return;
+
+    // THREE.Matrix4.elements is column-major; transpose into a row-major 4x4 nested
+    // list, matching `compas.geometry.Transformation.from_matrix`'s expected shape.
+    const e = delta.elements;
+    const matrix = [
+      [e[0], e[4], e[8], e[12]],
+      [e[1], e[5], e[9], e[13]],
+      [e[2], e[6], e[10], e[14]],
+      [e[3], e[7], e[11], e[15]],
+    ];
+    this.sendData({ dispatch: "object_transform", guid, matrix });
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
