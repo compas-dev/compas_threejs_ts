@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.2...v1.1.0) (2026-08-17)
+
+
+### Features
+
+* add per-object hide and show-all-objects ([aa7fda6](https://github.com/compas-dev/compas_threejs_ts/commit/aa7fda6f5d64a37d2668903dc5c792acf6df8d76))
+* adds hiuide action for slectred object and show all button ([c48f03a](https://github.com/compas-dev/compas_threejs_ts/commit/c48f03a9cc66a70d7c2af7bf826bf9ce9163b04d))
+
 ## [1.0.2](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.1...v1.0.2) (2026-08-17)
 
 

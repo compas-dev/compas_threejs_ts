@@ -1,6 +1,6 @@
 {
   "name": "@compas-dev/compas-threejs-ts",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "A Three.js viewer for COMPAS using TypeScript and Protobuf",
   "license": "MIT",
   "repository": {
