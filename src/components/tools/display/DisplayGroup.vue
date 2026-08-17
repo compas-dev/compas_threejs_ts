@@ -12,6 +12,7 @@
         @delete="deleteSavedView"
       />
       <SaveScreenshotButton />
+      <ShowAllObjectsButton />
     </div>
   </div>
 </template>
@@ -25,6 +26,7 @@ import {
   SaveViewButton,
   SavedViewsButton,
   SaveScreenshotButton,
+  ShowAllObjectsButton,
 } from "./index";
 
 const SAVED_VIEWS_STORAGE_KEY = "compas_threejs_saved_views";
