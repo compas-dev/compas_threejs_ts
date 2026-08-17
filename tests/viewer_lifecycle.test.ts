@@ -289,4 +289,26 @@ describe("createViewer", () => {
 
     expect(registeredDispose).toHaveBeenCalledOnce();
   });
+
+  it("renders geometry without an external GUID", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+
+    runtime.dispatch(boxBytes(""));
+    runtime.dispatch(boxBytes(""));
+
+    expect(runtime.geometries.size).toBe(2);
+    for (const [sceneKey, object] of runtime.geometries) {
+      expect(sceneKey).toBe(object.uuid);
+    }
+
+    runtime.dispatch(boxBytes("addressable-box"));
+    runtime.dispatch(boxBytes("addressable-box"));
+    expect(runtime.geometries.size).toBe(3);
+    expect(runtime.geometries.has("addressable-box")).toBe(true);
+
+    runtime.dispose();
+  });
 });

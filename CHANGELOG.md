@@ -1,11 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.1...v1.0.2) (2026-08-17)
 
-## Unreleased
 
-### Added
+### Bug Fixes
 
-- Added `Spinner` support for long-running operations.
+* allow anonymous geometry (geometry without GUIDs) ([2b760e2](https://github.com/compas-dev/compas_threejs_ts/commit/2b760e27934d5661f71c28328f341910d86f2859))
+* render geometry without external guid ([80e95ac](https://github.com/compas-dev/compas_threejs_ts/commit/80e95ac7623bbeb5d79f32303b3b3e860a802d59))
 
 ## [1.0.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.0...v1.0.1) (2026-08-13)
 
