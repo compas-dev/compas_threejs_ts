@@ -112,6 +112,7 @@ export function createViewerStore(): ViewerStore {
       visible: false,
       message: null as string | null,
     }),
+
     selectedObjectGuid: reactive({ value: null as string | null }),
   };
 }

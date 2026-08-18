@@ -7,12 +7,13 @@
     <ThemeIndicator />
     <ObjectInfo />
     <GlobalSpinner />
+    <RightSidebar />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import ObjectInfo from "./components/layout/ObjectInfo.vue";
+import RightSidebar from "./components/layout/RightSidebar.vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
 import GlobalSpinner from "@/components/layout/GlobalSpinner.vue";
