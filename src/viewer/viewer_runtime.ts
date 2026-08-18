@@ -126,6 +126,7 @@ export class ViewerRuntime {
   private disposed = false;
   private pickedObject: THREE.Object3D | null = null;
   private pickedMaterial: THREE.Material | THREE.Material[] | null = null;
+  private readonly hiddenGuids = new Set<string>();
   private readonly highlightMaterial = new THREE.MeshStandardMaterial({
     color: "orange",
     emissive: "yellow",
@@ -279,6 +280,25 @@ export class ViewerRuntime {
     this.store.objectBarData.isVisible = false;
   }
 
+  hideObjectByGuid(guid: string): void {
+    const object = this.geometries.get(guid);
+    if (!object) return;
+    object.visible = false;
+    this.hiddenGuids.add(guid);
+  }
+
+  showAllObjects(): void {
+    for (const guid of this.hiddenGuids) {
+      const object = this.geometries.get(guid);
+      if (object) object.visible = true;
+    }
+    this.hiddenGuids.clear();
+  }
+
+  deselectObject(): void {
+    this.clearPickedObject();
+  }
+
   setTransformMode(mode: "translate" | "rotate" | "scale"): void {
     this.store.pickerMode.value = mode;
     this.transformControls.setMode(mode);
@@ -360,6 +380,7 @@ export class ViewerRuntime {
       this.disposeObject(object);
     }
     this.geometries.clear();
+    this.hiddenGuids.clear();
     this.clearLights();
     for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();
@@ -695,7 +716,10 @@ export class ViewerRuntime {
     }
     this.transformControls.attach(picked);
     const guid = this.findGeometryGuid(picked);
-    if (guid) this.sendData({ dispatch: "object_picked", guid });
+    if (guid) {
+      this.store.selectedObjectGuid.value = guid;
+      this.sendData({ dispatch: "object_picked", guid });
+    }
   }
 
   private clearPickedObject(): void {
@@ -711,6 +735,7 @@ export class ViewerRuntime {
     this.transformControls.detach();
     this.store.objectBarData.data = null;
     this.store.objectActionsState.splice(0);
+    this.store.selectedObjectGuid.value = null;
   }
 
   private findGeometryGuid(object: THREE.Object3D): string | undefined {
@@ -813,6 +838,7 @@ export class ViewerRuntime {
       this.disposeObject(object);
       this.geometries.delete(guid);
       this.geometryMaterials.delete(guid);
+      this.hiddenGuids.delete(guid);
     } else if (data.type === "set_visibility") {
       object.visible = data.visible;
     } else if (data.type === "toggle_visibility") {
@@ -1021,6 +1047,7 @@ export class ViewerRuntime {
   private resetAfterDispose(): void {
     for (const object of this.geometries.values()) this.disposeObject(object);
     this.geometries.clear();
+    this.hiddenGuids.clear();
     this.clearLights();
     for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();
