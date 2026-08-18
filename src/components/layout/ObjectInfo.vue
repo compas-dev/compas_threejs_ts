@@ -41,19 +41,11 @@
 import { Button } from "@/components/ui/button";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
-import { ArrowBigLeftDash, ArrowBigRightDash, EyeOff } from "lucide-vue-next";
+import { ArrowBigRightDash, EyeOff } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 
 const runtime = useViewerRuntime();
-const {
-  objectActionsState,
-  objectBarData,
-  blockPicker,
-  theme,
-  selectedObjectGuid,
-} = runtime.store;
-const handleObjectAction = (action: ObjectAction, value?: unknown) =>
-  runtime.handleObjectAction({ ...action }, value);
+const { objectBarData, blockPicker, theme, selectedObjectGuid } = runtime.store;
 const infoPanel = ref<HTMLElement | null>(null);
 
 function handleHide() {
