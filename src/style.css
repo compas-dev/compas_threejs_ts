@@ -90,6 +90,38 @@
       inset,
     -3px -3px 2px 2px color-mix(in oklab, var(--background) 70%, transparent)
       inset;
+  --section-title-background: color-mix(
+    in oklab,
+    var(--background) 25%,
+    transparent
+  );
+  --section-title-shadow:
+    1px 1px 3px 0px color-mix(in oklab, var(--foreground) 35%, transparent)
+      inset,
+    -1px -1px 3px 0px color-mix(in oklab, var(--background) 70%, transparent)
+      inset;
+  --section-title-blur: 10px;
+  /* Controls how tall every docked-top bar (toolbar, object-actions, ...) is: adjust
+     this one value and both the padding and the shared height floor they use follow
+     automatically, so they stay matched. 38px = the 36px icon button plus a 1px top +
+     1px bottom border (kept even when the border color is set to transparent). */
+  --docked-bar-padding: 12px;
+  --docked-bar-height: calc(var(--docked-bar-padding) * 2 + 38px);
+  /* Independently overridable background/border for the toolbar and object-actions
+     panels - default to the same values `.theme` itself uses, so redeclaring one of
+     these doesn't affect the other panels (or Openbar) still relying on `.theme`. */
+  --toolbar-background: linear-gradient(
+    135deg,
+    var(--theme-bg-start) 0%,
+    var(--theme-bg-end) 100%
+  );
+  --toolbar-border-color: var(--theme-border-color);
+  --object-actions-background: linear-gradient(
+    135deg,
+    var(--theme-bg-start) 0%,
+    var(--theme-bg-end) 100%
+  );
+  --object-actions-border-color: var(--theme-border-color);
   font-family: Inter, sans-serif;
   font-feature-settings:
     "liga" 1,

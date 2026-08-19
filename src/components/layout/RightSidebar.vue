@@ -1,7 +1,10 @@
 <template>
   <TransitionGroup tag="div" id="right-sidebar" name="right-sidebar-item">
     <ObjectInfo v-if="objectBarData.isVisible" key="object-info" />
-    <ObjectActions key="object-actions" />
+    <ObjectActions
+      v-if="objectActionsPlacement === 'corner'"
+      key="object-actions"
+    />
   </TransitionGroup>
 
   <Button
@@ -20,9 +23,13 @@ import ObjectInfo from "@/components/layout/ObjectInfo.vue";
 import ObjectActions from "@/components/layout/ObjectActions.vue";
 import { Button } from "@/components/ui/button";
 import { ArrowBigLeftDash } from "lucide-vue-next";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import {
+  useObjectActionsPlacement,
+  useViewerRuntime,
+} from "@/viewer/viewer_context";
 
 const { objectBarData } = useViewerRuntime().store;
+const objectActionsPlacement = useObjectActionsPlacement();
 </script>
 
 <style scoped>

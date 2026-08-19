@@ -92,18 +92,13 @@ div.item {
 h1.section-title {
   margin-bottom: 10px;
   color: var(--foreground);
-  background: color-mix(in oklab, var(--background) 25%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  /*border: 1px solid rgba(255, 255, 255, 0.2);*/
+  background: var(--section-title-background);
+  backdrop-filter: blur(var(--section-title-blur));
+  -webkit-backdrop-filter: blur(var(--section-title-blur));
   padding: 5px;
   padding-left: 10px;
   border-radius: 10px;
-  box-shadow:
-    1px 1px 3px 0px color-mix(in oklab, var(--foreground) 35%, transparent)
-      inset,
-    -1px -1px 3px 0px color-mix(in oklab, var(--background) 70%, transparent)
-      inset;
+  box-shadow: var(--section-title-shadow);
 }
 
 div.data-entry {

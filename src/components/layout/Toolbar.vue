@@ -1,5 +1,10 @@
 <template>
-  <div ref="toolbarElement" class="toolbar theme" id="toolbar">
+  <div
+    ref="toolbarElement"
+    class="toolbar theme"
+    :class="{ 'docked-top': toolbarPlacement === 'docked-top' }"
+    id="toolbar"
+  >
     <h1 class="text-lg font-bold" :class="{ dark: theme.value === 'dark' }">
       COMPAS ThreeJs
     </h1>
@@ -20,7 +25,11 @@ import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
 import AddObjectGroup from "@/components/tools/objects/AddObjectGroup.vue";
 import ViewGroup from "@/components/tools/views/ViewGroup.vue";
 import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
-import { useToolbarTools, useViewerRuntime } from "@/viewer/viewer_context";
+import {
+  useToolbarPlacement,
+  useToolbarTools,
+  useViewerRuntime,
+} from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
 import { computed, ref, watchEffect } from "vue";
 
@@ -28,6 +37,7 @@ const toolbarElement = ref<HTMLElement | null>(null);
 const { isHovered } = useHover(toolbarElement);
 const { theme, blockPicker } = useViewerRuntime().store;
 const toolbarTools = useToolbarTools();
+const toolbarPlacement = useToolbarPlacement();
 const sortedToolbarTools = computed(() =>
   [...toolbarTools].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
 );
@@ -38,7 +48,13 @@ watchEffect(() => {
 </script>
 
 <style scoped>
-.toolbar {
+/* `div.` prefix (matching Sidebar/ObjectActions/Openbar's own root selectors) is not
+   just style: without it, this rule's specificity exactly ties a consumer's `:root
+   .theme { border: ... }` override (also class+pseudo-class = two), and loses that tie
+   to source order - the extra element-type selector here breaks the tie properly, so
+   --toolbar-background/--toolbar-border-color stay overridable regardless of where a
+   consumer's override happens to sit in the cascade. */
+div.toolbar {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -50,6 +66,17 @@ watchEffect(() => {
   height: auto;
   width: 100%;
   pointer-events: auto;
+  background: var(--toolbar-background);
+  border: 1px solid var(--toolbar-border-color);
+}
+
+div.toolbar.docked-top {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: var(--docked-bar-padding);
+  min-height: var(--docked-bar-height);
+  width: auto;
 }
 
 :deep(.toolbar-group) {

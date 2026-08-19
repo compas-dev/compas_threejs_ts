@@ -2,6 +2,7 @@
 
 import {
   Box,
+  Dictionary,
   Frame,
   pbDumpBytes,
   Quaternion,
@@ -90,6 +91,26 @@ function frameBytes(guid: string): Uint8Array {
         point: { guid: "", name: "", x: 0, y: 0, z: 0 },
         xaxis: { guid: "", name: "", x: 1, y: 0, z: 0 },
         yaxis: { guid: "", name: "", x: 0, y: 1, z: 0 },
+      },
+    }),
+  );
+}
+
+function uiButtonBytes(guid: string): Uint8Array {
+  const commandValue = (value: unknown) =>
+    typeof value === "number" ? { doubleValue: value } : { value };
+  return pbDumpBytes(
+    new Dictionary({
+      data: {
+        items: Object.fromEntries(
+          Object.entries({
+            dispatch: "ui",
+            type: "button",
+            guid,
+            text: "Test",
+            variant: "secondary",
+          }).map(([key, value]) => [key, commandValue(value)]),
+        ),
       },
     }),
   );
@@ -406,5 +427,101 @@ describe("toolbar extension API", () => {
 
     expect(container.querySelectorAll(".toolbar-group")).toHaveLength(4);
     expect(container.querySelectorAll(".ping-tool")).toHaveLength(0);
+  });
+
+  it("defaults every panel to the corner placement", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, { mode: "embedded" });
+    viewers.push(viewer);
+
+    expect(container.querySelector(".dock-top")).toBeNull();
+    expect(container.querySelector(".app-container.docked-top")).toBeNull();
+    // Toolbar and (once mounted) ObjectActions/Openbar all nest in their
+    // legacy corner-mode containers, exactly as before this option existed.
+    expect(container.querySelector("#sidebar .toolbar")).not.toBeNull();
+    expect(container.querySelector(".toolbar.docked-top")).toBeNull();
+    expect(
+      container.querySelector("#right-sidebar .object-actions"),
+    ).not.toBeNull();
+    expect(container.querySelector(".object-actions.docked-top")).toBeNull();
+
+    viewer.dispatch(uiButtonBytes("ui-button"));
+    await nextTick();
+    expect(container.querySelector("#sidebar #openbar")).not.toBeNull();
+    expect(container.querySelector("#openbar.docked-left")).toBeNull();
+  });
+
+  it("docks the toolbar as a full-width bar, out of #sidebar entirely", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarPlacement: "docked-top",
+    });
+    viewers.push(viewer);
+
+    expect(container.querySelector(".app-container.docked-top")).not.toBeNull();
+    expect(
+      container.querySelector(".dock-top > .toolbar.docked-top"),
+    ).not.toBeNull();
+    expect(container.querySelector("#sidebar .toolbar")).toBeNull();
+  });
+
+  it("docks Openbar to the left, independent of the toolbar's own placement", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarPlacement: "docked-top",
+      openbarPlacement: "docked-left",
+    });
+    viewers.push(viewer);
+
+    viewer.dispatch(uiButtonBytes("ui-button"));
+    await nextTick();
+
+    expect(
+      container.querySelector(".workspace > #openbar.docked-left"),
+    ).not.toBeNull();
+    expect(container.querySelector("#sidebar #openbar")).toBeNull();
+  });
+
+  it("docks ObjectActions under the toolbar, out of #right-sidebar entirely", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      objectActionsPlacement: "docked-top",
+    });
+    viewers.push(viewer);
+
+    expect(container.querySelector(".app-container.docked-top")).not.toBeNull();
+    expect(
+      container.querySelector(".dock-top > .object-actions.docked-top"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("#right-sidebar .object-actions"),
+    ).toBeNull();
+  });
+
+  it("keeps a docked-top ObjectActions visible even with no selection", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      objectActionsPlacement: "docked-top",
+    });
+    viewers.push(viewer);
+
+    const actionsPanel = container.querySelector(".object-actions");
+    expect(actionsPanel).not.toBeNull();
+    expect(actionsPanel!.classList.contains("is-empty")).toBe(true);
+    expect(getComputedStyle(actionsPanel!).display).not.toBe("none");
   });
 });

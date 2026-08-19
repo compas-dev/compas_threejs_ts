@@ -3,6 +3,9 @@ import { createApp, markRaw } from "vue";
 import "../style.css";
 import App from "../App.vue";
 import {
+  objectActionsPlacementKey,
+  openbarPlacementKey,
+  toolbarPlacementKey,
   toolbarToolsKey,
   useViewerMessaging,
   viewerRuntimeKey,
@@ -14,6 +17,9 @@ import type { CompasViewer, CompasViewerOptions } from "./types";
 export type {
   CompasViewer,
   CompasViewerOptions,
+  ObjectActionsPlacement,
+  OpenbarPlacement,
+  ToolbarPlacement,
   ToolDefinition,
   ViewerMessaging,
   ViewerMode,
@@ -47,6 +53,12 @@ export function createViewer(
   });
   app.provide(viewerRuntimeKey, runtime);
   app.provide(toolbarToolsKey, options.toolbarTools ?? []);
+  app.provide(toolbarPlacementKey, options.toolbarPlacement ?? "corner");
+  app.provide(openbarPlacementKey, options.openbarPlacement ?? "corner");
+  app.provide(
+    objectActionsPlacementKey,
+    options.objectActionsPlacement ?? "corner",
+  );
   app.mount(container);
 
   let disposed = false;
