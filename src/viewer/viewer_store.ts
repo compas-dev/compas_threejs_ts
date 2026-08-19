@@ -82,6 +82,7 @@ export interface ViewerStore {
   sidebarComponents: DynamicComponent[];
   pickerEnabled: { value: boolean };
   pickerMode: { value: "translate" | "rotate" | "scale" };
+  pickedObjectGuid: { value: string | null };
   blockPicker: { value: boolean };
   showEdges: { value: boolean };
   theme: { value: "light" | "dark" };
@@ -104,6 +105,7 @@ export function createViewerStore(): ViewerStore {
     sidebarComponents: reactive<DynamicComponent[]>([]),
     pickerEnabled: reactive({ value: true }),
     pickerMode: reactive({ value: "translate" as const }),
+    pickedObjectGuid: reactive({ value: null as string | null }),
     blockPicker: reactive({ value: false }),
     showEdges: reactive({ value: false }),
     theme: reactive({ value: "light" as const }),
