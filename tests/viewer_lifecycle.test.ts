@@ -6,7 +6,7 @@ import {
   pbDumpBytes,
   Quaternion,
 } from "@gramaziokohler/compas-pb-ts";
-import { nextTick } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("three", async () => {
@@ -31,11 +31,34 @@ vi.mock("three", async () => {
   return { ...actual, WebGLRenderer };
 });
 
-import { CompasViewerError, createViewer } from "../src/library";
+import {
+  CompasViewerError,
+  createViewer,
+  useViewerMessaging,
+} from "../src/library";
+import type { ToolDefinition } from "../src/library/types";
 import { ViewerRuntime } from "../src/viewer/viewer_runtime";
 import * as THREE from "three";
 
 const viewers: Array<{ dispose(): void }> = [];
+
+function definePingTool(toolId: string) {
+  return defineComponent({
+    name: `PingTool-${toolId}`,
+    setup() {
+      const { sendData } = useViewerMessaging();
+      function handleClick() {
+        sendData({ dispatch: "other_action", action: "ping", tool: toolId });
+      }
+      return () =>
+        h(
+          "button",
+          { class: "ping-tool", "data-tool-id": toolId, onClick: handleClick },
+          toolId,
+        );
+    },
+  });
+}
 
 function boxBytes(guid: string): Uint8Array {
   return pbDumpBytes(
@@ -310,5 +333,78 @@ describe("createViewer", () => {
     expect(runtime.geometries.has("addressable-box")).toBe(true);
 
     runtime.dispose();
+  });
+});
+
+describe("toolbar extension API", () => {
+  it("mounts toolbarTools after the built-in groups, sorted by order", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const tools: ToolDefinition[] = [
+      { id: "later", component: definePingTool("later"), order: 20 },
+      { id: "earlier", component: definePingTool("earlier"), order: 5 },
+      { id: "unordered", component: definePingTool("unordered") },
+    ];
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarTools: tools,
+    });
+    viewers.push(viewer);
+
+    const toolbar = container.querySelector(".toolbar");
+    expect(toolbar).not.toBeNull();
+
+    const builtInGroups = toolbar!.querySelectorAll(".toolbar-group");
+    expect(builtInGroups).toHaveLength(4);
+
+    const toolIds = Array.from(toolbar!.querySelectorAll(".ping-tool")).map(
+      (button) => button.getAttribute("data-tool-id"),
+    );
+    expect(toolIds).toEqual(["unordered", "earlier", "later"]);
+
+    const lastBuiltInGroup = builtInGroups[builtInGroups.length - 1]!;
+    const firstToolButton = toolbar!.querySelector(".ping-tool")!;
+    expect(
+      lastBuiltInGroup.compareDocumentPosition(firstToolButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("routes useViewerMessaging().sendData through the `send` option", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const outgoing: unknown[] = [];
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarTools: [{ id: "ping", component: definePingTool("ping") }],
+      send: (message) => {
+        outgoing.push(message);
+        return true;
+      },
+    });
+    viewers.push(viewer);
+
+    const button = container.querySelector<HTMLButtonElement>(".ping-tool");
+    expect(button).not.toBeNull();
+    button!.click();
+    button!.click();
+
+    expect(outgoing).toEqual([
+      { dispatch: "other_action", action: "ping", tool: "ping" },
+      { dispatch: "other_action", action: "ping", tool: "ping" },
+    ]);
+  });
+
+  it("renders only the built-in groups when toolbarTools is omitted", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, { mode: "embedded" });
+    viewers.push(viewer);
+
+    expect(container.querySelectorAll(".toolbar-group")).toHaveLength(4);
+    expect(container.querySelectorAll(".ping-tool")).toHaveLength(0);
   });
 });

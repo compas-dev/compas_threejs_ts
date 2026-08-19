@@ -2,7 +2,11 @@ import { createApp, markRaw } from "vue";
 
 import "../style.css";
 import App from "../App.vue";
-import { viewerRuntimeKey } from "../viewer/viewer_context";
+import {
+  toolbarToolsKey,
+  useViewerMessaging,
+  viewerRuntimeKey,
+} from "../viewer/viewer_context";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
 import { CompasViewerError } from "./errors";
 import type { CompasViewer, CompasViewerOptions } from "./types";
@@ -10,6 +14,8 @@ import type { CompasViewer, CompasViewerOptions } from "./types";
 export type {
   CompasViewer,
   CompasViewerOptions,
+  ToolDefinition,
+  ViewerMessaging,
   ViewerMode,
   ViewerWebSocketOptions,
 } from "./types";
@@ -18,6 +24,7 @@ export {
   type CompasViewerErrorOptions,
 } from "./errors";
 export { CompasViewerError };
+export { useViewerMessaging };
 
 export function createViewer(
   container: HTMLElement,
@@ -39,6 +46,7 @@ export function createViewer(
     showToolbar: options.showToolbar ?? true,
   });
   app.provide(viewerRuntimeKey, runtime);
+  app.provide(toolbarToolsKey, options.toolbarTools ?? []);
   app.mount(container);
 
   let disposed = false;

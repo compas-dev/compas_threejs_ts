@@ -15,6 +15,7 @@
     "src/library/errors.ts",
     "src/library/types.ts",
     "src/library/public.d.ts",
+    "src/library/ui.d.ts",
     "src/viewer/**/*.ts"
   ]
 }

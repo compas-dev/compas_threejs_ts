@@ -7,6 +7,11 @@
     <AddObjectGroup />
     <ViewGroup />
     <DisplayGroup />
+    <component
+      :is="tool.component"
+      v-for="tool in sortedToolbarTools"
+      :key="tool.id"
+    />
   </div>
 </template>
 
@@ -15,13 +20,17 @@ import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
 import AddObjectGroup from "@/components/tools/objects/AddObjectGroup.vue";
 import ViewGroup from "@/components/tools/views/ViewGroup.vue";
 import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import { useToolbarTools, useViewerRuntime } from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
-import { ref, watchEffect } from "vue";
+import { computed, ref, watchEffect } from "vue";
 
 const toolbarElement = ref<HTMLElement | null>(null);
 const { isHovered } = useHover(toolbarElement);
 const { theme, blockPicker } = useViewerRuntime().store;
+const toolbarTools = useToolbarTools();
+const sortedToolbarTools = computed(() =>
+  [...toolbarTools].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+);
 
 watchEffect(() => {
   blockPicker.value = isHovered.value;

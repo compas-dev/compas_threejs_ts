@@ -1,3 +1,5 @@
+import type { Component } from "vue";
+
 export type ViewerMode = "embedded" | "websocket";
 
 export type CompasViewerErrorCode =
@@ -30,11 +32,23 @@ export interface ViewerWebSocketOptions {
   secure?: boolean;
 }
 
+export interface ToolDefinition {
+  id: string;
+  component: Component;
+  order?: number;
+}
+
+export interface ViewerMessaging {
+  send(message: unknown): boolean;
+  sendData(message: Record<string, unknown>): boolean;
+}
+
 export interface CompasViewerOptions {
   mode?: ViewerMode;
   websocket?: ViewerWebSocketOptions;
   defaultLighting?: boolean;
   showToolbar?: boolean;
+  toolbarTools?: ToolDefinition[];
   send?: (message: unknown) => boolean | void;
   onError?: (error: CompasViewerError) => void;
 }
@@ -50,3 +64,5 @@ export declare function createViewer(
   container: HTMLElement,
   options?: CompasViewerOptions,
 ): CompasViewer;
+
+export declare function useViewerMessaging(): ViewerMessaging;
