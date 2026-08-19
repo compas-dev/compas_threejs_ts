@@ -1,16 +1,20 @@
 <template>
   <div id="sidebar">
-    <Toolbar v-if="showToolbar" />
-    <Openbar v-if="sideBarInfoState.isVisible" />
+    <Toolbar v-if="showToolbar && toolbarPlacement === 'corner'" />
+    <Openbar v-if="openbarPlacement === 'corner'" />
   </div>
 </template>
 
 <script setup lang="ts">
 import Toolbar from "@/components/layout/Toolbar.vue";
 import Openbar from "@/components/layout/Openbar.vue";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import {
+  useOpenbarPlacement,
+  useToolbarPlacement,
+} from "@/viewer/viewer_context";
 
-const { sideBarInfoState } = useViewerRuntime().store;
+const toolbarPlacement = useToolbarPlacement();
+const openbarPlacement = useOpenbarPlacement();
 
 withDefaults(defineProps<{ showToolbar?: boolean }>(), {
   showToolbar: true,

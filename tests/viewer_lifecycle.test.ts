@@ -2,11 +2,12 @@
 
 import {
   Box,
+  Dictionary,
   Frame,
   pbDumpBytes,
   Quaternion,
 } from "@gramaziokohler/compas-pb-ts";
-import { nextTick } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("three", async () => {
@@ -31,11 +32,34 @@ vi.mock("three", async () => {
   return { ...actual, WebGLRenderer };
 });
 
-import { CompasViewerError, createViewer } from "../src/library";
+import {
+  CompasViewerError,
+  createViewer,
+  useViewerMessaging,
+} from "../src/library";
+import type { ToolDefinition } from "../src/library/types";
 import { ViewerRuntime } from "../src/viewer/viewer_runtime";
 import * as THREE from "three";
 
 const viewers: Array<{ dispose(): void }> = [];
+
+function definePingTool(toolId: string) {
+  return defineComponent({
+    name: `PingTool-${toolId}`,
+    setup() {
+      const { sendData } = useViewerMessaging();
+      function handleClick() {
+        sendData({ dispatch: "other_action", action: "ping", tool: toolId });
+      }
+      return () =>
+        h(
+          "button",
+          { class: "ping-tool", "data-tool-id": toolId, onClick: handleClick },
+          toolId,
+        );
+    },
+  });
+}
 
 function boxBytes(guid: string): Uint8Array {
   return pbDumpBytes(
@@ -67,6 +91,26 @@ function frameBytes(guid: string): Uint8Array {
         point: { guid: "", name: "", x: 0, y: 0, z: 0 },
         xaxis: { guid: "", name: "", x: 1, y: 0, z: 0 },
         yaxis: { guid: "", name: "", x: 0, y: 1, z: 0 },
+      },
+    }),
+  );
+}
+
+function uiButtonBytes(guid: string): Uint8Array {
+  const commandValue = (value: unknown) =>
+    typeof value === "number" ? { doubleValue: value } : { value };
+  return pbDumpBytes(
+    new Dictionary({
+      data: {
+        items: Object.fromEntries(
+          Object.entries({
+            dispatch: "ui",
+            type: "button",
+            guid,
+            text: "Test",
+            variant: "secondary",
+          }).map(([key, value]) => [key, commandValue(value)]),
+        ),
       },
     }),
   );
@@ -310,5 +354,174 @@ describe("createViewer", () => {
     expect(runtime.geometries.has("addressable-box")).toBe(true);
 
     runtime.dispose();
+  });
+});
+
+describe("toolbar extension API", () => {
+  it("mounts toolbarTools after the built-in groups, sorted by order", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const tools: ToolDefinition[] = [
+      { id: "later", component: definePingTool("later"), order: 20 },
+      { id: "earlier", component: definePingTool("earlier"), order: 5 },
+      { id: "unordered", component: definePingTool("unordered") },
+    ];
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarTools: tools,
+    });
+    viewers.push(viewer);
+
+    const toolbar = container.querySelector(".toolbar");
+    expect(toolbar).not.toBeNull();
+
+    const builtInGroups = toolbar!.querySelectorAll(".toolbar-group");
+    expect(builtInGroups).toHaveLength(4);
+
+    const toolIds = Array.from(toolbar!.querySelectorAll(".ping-tool")).map(
+      (button) => button.getAttribute("data-tool-id"),
+    );
+    expect(toolIds).toEqual(["unordered", "earlier", "later"]);
+
+    const lastBuiltInGroup = builtInGroups[builtInGroups.length - 1]!;
+    const firstToolButton = toolbar!.querySelector(".ping-tool")!;
+    expect(
+      lastBuiltInGroup.compareDocumentPosition(firstToolButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("routes useViewerMessaging().sendData through the `send` option", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const outgoing: unknown[] = [];
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarTools: [{ id: "ping", component: definePingTool("ping") }],
+      send: (message) => {
+        outgoing.push(message);
+        return true;
+      },
+    });
+    viewers.push(viewer);
+
+    const button = container.querySelector<HTMLButtonElement>(".ping-tool");
+    expect(button).not.toBeNull();
+    button!.click();
+    button!.click();
+
+    expect(outgoing).toEqual([
+      { dispatch: "other_action", action: "ping", tool: "ping" },
+      { dispatch: "other_action", action: "ping", tool: "ping" },
+    ]);
+  });
+
+  it("renders only the built-in groups when toolbarTools is omitted", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, { mode: "embedded" });
+    viewers.push(viewer);
+
+    expect(container.querySelectorAll(".toolbar-group")).toHaveLength(4);
+    expect(container.querySelectorAll(".ping-tool")).toHaveLength(0);
+  });
+
+  it("defaults every panel to the corner placement", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, { mode: "embedded" });
+    viewers.push(viewer);
+
+    expect(container.querySelector(".dock-top")).toBeNull();
+    expect(container.querySelector(".app-container.docked-top")).toBeNull();
+    // Toolbar and (once mounted) ObjectActions/Openbar all nest in their
+    // legacy corner-mode containers, exactly as before this option existed.
+    expect(container.querySelector("#sidebar .toolbar")).not.toBeNull();
+    expect(container.querySelector(".toolbar.docked-top")).toBeNull();
+    expect(
+      container.querySelector("#right-sidebar .object-actions"),
+    ).not.toBeNull();
+    expect(container.querySelector(".object-actions.docked-top")).toBeNull();
+
+    viewer.dispatch(uiButtonBytes("ui-button"));
+    await nextTick();
+    expect(container.querySelector("#sidebar #openbar")).not.toBeNull();
+    expect(container.querySelector("#openbar.docked-left")).toBeNull();
+  });
+
+  it("docks the toolbar as a full-width bar, out of #sidebar entirely", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarPlacement: "docked-top",
+    });
+    viewers.push(viewer);
+
+    expect(container.querySelector(".app-container.docked-top")).not.toBeNull();
+    expect(
+      container.querySelector(".dock-top > .toolbar.docked-top"),
+    ).not.toBeNull();
+    expect(container.querySelector("#sidebar .toolbar")).toBeNull();
+  });
+
+  it("docks Openbar to the left, independent of the toolbar's own placement", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      toolbarPlacement: "docked-top",
+      openbarPlacement: "docked-left",
+    });
+    viewers.push(viewer);
+
+    viewer.dispatch(uiButtonBytes("ui-button"));
+    await nextTick();
+
+    expect(
+      container.querySelector(".workspace > #openbar.docked-left"),
+    ).not.toBeNull();
+    expect(container.querySelector("#sidebar #openbar")).toBeNull();
+  });
+
+  it("docks ObjectActions under the toolbar, out of #right-sidebar entirely", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      objectActionsPlacement: "docked-top",
+    });
+    viewers.push(viewer);
+
+    expect(container.querySelector(".app-container.docked-top")).not.toBeNull();
+    expect(
+      container.querySelector(".dock-top > .object-actions.docked-top"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("#right-sidebar .object-actions"),
+    ).toBeNull();
+  });
+
+  it("keeps a docked-top ObjectActions visible even with no selection", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    const viewer = createViewer(container, {
+      mode: "embedded",
+      objectActionsPlacement: "docked-top",
+    });
+    viewers.push(viewer);
+
+    const actionsPanel = container.querySelector(".object-actions");
+    expect(actionsPanel).not.toBeNull();
+    expect(actionsPanel!.classList.contains("is-empty")).toBe(true);
+    expect(getComputedStyle(actionsPanel!).display).not.toBe("none");
   });
 });

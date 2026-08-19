@@ -18,4 +18,25 @@ describe("public library entry", () => {
       }),
     );
   });
+
+  it("exposes useViewerMessaging as a function", async () => {
+    const library = await import("../src/library");
+    expect(library.useViewerMessaging).toBeTypeOf("function");
+  });
+
+  it("exposes the documented ui kit re-export surface", async () => {
+    const ui = await import("../src/library/ui");
+    expect(Object.keys(ui).sort()).toEqual([
+      "Button",
+      "Kbd",
+      "KbdGroup",
+      "Tooltip",
+      "TooltipContent",
+      "TooltipProvider",
+      "TooltipTrigger",
+    ]);
+    for (const component of Object.values(ui)) {
+      expect(component).toBeTruthy();
+    }
+  });
 });

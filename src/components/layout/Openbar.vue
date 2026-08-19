@@ -1,140 +1,152 @@
 <template>
-  <div
-    ref="openbarElement"
-    id="openbar"
-    class="fixed-openbar theme"
-    :class="{ 'is-hidden': !isVisible }"
-  >
-    <!-- Dynamically render components from the store -->
-    <div v-for="item in sidebarComponents" :key="item.id" class="dynamic-item">
-      <label
-        v-if="item.label"
-        class="dynamic-label"
-        :class="{ dark: theme.value === 'dark' }"
-      >
-        {{ item.label }}
-      </label>
-
-      <div v-if="item.component === 'Button'" class="button-container">
-        <Button variant="secondary" @click="handleAction(item.action)">
-          {{ item.props.text }}
-        </Button>
-      </div>
-
-      <div v-else-if="item.component === 'Slider'" class="slider-container">
-        <Slider
-          :min="item.props.min"
-          :max="item.props.max"
-          :step="item.props.step"
-          :default-value="item.props.defaultValue"
-          v-model="item.props.defaultValue"
-          @update:model-value="(value) => handleAction(item.action, value?.[0])"
-          class="w-[80%]"
-        />
-        <span v-if="item.props.defaultValue" class="slider-value">
-          {{ item.props.defaultValue[0] }}
-        </span>
-      </div>
-
+  <template v-if="sideBarInfoState.isVisible">
+    <div
+      ref="openbarElement"
+      id="openbar"
+      class="fixed-openbar theme"
+      :class="{
+        'is-hidden': !isVisible,
+        'docked-left': placement === 'docked-left',
+      }"
+    >
+      <!-- Dynamically render components from the store -->
       <div
-        v-else-if="item.component === 'NumberField'"
-        class="number-field-container"
+        v-for="item in sidebarComponents"
+        :key="item.id"
+        class="dynamic-item"
       >
-        <NumberField
-          :min="item.props.min"
-          :max="item.props.max"
-          :step="item.props.step"
-          :default-value="item.props.value"
-          v-model="item.props.value"
-          @update:model-value="(value) => handleAction(item.action, value)"
-          class="w-full"
+        <label
+          v-if="item.label"
+          class="dynamic-label"
+          :class="{ dark: theme.value === 'dark' }"
         >
-          <NumberFieldContent>
-            <NumberFieldDecrement />
-            <NumberFieldInput />
-            <NumberFieldIncrement />
-          </NumberFieldContent>
-        </NumberField>
-      </div>
+          {{ item.label }}
+        </label>
 
-      <div
-        v-else-if="item.component === 'LoadJsonButton'"
-        class="load-json-button-container"
-      >
-        <LoadJsonButton :text="item.props.text" :action="item.action" />
-      </div>
+        <div v-if="item.component === 'Button'" class="button-container">
+          <Button variant="secondary" @click="handleAction(item.action)">
+            {{ item.props.text }}
+          </Button>
+        </div>
 
-      <div
-        v-else-if="item.component === 'Checkbox'"
-        class="checkbox-ui-component"
-      >
-        <Checkbox
-          :id="`checkbox-${item.id}`"
-          :model-value="Boolean(item.props.defaultValue)"
-          @update:model-value="
-            (checked) => {
-              item.props.defaultValue = Boolean(checked);
-              handleAction(item.action, checked);
-            }
-          "
-        />
-        <span v-if="item.props.text">
-          {{ item.props.text }}
-        </span>
-      </div>
+        <div v-else-if="item.component === 'Slider'" class="slider-container">
+          <Slider
+            :min="item.props.min"
+            :max="item.props.max"
+            :step="item.props.step"
+            :default-value="item.props.defaultValue"
+            v-model="item.props.defaultValue"
+            @update:model-value="
+              (value) => handleAction(item.action, value?.[0])
+            "
+            class="w-[80%]"
+          />
+          <span v-if="item.props.defaultValue" class="slider-value">
+            {{ item.props.defaultValue[0] }}
+          </span>
+        </div>
 
-      <div v-else-if="item.component === 'Select'" class="select-container">
-        <Select
-          :model-value="item.props.defaultValue ?? ''"
-          @update:model-value="
-            (value) => {
-              item.props.defaultValue = typeof value === 'string' ? value : '';
-              handleAction(item.action, value);
-            }
-          "
+        <div
+          v-else-if="item.component === 'NumberField'"
+          class="number-field-container"
         >
-          <SelectTrigger class="w-full">
-            <SelectValue
-              :placeholder="item.props.placeholder ?? 'Select an option'"
-            />
-          </SelectTrigger>
-          <SelectContent class="z-[4000]">
-            <SelectItem
-              v-for="option in item.props.options"
-              :key="option"
-              :value="option"
-            >
-              {{ option }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+          <NumberField
+            :min="item.props.min"
+            :max="item.props.max"
+            :step="item.props.step"
+            :default-value="item.props.value"
+            v-model="item.props.value"
+            @update:model-value="(value) => handleAction(item.action, value)"
+            class="w-full"
+          >
+            <NumberFieldContent>
+              <NumberFieldDecrement />
+              <NumberFieldInput />
+              <NumberFieldIncrement />
+            </NumberFieldContent>
+          </NumberField>
+        </div>
+
+        <div
+          v-else-if="item.component === 'LoadJsonButton'"
+          class="load-json-button-container"
+        >
+          <LoadJsonButton :text="item.props.text" :action="item.action" />
+        </div>
+
+        <div
+          v-else-if="item.component === 'Checkbox'"
+          class="checkbox-ui-component"
+        >
+          <Checkbox
+            :id="`checkbox-${item.id}`"
+            :model-value="Boolean(item.props.defaultValue)"
+            @update:model-value="
+              (checked) => {
+                item.props.defaultValue = Boolean(checked);
+                handleAction(item.action, checked);
+              }
+            "
+          />
+          <span v-if="item.props.text">
+            {{ item.props.text }}
+          </span>
+        </div>
+
+        <div v-else-if="item.component === 'Select'" class="select-container">
+          <Select
+            :model-value="item.props.defaultValue ?? ''"
+            @update:model-value="
+              (value) => {
+                item.props.defaultValue =
+                  typeof value === 'string' ? value : '';
+                handleAction(item.action, value);
+              }
+            "
+          >
+            <SelectTrigger class="w-full">
+              <SelectValue
+                :placeholder="item.props.placeholder ?? 'Select an option'"
+              />
+            </SelectTrigger>
+            <SelectContent class="z-[4000]">
+              <SelectItem
+                v-for="option in item.props.options"
+                :key="option"
+                :value="option"
+              >
+                {{ option }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+      <Button
+        variant="secondary"
+        size="icon"
+        class="mb-4"
+        @click="toggleSideBar()"
+      >
+        <ArrowBigLeftDash />
+      </Button>
     </div>
     <Button
       variant="secondary"
       size="icon"
-      class="mb-4"
+      class="mb-5"
       @click="toggleSideBar()"
+      :class="{ 'is-hidden': !isVisible }"
     >
-      <ArrowBigLeftDash />
+      <ArrowBigRightDash />
     </Button>
-  </div>
-  <Button
-    variant="secondary"
-    size="icon"
-    class="mb-5"
-    @click="toggleSideBar()"
-    :class="{ 'is-hidden': !isVisible }"
-  >
-    <ArrowBigRightDash />
-  </Button>
+  </template>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import { useOpenbarPlacement, useViewerRuntime } from "@/viewer/viewer_context";
 import { ArrowBigLeftDash, ArrowBigRightDash } from "lucide-vue-next";
 import {
   NumberField,
@@ -159,7 +171,9 @@ import { useKeyboardShortcuts } from "@/components/tools/useKeyboardShortcuts";
 const isVisible = ref(true);
 const openbarElement = ref<HTMLElement | null>(null);
 const runtime = useViewerRuntime();
-const { sidebarComponents, theme, blockPicker } = runtime.store;
+const { sidebarComponents, theme, blockPicker, sideBarInfoState } =
+  runtime.store;
+const placement = useOpenbarPlacement();
 const handleAction = (action: string, value?: unknown) =>
   runtime.handleUiAction(action, value);
 
@@ -197,6 +211,17 @@ div#openbar {
 
   /*overflow: ;*/
   overflow-y: auto;
+}
+
+div#openbar.docked-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30vw;
+  max-width: 300px;
+  min-width: 250px;
+  border-radius: 0 10px 10px 0;
+  z-index: 1000;
 }
 
 div#openbar.is-hidden {

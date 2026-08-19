@@ -15,9 +15,11 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     lib: {
-      entry: path.resolve(import.meta.dirname, "src/library/index.ts"),
+      entry: {
+        index: path.resolve(import.meta.dirname, "src/library/index.ts"),
+        ui: path.resolve(import.meta.dirname, "src/library/ui.ts"),
+      },
       formats: ["es"],
-      fileName: "index",
       cssFileName: "style",
     },
     rollupOptions: {

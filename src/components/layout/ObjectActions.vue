@@ -1,7 +1,10 @@
 <template>
   <div
     class="theme object-actions"
-    :class="{ 'is-empty': !objectActionsState.length }"
+    :class="{
+      'is-empty': !objectActionsState.length,
+      'docked-top': placement === 'docked-top',
+    }"
     id="actions-panel"
     ref="actionsPanel"
   >
@@ -20,7 +23,7 @@
         v-if="action.type === 'button'"
         variant="outline"
         @click="handleObjectAction(action)"
-        class="w-full"
+        :class="{ 'w-full': placement !== 'docked-top' }"
       >
         {{ action.text }}
       </Button>
@@ -37,7 +40,7 @@
           }
         "
       >
-        <SelectTrigger class="w-full">
+        <SelectTrigger :class="{ 'w-full': placement !== 'docked-top' }">
           <SelectValue
             :placeholder="action.placeholder ?? 'Select an option'"
           />
@@ -67,7 +70,10 @@ import {
 } from "@/components/ui/select";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import {
+  useObjectActionsPlacement,
+  useViewerRuntime,
+} from "@/viewer/viewer_context";
 import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
@@ -75,6 +81,7 @@ const { objectActionsState, blockPicker, theme } = runtime.store;
 const handleObjectAction = (action: ObjectAction, value?: unknown) =>
   runtime.handleObjectAction({ ...action }, value);
 const actionsPanel = ref<HTMLElement | null>(null);
+const placement = useObjectActionsPlacement();
 
 const { isHovered } = useHover(actionsPanel);
 
@@ -98,6 +105,29 @@ div.object-actions {
   gap: 30px;
   color: var(--foreground);
   pointer-events: auto;
+  background: var(--object-actions-background);
+  border: 1px solid var(--object-actions-border-color);
+}
+
+div.object-actions.docked-top {
+  max-width: none;
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: var(--docked-bar-height);
+  max-height: 40vh;
+  padding: var(--docked-bar-padding);
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Toolbar's own h1 carries no padding/margin of its own - match it here too,
+   rather than the corner-mode title's extra bezel spacing, so a docked-top
+   toolbar and object-actions bar come out the same height. */
+div.object-actions.docked-top h1.section-title {
+  margin-bottom: 0;
+  padding: 0;
 }
 
 div.object-actions.is-empty {
@@ -108,19 +138,22 @@ div.object-actions.is-empty {
   display: none;
 }
 
+div.object-actions.docked-top.is-empty {
+  /* Docked-top is its own always-mounted bar under the toolbar, not sharing
+     RightSidebar's TransitionGroup - nothing to lose by staying visible
+     (showing just the title) when there's no selection yet. */
+  display: flex;
+}
+
 h1.section-title {
   margin-bottom: 10px;
   color: var(--foreground);
-  background: color-mix(in oklab, var(--background) 25%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--section-title-background);
+  backdrop-filter: blur(var(--section-title-blur));
+  -webkit-backdrop-filter: blur(var(--section-title-blur));
   padding: 5px;
   padding-left: 10px;
   border-radius: 10px;
-  box-shadow:
-    1px 1px 3px 0px color-mix(in oklab, var(--foreground) 35%, transparent)
-      inset,
-    -1px -1px 3px 0px color-mix(in oklab, var(--background) 70%, transparent)
-      inset;
+  box-shadow: var(--section-title-shadow);
 }
 </style>
