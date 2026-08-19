@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.2...v1.1.0) (2026-08-17)
+
+
+### Features
+
+* add per-object hide and show-all-objects ([aa7fda6](https://github.com/compas-dev/compas_threejs_ts/commit/aa7fda6f5d64a37d2668903dc5c792acf6df8d76))
+* adds hiuide action for slectred object and show all button ([c48f03a](https://github.com/compas-dev/compas_threejs_ts/commit/c48f03a9cc66a70d7c2af7bf826bf9ce9163b04d))
+
+## [1.0.2](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.1...v1.0.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* allow anonymous geometry (geometry without GUIDs) ([2b760e2](https://github.com/compas-dev/compas_threejs_ts/commit/2b760e27934d5661f71c28328f341910d86f2859))
+* render geometry without external guid ([80e95ac](https://github.com/compas-dev/compas_threejs_ts/commit/80e95ac7623bbeb5d79f32303b3b3e860a802d59))
+
 ## [1.0.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.0...v1.0.1) (2026-08-13)
 
 ### Bug Fixes

@@ -103,6 +103,10 @@ export class ViewerRuntime {
 
   private readonly materials = new Map<string, MaterialEntry>();
   private readonly geometryMaterials = new Map<string, string>();
+  private readonly externalGeometryGuids = new WeakMap<
+    THREE.Object3D,
+    string
+  >();
   private readonly lights = new Map<string, LightEntry>();
   private readonly fonts = new Map<string, Font>();
   private readonly axesHelper = new THREE.AxesHelper(5);
@@ -123,6 +127,7 @@ export class ViewerRuntime {
   private pickedObject: THREE.Object3D | null = null;
   private pickedMaterial: THREE.Material | THREE.Material[] | null = null;
   private dragStartMatrix: THREE.Matrix4 | null = null;
+  private readonly hiddenGuids = new Set<string>();
   private readonly highlightMaterial = new THREE.MeshStandardMaterial({
     color: "orange",
     emissive: "yellow",
@@ -350,6 +355,25 @@ export class ViewerRuntime {
     this.store.objectBarData.isVisible = false;
   }
 
+  hideObjectByGuid(guid: string): void {
+    const object = this.geometries.get(guid);
+    if (!object) return;
+    object.visible = false;
+    this.hiddenGuids.add(guid);
+  }
+
+  showAllObjects(): void {
+    for (const guid of this.hiddenGuids) {
+      const object = this.geometries.get(guid);
+      if (object) object.visible = true;
+    }
+    this.hiddenGuids.clear();
+  }
+
+  deselectObject(): void {
+    this.clearPickedObject();
+  }
+
   setTransformMode(mode: "translate" | "rotate" | "scale"): void {
     this.store.pickerMode.value = mode;
     this.transformControls.setMode(mode);
@@ -431,6 +455,7 @@ export class ViewerRuntime {
       this.disposeObject(object);
     }
     this.geometries.clear();
+    this.hiddenGuids.clear();
     this.clearLights();
     for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();
@@ -541,12 +566,14 @@ export class ViewerRuntime {
   }
 
   private manageGeometry(object: CommandRecord): void {
-    const guid = readNonEmptyString(object, "guid");
-    const existing = this.geometries.get(guid);
+    const externalGuid = resolveExternalGeometryGuid(object);
+    const draggingTarget = externalGuid
+      ? this.geometries.get(externalGuid)
+      : undefined;
     if (
-      existing &&
+      draggingTarget &&
       this.transformControls.dragging &&
-      existing === this.transformControls.object
+      draggingTarget === this.transformControls.object
     ) {
       // The user is actively dragging this exact object with the gizmo - drop this
       // incoming update instead of rebuilding it out from under them. This matters a lot
@@ -560,14 +587,19 @@ export class ViewerRuntime {
       return;
     }
     const converted = convertToThreeJSGeometry(object);
+    const sceneKey = externalGuid ?? converted.uuid;
+    const existing = this.geometries.get(sceneKey);
     const wasSelected = existing !== undefined && existing === this.pickedObject;
     if (existing) {
       this.scene.remove(existing);
       this.disposeObject(existing);
     }
-    this.applyGeometryMaterial(guid, converted);
+    if (externalGuid) {
+      this.externalGeometryGuids.set(converted, externalGuid);
+    }
+    this.applyGeometryMaterial(sceneKey, converted);
     this.scene.add(converted);
-    this.geometries.set(guid, converted);
+    this.geometries.set(sceneKey, converted);
     if (this.store.showEdges.value && converted instanceof THREE.Mesh) {
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(converted.geometry),
@@ -792,7 +824,10 @@ export class ViewerRuntime {
     this.transformControls.attach(picked);
     const guid = this.findGeometryGuid(picked);
     this.store.pickedObjectGuid.value = guid ?? null;
-    if (guid) this.sendData({ dispatch: "object_picked", guid });
+    if (guid) {
+      this.store.selectedObjectGuid.value = guid;
+      this.sendData({ dispatch: "object_picked", guid });
+    }
   }
 
   private clearPickedObject(): void {
@@ -809,13 +844,16 @@ export class ViewerRuntime {
     this.store.pickedObjectGuid.value = null;
     this.store.objectBarData.data = null;
     this.store.objectActionsState.splice(0);
+    this.store.selectedObjectGuid.value = null;
   }
 
   private findGeometryGuid(object: THREE.Object3D): string | undefined {
     let current: THREE.Object3D | null = object;
     while (current) {
-      for (const [guid, candidate] of this.geometries) {
-        if (candidate === current) return guid;
+      for (const candidate of this.geometries.values()) {
+        if (candidate === current) {
+          return this.externalGeometryGuids.get(candidate);
+        }
       }
       current = current.parent;
     }
@@ -946,6 +984,7 @@ export class ViewerRuntime {
       this.disposeObject(object);
       this.geometries.delete(guid);
       this.geometryMaterials.delete(guid);
+      this.hiddenGuids.delete(guid);
     } else if (data.type === "set_visibility") {
       object.visible = data.visible;
     } else if (data.type === "toggle_visibility") {
@@ -1154,6 +1193,7 @@ export class ViewerRuntime {
   private resetAfterDispose(): void {
     for (const object of this.geometries.values()) this.disposeObject(object);
     this.geometries.clear();
+    this.hiddenGuids.clear();
     this.clearLights();
     for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();
@@ -1191,4 +1231,11 @@ export class ViewerRuntime {
       );
     }
   }
+}
+
+function resolveExternalGeometryGuid(
+  object: CommandRecord,
+): string | undefined {
+  if (object.guid === undefined || object.guid === "") return undefined;
+  return readNonEmptyString(object, "guid");
 }

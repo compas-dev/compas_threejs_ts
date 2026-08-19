@@ -86,6 +86,7 @@ export interface ViewerStore {
   blockPicker: { value: boolean };
   showEdges: { value: boolean };
   theme: { value: "light" | "dark" };
+  selectedObjectGuid: { value: string | null };
 }
 
 export function createViewerStore(): ViewerStore {
@@ -108,5 +109,6 @@ export function createViewerStore(): ViewerStore {
     blockPicker: reactive({ value: false }),
     showEdges: reactive({ value: false }),
     theme: reactive({ value: "light" as const }),
+    selectedObjectGuid: reactive({ value: null as string | null }),
   };
 }
