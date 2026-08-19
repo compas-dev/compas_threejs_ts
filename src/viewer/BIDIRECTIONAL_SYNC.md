@@ -2,7 +2,7 @@
 
 This documents the frontend half of making the viewer bidirectional: dragging an object,
 adding a new one, and editing its material all send messages back to the backend, which
-mutates the corresponding *live* Python object rather than the frontend just displaying
+mutates the corresponding _live_ Python object rather than the frontend just displaying
 whatever the backend last pushed. Before this work, outbound traffic was limited to UI
 callbacks (`ui_callback`, `object_picked`, `object_action_callback`) — see
 `ViewerRuntime.handleUiAction`/`handleObjectAction` in `viewer_runtime.ts` for that
@@ -24,7 +24,7 @@ just didn't send anything. Two things were added:
 
 1. In the constructor, the existing `"dragging-changed"` listener now also captures
    `this.dragStartMatrix = this.transformControls.object?.matrix.clone()` when a drag
-   *starts* (`event.value === true`).
+   _starts_ (`event.value === true`).
 2. A new `"mouseUp"` listener (fires once, when the drag ends — unlike `"objectChange"`,
    which fires every frame) calls `sendObjectTransform()`.
 
@@ -40,14 +40,14 @@ before an earlier refactor, per the backend's `CONTEXTE.md`).
 Geometry conversion (`buildTransformationFromFrame` + `Object3D.applyMatrix4` in
 `conversions/geometry.ts`) does **not** bake an object's frame into its vertex buffer.
 `Object3D.applyMatrix4()` premultiplies the matrix into `object.matrix` and then
-*decomposes* it into `position`/`quaternion`/`scale`. So a freshly-converted mesh already
+_decomposes_ it into `position`/`quaternion`/`scale`. So a freshly-converted mesh already
 sits at its real, absolute world placement — it is not at identity. Two real bugs came
 from getting this wrong, in order:
 
 - **Bug 1 — sent the absolute matrix as if it were a delta.** The original
   implementation assumed `object.matrix` started at identity, so it sent the post-drag
   matrix directly. The backend applied it via `geometry.transform(T)`, which composes `T`
-  *on top of* the object's current state — so the object landed somewhere else entirely
+  _on top of_ the object's current state — so the object landed somewhere else entirely
   (looked "inverted" or like it teleported). Fixed by capturing `dragStartMatrix` and
   sending `M_after * M_before^-1` instead — see the backend doc's `Transformation`
   section for why this composes correctly.
@@ -65,12 +65,12 @@ user. The next update after the drag ends — either the echo of the just-sent
 `object_transform`, or the animation's next tick — resyncs normally.
 
 Separately, `manageGeometry` also carries gizmo attachment and highlight material over to
-a freshly-rebuilt mesh when the *currently picked* object's guid gets an update (e.g. the
+a freshly-rebuilt mesh when the _currently picked_ object's guid gets an update (e.g. the
 echo of your own edit, or an unrelated animation tick while merely selected-but-not-
 dragging) — otherwise every echo would silently detach the gizmo.
 
 **Known limitation, not solved**: the backend applies the delta on top of whatever its
-live object's state is *at message-processing time*, which — for a continuously-animating
+live object's state is _at message-processing time_, which — for a continuously-animating
 object — may have moved further since `dragStartMatrix` was captured (the drag can take a
 second or more; the backend keeps animating the whole time). The result can carry a small
 amount of "extra" motion corresponding to that elapsed animation. This is different from
@@ -92,7 +92,7 @@ params. On "Add", it calls `createGeometry` and closes.
 `add_geometry` broadcast — the existing `manageGeometry`/`dispatch()` path renders it
 exactly like anything a script adds. This symmetry (reusing the backend's existing
 `add_geometry` outbound path) is why this was a small feature: the frontend only had to
-learn to *send* one new message, not *receive* one.
+learn to _send_ one new message, not _receive_ one.
 
 **Placement UX was deliberately kept simple**: spawn at a sensible default, then let the
 user drag it into place with the (already-existing, already-fixed) gizmo — not a
@@ -120,7 +120,7 @@ group as `AddObjectButton`. Disabled unless something is picked. Color swatch + 
 `Slider` controls (0–1, step 0.05) for metalness/roughness, each firing `setMaterial` on
 every change — edits stream continuously as you drag, matching how this app's existing
 dynamic `Slider`/`NumberField` UI components already behave (see `Openbar.vue`), and
-deliberately *not* the "send once on release" pattern `object_transform` uses — materials
+deliberately _not_ the "send once on release" pattern `object_transform` uses — materials
 aren't touched by any per-frame animation loop, so there's no equivalent of Bug 2 above to
 worry about here.
 

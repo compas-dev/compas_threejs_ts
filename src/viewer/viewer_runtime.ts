@@ -593,7 +593,8 @@ export class ViewerRuntime {
     const converted = convertToThreeJSGeometry(object);
     const sceneKey = externalGuid ?? converted.uuid;
     const existing = this.geometries.get(sceneKey);
-    const wasSelected = existing !== undefined && existing === this.pickedObject;
+    const wasSelected =
+      existing !== undefined && existing === this.pickedObject;
     if (existing) {
       this.scene.remove(existing);
       this.disposeObject(existing);

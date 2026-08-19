@@ -2,7 +2,11 @@
   <TooltipProvider :delay-duration="600">
     <Popover v-model:open="isOpen" :modal="true">
       <PopoverTrigger as-child>
-        <Button variant="secondary" size="icon" :disabled="!pickedObjectGuid.value">
+        <Button
+          variant="secondary"
+          size="icon"
+          :disabled="!pickedObjectGuid.value"
+        >
           <Tooltip>
             <TooltipTrigger as-child>
               <span
