@@ -36,6 +36,10 @@ function run(command, args, options = {}) {
 }
 
 try {
+  // shell: true - required on Windows to spawn a .cmd shim (npm.cmd) at all;
+  // Node's spawnSync can't exec one directly without going through a shell.
+  // Safe here specifically because these args are internally generated
+  // (this repo's own paths and fixed flag strings), never user input.
   const packed = JSON.parse(
     run(
       npmCommand,
@@ -47,7 +51,7 @@ try {
         "--pack-destination",
         consumerRoot,
       ],
-      { cwd: projectRoot },
+      { cwd: projectRoot, shell: true },
     ),
   );
   const archive = join(consumerRoot, packed[0].filename);
@@ -60,7 +64,7 @@ try {
       type: "module",
     }),
   );
-  run(npmCommand, ["install", "--ignore-scripts", archive]);
+  run(npmCommand, ["install", "--ignore-scripts", archive], { shell: true });
 
   const packageName = "@compas-dev/compas-threejs-ts";
   const installed = JSON.parse(
