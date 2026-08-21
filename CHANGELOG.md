@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.1.0...v1.2.0) (2026-08-21)
+
+
+### Features
+
+* spinner ([af23c05](https://github.com/compas-dev/compas_threejs_ts/commit/af23c052de639d6626cd2ca34622e46dd20b5681))
+
 ## [1.1.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.0.2...v1.1.0) (2026-08-17)
 
 
