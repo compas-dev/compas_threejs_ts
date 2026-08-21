@@ -41,7 +41,7 @@ describe("viewer command validation", () => {
 
   it("distinguishes unsupported dispatch and variant values", () => {
     for (const input of [
-      { dispatch: "spinner", type: "show" },
+      { dispatch: "not_a_real_dispatch", type: "show" },
       { dispatch: "scene", type: "unknown_scene_action" },
     ]) {
       expect(() => parseViewerCommand(input)).toThrowError(

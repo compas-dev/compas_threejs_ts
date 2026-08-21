@@ -20,6 +20,7 @@ import {
   type ObjectActionCommand,
   type ObjectInfosCommand,
   type SceneCommand,
+  type SpinnerCommand,
   type TextCommand,
   type TextTagCommand,
   type UiCommand,
@@ -487,6 +488,9 @@ export class ViewerRuntime {
       case "handle_geometry":
         this.handleGeometry(data);
         break;
+      case "spinner":
+        this.manageSpinner(data);
+        break;
     }
   }
 
@@ -677,6 +681,13 @@ export class ViewerRuntime {
         ? {}
         : { defaultValue: data.default_value }),
     });
+  }
+
+  private manageSpinner(data: SpinnerCommand): void {
+    this.store.spinnerState.visible = data.visible;
+    this.store.spinnerState.message = data.visible
+      ? (data.message ?? null)
+      : null;
   }
 
   private pickFromPointer(event: MouseEvent): void {

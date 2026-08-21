@@ -5,6 +5,8 @@
     <Sidebar :show-toolbar="props.showToolbar" />
     <div ref="threeContainer" class="three-container"></div>
     <ThemeIndicator />
+    <ObjectInfo />
+    <GlobalSpinner />
     <RightSidebar />
   </div>
 </template>
@@ -14,6 +16,7 @@ import { onMounted, ref } from "vue";
 import RightSidebar from "./components/layout/RightSidebar.vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
+import GlobalSpinner from "@/components/layout/GlobalSpinner.vue";
 import type { ViewerRuntime } from "@/viewer/viewer_runtime";
 
 const threeContainer = ref<HTMLDivElement | null>(null);

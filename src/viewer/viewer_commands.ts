@@ -365,6 +365,12 @@ export type HandleGeometryCommand =
   | SetGeometryVisibilityCommand
   | ToggleGeometryVisibilityCommand;
 
+export interface SpinnerCommand extends CommandRecord {
+  dispatch: "spinner";
+  visible: boolean;
+  message?: string | null;
+}
+
 export type ViewerCommand =
   | MaterialCommand
   | LightCommand
@@ -375,7 +381,8 @@ export type ViewerCommand =
   | TextTagCommand
   | ObjectInfosCommand
   | ObjectActionCommand
-  | HandleGeometryCommand;
+  | HandleGeometryCommand
+  | SpinnerCommand;
 
 const SCENE_TYPES = new Set<SceneCommandType>([
   "background_color",
@@ -462,6 +469,9 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
     case "handle_geometry":
       validateHandleGeometry(record);
       return record as HandleGeometryCommand;
+    case "spinner":
+      validateSpinner(record);
+      return record as SpinnerCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",
@@ -748,6 +758,13 @@ function validateHandleGeometry(record: CommandRecord): void {
   const type = readVariant(record, "type", HANDLE_GEOMETRY_TYPES);
   readNonEmptyString(record, "guid");
   if (type === "set_visibility") readBoolean(record, "visible");
+}
+
+function validateSpinner(record: CommandRecord): void {
+  readBoolean(record, "visible");
+  if (record.message !== undefined && record.message !== null) {
+    readOptionalString(record, "message");
+  }
 }
 
 function readNumberFields(record: CommandRecord, fields: string[]): void {
