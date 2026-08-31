@@ -23,7 +23,6 @@ jobs:
       pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: release
         uses: googleapis/release-please-action@v4
@@ -37,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -55,16 +54,3 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --access public --provenance
-
-      - name: Package app build for release
-        run: tar -czf compas-threejs-ts-dist.tar.gz -C dist .
-
-      - name: Upload app build to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="${{ needs.release-please.outputs.tag_name }}"
-          if [ -z "$tag" ]; then
-            tag="v$(node -p "require('./package.json').version")"
-          fi
-          gh release upload "$tag" compas-threejs-ts-dist.tar.gz --clobber
