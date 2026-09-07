@@ -130,4 +130,57 @@ describe("viewer command validation", () => {
       }),
     ).toMatchObject({ type: "sky", guid: "sky-guid" });
   });
+
+  it("accepts an apply_transform handle_geometry command with a 4x4 matrix", () => {
+    const matrix = [
+      [1, 0, 0, 10],
+      [0, 1, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1],
+    ];
+    const command = {
+      dispatch: "handle_geometry",
+      type: "apply_transform",
+      guid: "geometry-guid",
+      matrix,
+    };
+
+    expect(parseViewerCommand(command)).toEqual(command);
+  });
+
+  it("rejects an apply_transform command whose matrix isn't 4x4 finite numbers", () => {
+    for (const matrix of [
+      [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+      ],
+      [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, "1"],
+      ],
+      [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, Number.NaN],
+      ],
+    ]) {
+      expect(() =>
+        parseViewerCommand({
+          dispatch: "handle_geometry",
+          type: "apply_transform",
+          guid: "geometry-guid",
+          matrix,
+        }),
+      ).toThrowError(
+        expect.objectContaining<Partial<CompasViewerError>>({
+          code: "invalid_message",
+          details: expect.objectContaining({ field: "matrix" }),
+        }),
+      );
+    }
+  });
 });

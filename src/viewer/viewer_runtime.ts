@@ -2,6 +2,7 @@ import { decodeMessage } from "../communications/decode";
 import { ViewerConnection } from "../communications/viewer_connection";
 import {
   convertToThreeJSGeometry,
+  matrix4FromRowMajor,
   UnsupportedCompasObjectError,
 } from "../conversions";
 import { lightToThree } from "../conversions/lights";
@@ -1001,6 +1002,17 @@ export class ViewerRuntime {
       object.visible = data.visible;
     } else if (data.type === "toggle_visibility") {
       object.visible = !object.visible;
+    } else if (data.type === "apply_transform") {
+      if (
+        this.transformControls.dragging &&
+        object === this.transformControls.object
+      ) {
+        // Same reasoning as manageGeometry's dragging guard above: don't fight a live
+        // gizmo drag with a backend-driven transform arriving mid-drag (e.g. an
+        // App.loop callback transforming this same object every frame).
+        return;
+      }
+      object.applyMatrix4(matrix4FromRowMajor(data.matrix));
     }
   }
 

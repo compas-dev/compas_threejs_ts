@@ -23,7 +23,7 @@ export type UiCommandType =
   | "select";
 
 export type HandleGeometryCommandType =
-  "remove" | "set_visibility" | "toggle_visibility";
+  "remove" | "set_visibility" | "toggle_visibility" | "apply_transform";
 
 interface MaterialCommandBase extends CommandRecord {
   dispatch: "material";
@@ -360,10 +360,17 @@ export interface ToggleGeometryVisibilityCommand extends HandleGeometryCommandBa
   type: "toggle_visibility";
 }
 
+export interface ApplyTransformGeometryCommand extends HandleGeometryCommandBase {
+  type: "apply_transform";
+  /** A 4x4 row-major matrix, matching `compas.geometry.Transformation.matrix`. */
+  matrix: number[][];
+}
+
 export type HandleGeometryCommand =
   | RemoveGeometryCommand
   | SetGeometryVisibilityCommand
-  | ToggleGeometryVisibilityCommand;
+  | ToggleGeometryVisibilityCommand
+  | ApplyTransformGeometryCommand;
 
 export interface SpinnerCommand extends CommandRecord {
   dispatch: "spinner";
@@ -408,6 +415,7 @@ const HANDLE_GEOMETRY_TYPES = new Set<HandleGeometryCommandType>([
   "remove",
   "set_visibility",
   "toggle_visibility",
+  "apply_transform",
 ]);
 const MATERIAL_TYPES = new Set<MaterialCommand["type"]>([
   "standard_material",
@@ -758,6 +766,19 @@ function validateHandleGeometry(record: CommandRecord): void {
   const type = readVariant(record, "type", HANDLE_GEOMETRY_TYPES);
   readNonEmptyString(record, "guid");
   if (type === "set_visibility") readBoolean(record, "visible");
+  if (type === "apply_transform") readMatrix4Rows(record, "matrix");
+}
+
+function readMatrix4Rows(record: CommandRecord, field: string): number[][] {
+  const value = record[field];
+  const isRow = (row: unknown): row is number[] =>
+    Array.isArray(row) &&
+    row.length === 4 &&
+    row.every((item) => typeof item === "number" && Number.isFinite(item));
+  if (!Array.isArray(value) || value.length !== 4 || !value.every(isRow)) {
+    invalidField(record, field, "a 4x4 matrix of finite numbers");
+  }
+  return value as number[][];
 }
 
 function validateSpinner(record: CommandRecord): void {

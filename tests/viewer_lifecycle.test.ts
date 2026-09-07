@@ -311,4 +311,72 @@ describe("createViewer", () => {
 
     runtime.dispose();
   });
+
+  it("applies an apply_transform command to the existing Object3D in place", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+
+    runtime.dispatch(boxBytes("transformable-box"));
+    const object = runtime.geometries.get("transformable-box")!;
+    expect(object.position.toArray()).toEqual([0, 0, 0]);
+
+    // apply_transform is a dict-shaped command, wire-encoded via compas_pb's DictData
+    // fallback on the Python side (see Workspace.transform_geometry / Outbox.send_dict) -
+    // there's no JS-side encoder for that shape since the frontend never sends dicts back
+    // (see viewer_connection.ts), so this dispatches the already-decoded object directly,
+    // exactly like `dispatch()` would after `decodeMessage()` returned it.
+    const internals = runtime as unknown as {
+      dispatchObject(object: unknown): void;
+    };
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "apply_transform",
+      guid: "transformable-box",
+      matrix: [
+        [1, 0, 0, 10],
+        [0, 1, 0, 5],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+      ],
+    });
+
+    expect(runtime.geometries.get("transformable-box")).toBe(object);
+    expect(object.position.toArray()).toEqual([10, 5, 0]);
+
+    runtime.dispose();
+  });
+
+  it("skips an apply_transform command for an object currently being dragged", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+
+    runtime.dispatch(boxBytes("dragged-box"));
+    const object = runtime.geometries.get("dragged-box")!;
+    const internals = runtime as unknown as {
+      dispatchObject(object: unknown): void;
+      transformControls: { dragging: boolean; object?: THREE.Object3D };
+    };
+    internals.transformControls.dragging = true;
+    internals.transformControls.object = object;
+
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "apply_transform",
+      guid: "dragged-box",
+      matrix: [
+        [1, 0, 0, 99],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+      ],
+    });
+
+    expect(object.position.toArray()).toEqual([0, 0, 0]);
+
+    runtime.dispose();
+  });
 });

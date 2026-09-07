@@ -77,6 +77,42 @@ amount of "extra" motion corresponding to that elapsed animation. This is differ
 (and much more minor than) Bug 2 above — it's an accepted characteristic of editing a live
 object, not a bug to chase.
 
+## `apply_transform` — the reverse direction (backend → frontend)
+
+Everything above is frontend → backend. `apply_transform` is the mirror image: a script
+calls `Workspace.transform_geometry(geometry, transformation)` on the backend, and instead
+of re-sending the whole (potentially large) geometry, the frontend gets a small
+`{dispatch: "handle_geometry", type: "apply_transform", guid, matrix}` message and applies
+`matrix` directly to the existing `THREE.Object3D` via `applyMatrix4` — no mesh rebuild.
+
+`matrix` is a **row-major 4x4 nested list** — the exact same shape
+`compas.geometry.Transformation.matrix` already has, and the exact same shape
+`sendObjectTransform()` above already produces for the opposite direction (see its
+transpose comment: `THREE.Matrix4.elements` is column-major, but the row-major nested list
+built from it is verified to represent the same matrix, not its transpose). This message is
+routed through the existing `handle_geometry` dispatch (`handleGeometry()` in
+`viewer_runtime.ts`, next to `remove`/`set_visibility`/`toggle_visibility`), not a new
+top-level dispatch type.
+
+**Conversion**: `matrix4FromRowMajor()` in `conversions/geometry.ts` builds the
+`THREE.Matrix4` for this. It is deliberately **not** `matrixFromElements()`/
+`transformationToThreeJS()` a few lines above it — those consume a different (flat,
+`compas_pb`-decoded) wire shape and apply an extra transpose that function's own docstring
+flags as unverified. `THREE.Matrix4.set()` already takes arguments in row-major order, so a
+row-major COMPAS matrix needs no reordering — if you're tempted to unify these two helpers,
+don't, until that TODO is resolved.
+
+**Same dragging guard as `manageGeometry`**: if the object currently attached to
+`transformControls` is mid-drag, an incoming `apply_transform` is dropped rather than
+applied — otherwise a live gizmo drag would fight a backend-driven transform arriving mid-
+drag (e.g. an `App.loop` callback transforming the same object every frame).
+
+**Reconnect correctness**: the backend also silently refreshes its reconnect-replay
+snapshot after sending this (see the backend doc's `Workspace.transform_geometry` section)
+so a client that connects mid-sequence sees the object's current position, not its
+original one — nothing extra is needed on the frontend for that; it's purely a backend
+bookkeeping concern.
+
 ## `create_geometry` — "Add object" toolbar button
 
 `ViewerRuntime.createGeometry(type, params)` sends
@@ -132,11 +168,14 @@ state and target guid both come from this.
 
 ## Verifying changes here
 
-No test suite exists in this repo. Verification during this work: `vue-tsc`
-(`npm run build`, which runs `vue-tsc --noEmit` across all tsconfigs before bundling) for
-type safety, then manual end-to-end checks against a real running backend `App` — start
-an example, pick/drag/add/recolor objects in the browser, and separately confirm the
-backend's Python-side object state via ad hoc scripts (see the backend doc). After any
-change here, the frontend must be rebuilt (`npm run build`) and the `dist/` output copied
-into `compas_threejs/src/compas_threejs/viewer/frontend/` before it's reachable from a
-real browser session — the backend serves its own bundled copy, not this repo live.
+`object_transform`/`create_geometry`/`material_edit` predate this repo's `vitest` suite and
+have no automated coverage — verification during that work was `vue-tsc` (`npm run build`)
+plus manual end-to-end checks against a real running backend `App`. `apply_transform` does
+have coverage: `tests/viewer_commands.test.ts` (command validation) and
+`tests/viewer_lifecycle.test.ts` (applying the matrix to an existing `Object3D`, and the
+dragging guard) — run with `npm test`. For end-to-end confidence, also start an example,
+pick/drag/add/recolor objects in the browser, and separately confirm the backend's
+Python-side object state via ad hoc scripts (see the backend doc). After any change here,
+the frontend must be rebuilt (`npm run build`) and the `dist/` output copied into
+`compas_threejs/src/compas_threejs/viewer/frontend/` before it's reachable from a real
+browser session — the backend serves its own bundled copy, not this repo live.
