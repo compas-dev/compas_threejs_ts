@@ -32,6 +32,7 @@
     "./style.css": "./dist-lib/style.css"
   },
   "files": [
+    "dist",
     "dist-lib",
     "LICENSE",
     "README.md"
