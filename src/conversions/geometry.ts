@@ -111,6 +111,57 @@ function matrixFromElements(elements: readonly number[]): THREE.Matrix4 {
 }
 
 /**
+ * Build a THREE.Matrix4 from a COMPAS 4x4 row-major matrix, as produced by
+ * `compas.geometry.Transformation.matrix` and the `apply_transform`
+ * viewer command's `matrix` field.
+ *
+ * Deliberately not shared with `matrixFromElements` above: that function
+ * consumes a different (flat, `compas_pb`-decoded) wire shape and applies an
+ * extra transpose whose ordering its own docstring flags as unverified.
+ * `THREE.Matrix4.set()` already takes its arguments in row-major order, so a
+ * row-major COMPAS matrix needs no reordering at all - this is also the
+ * exact inverse of the row-major nested list `ViewerRuntime.sendObjectTransform`
+ * already builds from a THREE.Matrix4 for the opposite (frontend -> backend)
+ * direction, so the round trip is verified by construction.
+ *
+ * @param rows - 4x4 row-major matrix
+ * @returns A THREE.Matrix4 representing the same matrix
+ */
+export function matrix4FromRowMajor(
+  rows: readonly (readonly number[])[],
+): THREE.Matrix4 {
+  const at = (row: number, col: number): number => {
+    const value = rows[row]?.[col];
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        `A COMPAS row-major matrix must be 4x4 finite numbers, [${row}][${col}] is ${value}`,
+      );
+    }
+    return value;
+  };
+  const matrix = new THREE.Matrix4();
+  matrix.set(
+    at(0, 0),
+    at(0, 1),
+    at(0, 2),
+    at(0, 3),
+    at(1, 0),
+    at(1, 1),
+    at(1, 2),
+    at(1, 3),
+    at(2, 0),
+    at(2, 1),
+    at(2, 2),
+    at(2, 3),
+    at(3, 0),
+    at(3, 1),
+    at(3, 2),
+    at(3, 3),
+  );
+  return matrix;
+}
+
+/**
  * Read a COMPAS point list into a flat Float32Array of positions.
  *
  * @param points - ordered COMPAS points
