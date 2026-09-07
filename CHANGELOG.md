@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.2.0...v1.2.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **release:** publish app build via npm files instead of a release asset ([5fcf8d6](https://github.com/compas-dev/compas_threejs_ts/commit/5fcf8d6b204aef752367d387b19a4c4bd615b2bd))
+* revert accidental compas-pb-ts devDependency bump ([51e35dc](https://github.com/compas-dev/compas_threejs_ts/commit/51e35dc99de7348e05d5fa593ec7cbd2a853a8f1))
+
 ## [1.2.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.1.0...v1.2.0) (2026-08-21)
 
 
