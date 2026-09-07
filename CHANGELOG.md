@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.2.1...v1.3.0) (2026-09-07)
+
+
+### Features
+
+* bidirectional-sync ([7b5d135](https://github.com/compas-dev/compas_threejs_ts/commit/7b5d135e7fa492f5b7bcb4f1d9f08faa858f6fe1))
+* **viewer:** add apply_transform handle_geometry command ([19e42ac](https://github.com/compas-dev/compas_threejs_ts/commit/19e42acb09a5eb04e09cd19577c579bd14c4973d))
+
 ## [1.2.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.2.0...v1.2.1) (2026-09-07)
 
 
