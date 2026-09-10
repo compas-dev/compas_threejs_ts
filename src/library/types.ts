@@ -18,6 +18,8 @@ export interface CompasViewerOptions {
   websocket?: ViewerWebSocketOptions;
   defaultLighting?: boolean;
   showToolbar?: boolean;
+  /** Browser tab title to apply for this viewer instance. Leaves `document.title` untouched if omitted. */
+  title?: string;
   /**
    * Extra toolbar modules to mount after the built-in groups - e.g. a `.vue` group
    * installed from an npm package. Each module owns its own icons/behavior/ids the

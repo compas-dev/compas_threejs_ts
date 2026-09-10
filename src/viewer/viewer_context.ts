@@ -7,12 +7,20 @@ export const viewerRuntimeKey: InjectionKey<ViewerRuntime> = Symbol(
   "compas-viewer-runtime",
 );
 
+export const toolbarTitleKey: InjectionKey<string> = Symbol(
+  "compas-viewer-toolbar-title",
+);
+
 export function useViewerRuntime(): ViewerRuntime {
   const runtime = inject(viewerRuntimeKey);
   if (!runtime) {
     throw new Error("COMPAS viewer runtime is not available in this component");
   }
   return runtime;
+}
+
+export function useToolbarTitle(): string {
+  return inject(toolbarTitleKey, "COMPAS ThreeJs");
 }
 
 /**
