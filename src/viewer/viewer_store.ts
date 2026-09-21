@@ -67,6 +67,16 @@ export type DynamicComponent =
   | CheckboxComponent
   | SelectComponent;
 
+/**
+ * Backend-sent visible/enabled overrides for frontend-owned toolbar buttons, keyed by
+ * button id. Always arrives in full over the wire (dispatch: "toolbar_control") and
+ * replaces the whole map - see `ViewerRuntime`'s "toolbar_control" dispatch case.
+ */
+export type ToolbarOverrides = Record<
+  string,
+  { visible?: boolean; enabled?: boolean }
+>;
+
 export interface ViewerStore {
   objectBarData: {
     title: string;
@@ -80,6 +90,7 @@ export interface ViewerStore {
     data: Record<string, unknown> | null;
   };
   sidebarComponents: DynamicComponent[];
+  toolbarOverrides: ToolbarOverrides;
   pickerEnabled: { value: boolean };
   pickerMode: { value: "translate" | "rotate" | "scale" };
   pickedObjectGuid: { value: string | null };
@@ -104,6 +115,7 @@ export function createViewerStore(): ViewerStore {
       data: null as Record<string, unknown> | null,
     }),
     sidebarComponents: reactive<DynamicComponent[]>([]),
+    toolbarOverrides: reactive<ToolbarOverrides>({}),
     pickerEnabled: reactive({ value: true }),
     pickerMode: reactive({ value: "translate" as const }),
     pickedObjectGuid: reactive({ value: null as string | null }),

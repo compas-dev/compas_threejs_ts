@@ -37,6 +37,7 @@ export function createViewer(
   const app = createApp(App, {
     runtime,
     showToolbar: options.showToolbar ?? true,
+    extraToolbarModules: options.extraToolbarModules ?? [],
   });
   app.provide(viewerRuntimeKey, runtime);
   app.mount(container);
