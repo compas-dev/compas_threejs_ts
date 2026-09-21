@@ -24,7 +24,7 @@ import {
   type SpinnerCommand,
   type TextCommand,
   type TextTagCommand,
-  type ToolbarCommand,
+  type ToolbarControlCommand,
   type UiCommand,
   type ViewerCommand,
 } from "./viewer_commands";
@@ -568,8 +568,8 @@ export class ViewerRuntime {
       case "spinner":
         this.manageSpinner(data);
         break;
-      case "toolbar":
-        this.manageToolbar(data);
+      case "toolbar_control":
+        this.manageToolbarControl(data);
         break;
     }
   }
@@ -804,13 +804,15 @@ export class ViewerRuntime {
   }
 
   /**
-   * The backend always sends the toolbar structure in full (never a
-   * diff/patch - same convention as persisted state like camera position or
-   * background color), so this is a wholesale replace of the stored groups,
-   * never a merge.
+   * The backend always sends the full override map (never a diff/patch - same
+   * convention as persisted state like camera position or background color), so this
+   * replaces `toolbarOverrides` wholesale - in place, to keep the reactive proxy's
+   * identity intact for anything already holding a reference to it.
    */
-  private manageToolbar(data: ToolbarCommand): void {
-    this.store.toolbar.groups = data.toolbar.groups;
+  private manageToolbarControl(data: ToolbarControlCommand): void {
+    const overrides = this.store.toolbarOverrides;
+    for (const key of Object.keys(overrides)) delete overrides[key];
+    Object.assign(overrides, data.overrides);
   }
 
   private pickFromPointer(event: MouseEvent): void {

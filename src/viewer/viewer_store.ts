@@ -1,7 +1,4 @@
 import { reactive } from "vue";
-import type { ToolbarGroup } from "./viewer_commands";
-
-export type { ToolbarGroup, ToolbarItem } from "./viewer_commands";
 
 export interface ObjectAction {
   guid: string;
@@ -71,14 +68,14 @@ export type DynamicComponent =
   | SelectComponent;
 
 /**
- * The backend-declared toolbar structure (dispatch: "toolbar"). Always
- * arrives in full over the wire and is stored verbatim - see
- * `ViewerRuntime`'s "toolbar" dispatch case for the (wholesale, non-merging)
- * replace.
+ * Backend-sent visible/enabled overrides for frontend-owned toolbar buttons, keyed by
+ * button id. Always arrives in full over the wire (dispatch: "toolbar_control") and
+ * replaces the whole map - see `ViewerRuntime`'s "toolbar_control" dispatch case.
  */
-export interface ToolbarState {
-  groups: ToolbarGroup[];
-}
+export type ToolbarOverrides = Record<
+  string,
+  { visible?: boolean; enabled?: boolean }
+>;
 
 export interface ViewerStore {
   objectBarData: {
@@ -93,7 +90,7 @@ export interface ViewerStore {
     data: Record<string, unknown> | null;
   };
   sidebarComponents: DynamicComponent[];
-  toolbar: ToolbarState;
+  toolbarOverrides: ToolbarOverrides;
   pickerEnabled: { value: boolean };
   pickerMode: { value: "translate" | "rotate" | "scale" };
   pickedObjectGuid: { value: string | null };
@@ -118,7 +115,7 @@ export function createViewerStore(): ViewerStore {
       data: null as Record<string, unknown> | null,
     }),
     sidebarComponents: reactive<DynamicComponent[]>([]),
-    toolbar: reactive<ToolbarState>({ groups: [] }),
+    toolbarOverrides: reactive<ToolbarOverrides>({}),
     pickerEnabled: reactive({ value: true }),
     pickerMode: reactive({ value: "translate" as const }),
     pickedObjectGuid: reactive({ value: null as string | null }),

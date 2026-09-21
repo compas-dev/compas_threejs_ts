@@ -1,11 +1,12 @@
 <template>
-  <TooltipProvider :delay-duration="600">
+  <TooltipProvider v-if="visible" :delay-duration="600">
     <Tooltip>
       <TooltipTrigger>
         <Button
           variant="secondary"
           size="icon"
           class="toolbar-button"
+          :disabled="!enabled"
           @click="handleClick"
         >
           <Eye />
@@ -28,8 +29,10 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { useViewerRuntime } from "@/viewer/viewer_context";
+import { useToolbarControl } from "@/viewer/useToolbarControl";
 
 const runtime = useViewerRuntime();
+const { visible, enabled } = useToolbarControl("show_all_objects");
 
 function handleClick() {
   runtime.showAllObjects();

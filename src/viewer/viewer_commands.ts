@@ -378,59 +378,20 @@ export interface SpinnerCommand extends CommandRecord {
   message?: string | null;
 }
 
-export type ToolbarItemKind = "button" | "checkbox" | "select" | "separator";
-
-interface ToolbarItemBase extends CommandRecord {
-  id: string;
-  kind: ToolbarItemKind;
-  label: string;
-  icon: string | null;
-  tooltip: string | null;
-  enabled: boolean;
-  visible: boolean;
-  order: number;
+/**
+ * A backend-sent override for a single frontend-owned toolbar button, keyed by the
+ * button's own id. The backend can only show/hide or enable/disable a button the
+ * frontend already defines - it never describes what the button looks like or does.
+ */
+export interface ToolbarOverride {
+  visible?: boolean;
+  enabled?: boolean;
 }
 
-export interface ToolbarButtonItem extends ToolbarItemBase {
-  kind: "button";
-}
-
-export interface ToolbarCheckboxItem extends ToolbarItemBase {
-  kind: "checkbox";
-  color: string | null;
-  default_value: boolean;
-}
-
-export interface ToolbarSelectItem extends ToolbarItemBase {
-  kind: "select";
-  options: string[];
-  default_value: string;
-}
-
-export interface ToolbarSeparatorItem extends ToolbarItemBase {
-  kind: "separator";
-}
-
-export type ToolbarItem =
-  | ToolbarButtonItem
-  | ToolbarCheckboxItem
-  | ToolbarSelectItem
-  | ToolbarSeparatorItem;
-
-export interface ToolbarGroup {
-  id: string;
-  order: number;
-  items: ToolbarItem[];
-}
-
-export interface ToolbarPayload {
-  groups: ToolbarGroup[];
-}
-
-export interface ToolbarCommand extends CommandRecord {
-  dispatch: "toolbar";
+export interface ToolbarControlCommand extends CommandRecord {
+  dispatch: "toolbar_control";
   obj_id: string;
-  toolbar: ToolbarPayload;
+  overrides: Record<string, ToolbarOverride>;
 }
 
 export type ViewerCommand =
@@ -445,7 +406,7 @@ export type ViewerCommand =
   | ObjectActionCommand
   | HandleGeometryCommand
   | SpinnerCommand
-  | ToolbarCommand;
+  | ToolbarControlCommand;
 
 const SCENE_TYPES = new Set<SceneCommandType>([
   "background_color",
@@ -536,9 +497,9 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
     case "spinner":
       validateSpinner(record);
       return record as SpinnerCommand;
-    case "toolbar":
-      validateToolbar(record);
-      return record as ToolbarCommand;
+    case "toolbar_control":
+      validateToolbarControl(record);
+      return record as ToolbarControlCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",
@@ -582,21 +543,6 @@ export function readOptionalString(
   const value = record[field];
   if (value === undefined || value === null) return undefined;
   if (typeof value !== "string") invalidField(record, field, "a string");
-  return value;
-}
-
-/**
- * Like `readOptionalString`, but for fields the wire contract declares as
- * always-present-and-nullable (e.g. a toolbar item's `icon`/`tooltip`) rather
- * than optional - a missing key is treated the same as an explicit `null`.
- */
-export function readNullableString(
-  record: CommandRecord,
-  field: string,
-): string | null {
-  const value = record[field];
-  if (value === undefined || value === null) return null;
-  if (typeof value !== "string") invalidField(record, field, "a string or null");
   return value;
 }
 
@@ -862,66 +808,31 @@ function validateSpinner(record: CommandRecord): void {
   }
 }
 
-const TOOLBAR_ITEM_KINDS = new Set<ToolbarItemKind>([
-  "button",
-  "checkbox",
-  "select",
-  "separator",
-]);
-
-function validateToolbar(record: CommandRecord): void {
+function validateToolbarControl(record: CommandRecord): void {
   readNonEmptyString(record, "obj_id");
-  const toolbar = record.toolbar;
-  if (!toolbar || typeof toolbar !== "object" || Array.isArray(toolbar)) {
-    invalidField(record, "toolbar", "an object with a groups array");
+  const overrides = record.overrides;
+  if (
+    !overrides ||
+    typeof overrides !== "object" ||
+    Array.isArray(overrides)
+  ) {
+    invalidField(record, "overrides", "an object keyed by toolbar item id");
   }
-  const groups = (toolbar as CommandRecord).groups;
-  if (!Array.isArray(groups)) {
-    invalidField(record, "toolbar", "an object with a groups array");
-  }
-  groups.forEach((group) => validateToolbarGroup(record, group));
-}
-
-function validateToolbarGroup(record: CommandRecord, group: unknown): void {
-  if (!group || typeof group !== "object") {
-    invalidField(record, "toolbar", "each group to be an object");
-  }
-  const groupRecord = group as CommandRecord;
-  readNonEmptyString(groupRecord, "id");
-  readFiniteNumber(groupRecord, "order");
-  if (!Array.isArray(groupRecord.items)) {
-    invalidField(record, "toolbar", "each group's items to be an array");
-  }
-  (groupRecord.items as unknown[]).forEach((item) =>
-    validateToolbarItem(record, item),
+  Object.values(overrides as CommandRecord).forEach((override) =>
+    validateToolbarOverride(record, override),
   );
 }
 
-function validateToolbarItem(record: CommandRecord, item: unknown): void {
-  if (!item || typeof item !== "object") {
-    invalidField(record, "toolbar", "each item to be an object");
+function validateToolbarOverride(record: CommandRecord, override: unknown): void {
+  if (!override || typeof override !== "object" || Array.isArray(override)) {
+    invalidField(record, "overrides", "each override to be an object");
   }
-  const itemRecord = item as CommandRecord;
-  readNonEmptyString(itemRecord, "id");
-  const kind = readVariant(itemRecord, "kind", TOOLBAR_ITEM_KINDS);
-  readString(itemRecord, "label");
-  readNullableString(itemRecord, "icon");
-  readNullableString(itemRecord, "tooltip");
-  readBoolean(itemRecord, "enabled");
-  readBoolean(itemRecord, "visible");
-  readFiniteNumber(itemRecord, "order");
-  switch (kind) {
-    case "checkbox":
-      readNullableString(itemRecord, "color");
-      readBoolean(itemRecord, "default_value");
-      break;
-    case "select":
-      readStringArray(itemRecord, "options");
-      readString(itemRecord, "default_value");
-      break;
-    case "button":
-    case "separator":
-      break;
+  const overrideRecord = override as CommandRecord;
+  if (overrideRecord.visible !== undefined) {
+    readBoolean(overrideRecord, "visible");
+  }
+  if (overrideRecord.enabled !== undefined) {
+    readBoolean(overrideRecord, "enabled");
   }
 }
 

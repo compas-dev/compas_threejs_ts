@@ -1,11 +1,11 @@
 <template>
-  <TooltipProvider :delay-duration="600">
+  <TooltipProvider v-if="visible" :delay-duration="600">
     <Popover v-model:open="isOpen" :modal="true">
       <PopoverTrigger as-child>
         <Button
           variant="secondary"
           size="icon"
-          :disabled="!pickedObjectGuid.value"
+          :disabled="!enabled || !pickedObjectGuid.value"
         >
           <Tooltip>
             <TooltipTrigger as-child>
@@ -75,6 +75,7 @@
 import { ref, watch } from "vue";
 import { Palette } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
+import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -91,6 +92,7 @@ import {
 
 const runtime = useViewerRuntime();
 const { pickedObjectGuid } = runtime.store;
+const { visible, enabled } = useToolbarControl("material");
 
 const isOpen = ref(false);
 const color = ref("#ffffff");
