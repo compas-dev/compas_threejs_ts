@@ -2,8 +2,9 @@ import { createApp, markRaw } from "vue";
 
 import "../style.css";
 import App from "../App.vue";
-import { viewerRuntimeKey } from "../viewer/viewer_context";
+import { useViewerRuntime, viewerRuntimeKey } from "../viewer/viewer_context";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
+import { useToolbarControl } from "../viewer/useToolbarControl";
 import { CompasViewerError } from "./errors";
 import type { CompasViewer, CompasViewerOptions } from "./types";
 
@@ -18,6 +19,12 @@ export {
   type CompasViewerErrorOptions,
 } from "./errors";
 export { CompasViewerError };
+
+// Exposed so a custom or npm-installed `extraToolbarModules` component can react to
+// backend-driven visible/enabled overrides (`useToolbarControl`) and send its own
+// interactions back to the backend (`useViewerRuntime().handleUiAction`), the same way
+// every built-in toolbar button does.
+export { useViewerRuntime, useToolbarControl };
 
 export function createViewer(
   container: HTMLElement,

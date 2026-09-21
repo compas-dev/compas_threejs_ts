@@ -93,6 +93,15 @@ For a broader visual smoke test, open
 display every geometry and helper type included in the 1.0 support matrix in a
 labelled 4×4 grid.
 
+For adding a custom button to the toolbar - built-in or installed from an npm
+package - see `examples/embedded_custom_toolbar_button.html`. `extraToolbarModules`
+takes a list of Vue components mounted after the built-in toolbar groups; each one
+owns its own icon, label, and click behavior, and can opt into being
+backend-addressable with `useToolbarControl(id)` (reactive `visible`/`enabled`,
+driven by `app.toolbar.set_visible`/`set_enabled` on the Python side) and
+`useViewerRuntime().handleUiAction(id, value)` (the same message a built-in
+checkbox/select toolbar control sends).
+
 Maintainers can find the dependency policy in
 [`docs/dependencies.md`](docs/dependencies.md) and the automated release flow in
 [`docs/releasing.md`](docs/releasing.md).
