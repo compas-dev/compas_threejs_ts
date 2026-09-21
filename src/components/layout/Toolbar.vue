@@ -1,5 +1,10 @@
 <template>
-  <div ref="toolbarElement" class="toolbar theme" id="toolbar">
+  <div
+    ref="toolbarElement"
+    class="toolbar theme"
+    :class="{ 'panel-horizontal': isHorizontal }"
+    id="toolbar"
+  >
     <h1 class="text-lg font-bold" :class="{ dark: theme.value === 'dark' }">
       COMPAS ThreeJs
     </h1>
@@ -21,7 +26,11 @@ import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
 import AddObjectGroup from "@/components/tools/objects/AddObjectGroup.vue";
 import ViewGroup from "@/components/tools/views/ViewGroup.vue";
 import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import {
+  isHorizontalPlacement,
+  useToolbarPlacement,
+  useViewerRuntime,
+} from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
 
@@ -32,6 +41,8 @@ withDefaults(defineProps<{ extraToolbarModules?: Component[] }>(), {
 const toolbarElement = ref<HTMLElement | null>(null);
 const { isHovered } = useHover(toolbarElement);
 const { theme, blockPicker } = useViewerRuntime().store;
+const placement = useToolbarPlacement();
+const isHorizontal = isHorizontalPlacement(placement);
 
 watchEffect(() => {
   blockPicker.value = isHovered.value;
@@ -51,6 +62,15 @@ watchEffect(() => {
   height: auto;
   width: 100%;
   pointer-events: auto;
+}
+
+.toolbar.panel-horizontal {
+  /* Stays full width (the base .toolbar's own width: 100%) - top/bottom docks stack
+     panels as separate full-width bars, so this one keeps the base width instead of
+     shrinking to fit its content. */
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 :deep(.toolbar-group) {

@@ -2,7 +2,14 @@ import { createApp, markRaw } from "vue";
 
 import "../style.css";
 import App from "../App.vue";
-import { useViewerRuntime, viewerRuntimeKey } from "../viewer/viewer_context";
+import {
+  metadataPlacementKey,
+  objectActionsPlacementKey,
+  openbarPlacementKey,
+  toolbarPlacementKey,
+  useViewerRuntime,
+  viewerRuntimeKey,
+} from "../viewer/viewer_context";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
 import { useToolbarControl } from "../viewer/useToolbarControl";
 import { CompasViewerError } from "./errors";
@@ -11,6 +18,7 @@ import type { CompasViewer, CompasViewerOptions } from "./types";
 export type {
   CompasViewer,
   CompasViewerOptions,
+  PanelPlacement,
   ViewerMode,
   ViewerWebSocketOptions,
 } from "./types";
@@ -47,6 +55,13 @@ export function createViewer(
     extraToolbarModules: options.extraToolbarModules ?? [],
   });
   app.provide(viewerRuntimeKey, runtime);
+  app.provide(toolbarPlacementKey, options.toolbarPlacement ?? "left");
+  app.provide(openbarPlacementKey, options.openbarPlacement ?? "left");
+  app.provide(metadataPlacementKey, options.metadataPlacement ?? "right");
+  app.provide(
+    objectActionsPlacementKey,
+    options.objectActionsPlacement ?? "right",
+  );
   app.mount(container);
 
   let disposed = false;

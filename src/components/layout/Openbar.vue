@@ -1,9 +1,11 @@
 <template>
   <div
+    v-if="sideBarInfoState.isVisible"
     ref="openbarElement"
     id="openbar"
     class="fixed-openbar theme"
-    :class="{ 'is-hidden': !isVisible }"
+    :class="{ 'is-hidden': !isVisible, 'panel-horizontal': isHorizontal }"
+    :style="{ transform: collapseTransform }"
   >
     <!-- Dynamically render components from the store -->
     <div v-for="item in sidebarComponents" :key="item.id" class="dynamic-item">
@@ -116,17 +118,19 @@
       class="mb-4"
       @click="toggleSideBar()"
     >
-      <ArrowBigLeftDash />
+      <component :is="collapseIcon" />
     </Button>
   </div>
   <Button
+    v-if="sideBarInfoState.isVisible"
     variant="secondary"
     size="icon"
+    id="openOpenbar"
     class="mb-5"
+    :class="[`edge-${placement}`, { 'is-hidden': !isVisible }]"
     @click="toggleSideBar()"
-    :class="{ 'is-hidden': !isVisible }"
   >
-    <ArrowBigRightDash />
+    <component :is="expandIcon" />
   </Button>
 </template>
 
@@ -134,8 +138,18 @@
 import { ref, computed } from "vue";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useViewerRuntime } from "@/viewer/viewer_context";
-import { ArrowBigLeftDash, ArrowBigRightDash } from "lucide-vue-next";
+import {
+  isHorizontalPlacement,
+  useOpenbarPlacement,
+  useViewerRuntime,
+  type PanelPlacement,
+} from "@/viewer/viewer_context";
+import {
+  ArrowBigDownDash,
+  ArrowBigLeftDash,
+  ArrowBigRightDash,
+  ArrowBigUpDash,
+} from "lucide-vue-next";
 import {
   NumberField,
   NumberFieldContent,
@@ -159,9 +173,37 @@ import { useKeyboardShortcuts } from "@/components/tools/useKeyboardShortcuts";
 const isVisible = ref(true);
 const openbarElement = ref<HTMLElement | null>(null);
 const runtime = useViewerRuntime();
-const { sidebarComponents, theme, blockPicker } = runtime.store;
+const { sidebarComponents, theme, blockPicker, sideBarInfoState } =
+  runtime.store;
 const handleAction = (action: string, value?: unknown) =>
   runtime.handleUiAction(action, value);
+const placement = useOpenbarPlacement();
+const isHorizontal = isHorizontalPlacement(placement);
+
+const collapseTransformByPlacement: Record<PanelPlacement, string> = {
+  left: "translateX(-150%)",
+  right: "translateX(150%)",
+  top: "translateY(-150%)",
+  bottom: "translateY(150%)",
+};
+const collapseTransform = computed(() =>
+  isVisible.value ? undefined : collapseTransformByPlacement[placement],
+);
+
+const collapseIconByPlacement: Record<PanelPlacement, unknown> = {
+  left: ArrowBigLeftDash,
+  right: ArrowBigRightDash,
+  top: ArrowBigUpDash,
+  bottom: ArrowBigDownDash,
+};
+const expandIconByPlacement: Record<PanelPlacement, unknown> = {
+  left: ArrowBigRightDash,
+  right: ArrowBigLeftDash,
+  top: ArrowBigDownDash,
+  bottom: ArrowBigUpDash,
+};
+const collapseIcon = collapseIconByPlacement[placement];
+const expandIcon = expandIconByPlacement[placement];
 
 function toggleSideBar() {
   isVisible.value = !isVisible.value;
@@ -200,10 +242,29 @@ div#openbar {
 }
 
 div#openbar.is-hidden {
-  /* Slide left by its width + margin to fully hide it */
-  /* Adjust -110% depending on your margin/padding needs */
-  transform: translateX(-150%);
+  /* transform (direction depends on which edge it's docked to) is applied inline
+     via `collapseTransform` */
   pointer-events: none;
+}
+
+div#openbar.panel-horizontal {
+  /* Stays full width - top/bottom docks stack panels as separate full-width bars, so
+     this one keeps the base width: 100% instead of shrinking to fit its content. */
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  height: auto;
+  max-height: 40vh;
+}
+
+div#openbar.panel-horizontal .dynamic-item {
+  width: auto;
+  min-width: 150px;
+}
+
+div#openbar.panel-horizontal Button.mb-4 {
+  margin-top: 0;
+  margin-left: auto;
 }
 
 .slider-container {
@@ -251,13 +312,29 @@ Button.mb-4 {
 Button.mb-5 {
   margin: 0px;
   position: absolute;
-  bottom: 40px;
-  left: 40px;
-  z-index: 1; /* Ensure it appears above the sidebar */
+  z-index: 1; /* Ensure it appears above its dock zone */
   opacity: 0; /* Slightly transparent for better aesthetics */
   display: flex;
   visibility: hidden;
   transition: visibility 1s;
+  pointer-events: auto;
+}
+
+Button.mb-5.edge-left {
+  bottom: 40px;
+  left: 40px;
+}
+Button.mb-5.edge-right {
+  bottom: 40px;
+  right: 40px;
+}
+Button.mb-5.edge-top {
+  top: 40px;
+  left: 40px;
+}
+Button.mb-5.edge-bottom {
+  bottom: 40px;
+  left: 40px;
 }
 
 Button.mb-5.is-hidden {
