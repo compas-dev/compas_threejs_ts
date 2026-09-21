@@ -24,6 +24,7 @@ import {
   type SpinnerCommand,
   type TextCommand,
   type TextTagCommand,
+  type ToolbarCommand,
   type UiCommand,
   type ViewerCommand,
 } from "./viewer_commands";
@@ -567,6 +568,9 @@ export class ViewerRuntime {
       case "spinner":
         this.manageSpinner(data);
         break;
+      case "toolbar":
+        this.manageToolbar(data);
+        break;
     }
   }
 
@@ -797,6 +801,16 @@ export class ViewerRuntime {
     this.store.spinnerState.message = data.visible
       ? (data.message ?? null)
       : null;
+  }
+
+  /**
+   * The backend always sends the toolbar structure in full (never a
+   * diff/patch - same convention as persisted state like camera position or
+   * background color), so this is a wholesale replace of the stored groups,
+   * never a merge.
+   */
+  private manageToolbar(data: ToolbarCommand): void {
+    this.store.toolbar.groups = data.toolbar.groups;
   }
 
   private pickFromPointer(event: MouseEvent): void {

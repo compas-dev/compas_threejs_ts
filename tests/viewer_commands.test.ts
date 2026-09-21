@@ -183,4 +183,152 @@ describe("viewer command validation", () => {
       );
     }
   });
+
+  it("returns a typed toolbar command after validating its full payload", () => {
+    const command = {
+      dispatch: "toolbar",
+      obj_id: "toolbar",
+      toolbar: {
+        groups: [
+          {
+            id: "model",
+            order: 10,
+            items: [
+              {
+                id: "export_model",
+                kind: "button",
+                label: "Export Model",
+                icon: "download",
+                tooltip: "Export the current model",
+                enabled: true,
+                visible: true,
+                order: 10,
+              },
+              {
+                id: "show_fasteners",
+                kind: "checkbox",
+                label: "Show Fasteners",
+                icon: null,
+                tooltip: null,
+                color: "#a1b2c3",
+                default_value: true,
+                enabled: true,
+                visible: true,
+                order: 20,
+              },
+              {
+                id: "lod_filter",
+                kind: "select",
+                label: "Level of Detail",
+                icon: null,
+                tooltip: null,
+                options: ["All", "Components", "Elements", "Parts"],
+                default_value: "Components",
+                enabled: true,
+                visible: true,
+                order: 30,
+              },
+              {
+                id: "sep",
+                kind: "separator",
+                label: "",
+                icon: null,
+                tooltip: null,
+                enabled: true,
+                visible: true,
+                order: 25,
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(parseViewerCommand(command)).toEqual(command);
+  });
+
+  it("rejects a toolbar command with an unsupported item kind", () => {
+    expect(() =>
+      parseViewerCommand({
+        dispatch: "toolbar",
+        obj_id: "toolbar",
+        toolbar: {
+          groups: [
+            {
+              id: "model",
+              order: 10,
+              items: [
+                {
+                  id: "mystery",
+                  kind: "not_a_real_kind",
+                  label: "Mystery",
+                  icon: null,
+                  tooltip: null,
+                  enabled: true,
+                  visible: true,
+                  order: 10,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "unsupported_message",
+      }),
+    );
+  });
+
+  it("rejects a toolbar command missing a group's items array", () => {
+    expect(() =>
+      parseViewerCommand({
+        dispatch: "toolbar",
+        obj_id: "toolbar",
+        toolbar: {
+          groups: [{ id: "model", order: 10 }],
+        },
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "invalid_message",
+        details: expect.objectContaining({ field: "toolbar" }),
+      }),
+    );
+  });
+
+  it("rejects a toolbar command whose select item is missing default_value", () => {
+    expect(() =>
+      parseViewerCommand({
+        dispatch: "toolbar",
+        obj_id: "toolbar",
+        toolbar: {
+          groups: [
+            {
+              id: "model",
+              order: 10,
+              items: [
+                {
+                  id: "lod_filter",
+                  kind: "select",
+                  label: "Level of Detail",
+                  icon: null,
+                  tooltip: null,
+                  options: ["All"],
+                  enabled: true,
+                  visible: true,
+                  order: 10,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "invalid_message",
+        details: expect.objectContaining({ field: "default_value" }),
+      }),
+    );
+  });
 });

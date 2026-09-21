@@ -378,6 +378,61 @@ export interface SpinnerCommand extends CommandRecord {
   message?: string | null;
 }
 
+export type ToolbarItemKind = "button" | "checkbox" | "select" | "separator";
+
+interface ToolbarItemBase extends CommandRecord {
+  id: string;
+  kind: ToolbarItemKind;
+  label: string;
+  icon: string | null;
+  tooltip: string | null;
+  enabled: boolean;
+  visible: boolean;
+  order: number;
+}
+
+export interface ToolbarButtonItem extends ToolbarItemBase {
+  kind: "button";
+}
+
+export interface ToolbarCheckboxItem extends ToolbarItemBase {
+  kind: "checkbox";
+  color: string | null;
+  default_value: boolean;
+}
+
+export interface ToolbarSelectItem extends ToolbarItemBase {
+  kind: "select";
+  options: string[];
+  default_value: string;
+}
+
+export interface ToolbarSeparatorItem extends ToolbarItemBase {
+  kind: "separator";
+}
+
+export type ToolbarItem =
+  | ToolbarButtonItem
+  | ToolbarCheckboxItem
+  | ToolbarSelectItem
+  | ToolbarSeparatorItem;
+
+export interface ToolbarGroup {
+  id: string;
+  order: number;
+  items: ToolbarItem[];
+}
+
+export interface ToolbarPayload {
+  groups: ToolbarGroup[];
+}
+
+export interface ToolbarCommand extends CommandRecord {
+  dispatch: "toolbar";
+  obj_id: string;
+  toolbar: ToolbarPayload;
+}
+
 export type ViewerCommand =
   | MaterialCommand
   | LightCommand
@@ -389,7 +444,8 @@ export type ViewerCommand =
   | ObjectInfosCommand
   | ObjectActionCommand
   | HandleGeometryCommand
-  | SpinnerCommand;
+  | SpinnerCommand
+  | ToolbarCommand;
 
 const SCENE_TYPES = new Set<SceneCommandType>([
   "background_color",
@@ -480,6 +536,9 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
     case "spinner":
       validateSpinner(record);
       return record as SpinnerCommand;
+    case "toolbar":
+      validateToolbar(record);
+      return record as ToolbarCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",
@@ -523,6 +582,21 @@ export function readOptionalString(
   const value = record[field];
   if (value === undefined || value === null) return undefined;
   if (typeof value !== "string") invalidField(record, field, "a string");
+  return value;
+}
+
+/**
+ * Like `readOptionalString`, but for fields the wire contract declares as
+ * always-present-and-nullable (e.g. a toolbar item's `icon`/`tooltip`) rather
+ * than optional - a missing key is treated the same as an explicit `null`.
+ */
+export function readNullableString(
+  record: CommandRecord,
+  field: string,
+): string | null {
+  const value = record[field];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") invalidField(record, field, "a string or null");
   return value;
 }
 
@@ -785,6 +859,69 @@ function validateSpinner(record: CommandRecord): void {
   readBoolean(record, "visible");
   if (record.message !== undefined && record.message !== null) {
     readOptionalString(record, "message");
+  }
+}
+
+const TOOLBAR_ITEM_KINDS = new Set<ToolbarItemKind>([
+  "button",
+  "checkbox",
+  "select",
+  "separator",
+]);
+
+function validateToolbar(record: CommandRecord): void {
+  readNonEmptyString(record, "obj_id");
+  const toolbar = record.toolbar;
+  if (!toolbar || typeof toolbar !== "object" || Array.isArray(toolbar)) {
+    invalidField(record, "toolbar", "an object with a groups array");
+  }
+  const groups = (toolbar as CommandRecord).groups;
+  if (!Array.isArray(groups)) {
+    invalidField(record, "toolbar", "an object with a groups array");
+  }
+  groups.forEach((group) => validateToolbarGroup(record, group));
+}
+
+function validateToolbarGroup(record: CommandRecord, group: unknown): void {
+  if (!group || typeof group !== "object") {
+    invalidField(record, "toolbar", "each group to be an object");
+  }
+  const groupRecord = group as CommandRecord;
+  readNonEmptyString(groupRecord, "id");
+  readFiniteNumber(groupRecord, "order");
+  if (!Array.isArray(groupRecord.items)) {
+    invalidField(record, "toolbar", "each group's items to be an array");
+  }
+  (groupRecord.items as unknown[]).forEach((item) =>
+    validateToolbarItem(record, item),
+  );
+}
+
+function validateToolbarItem(record: CommandRecord, item: unknown): void {
+  if (!item || typeof item !== "object") {
+    invalidField(record, "toolbar", "each item to be an object");
+  }
+  const itemRecord = item as CommandRecord;
+  readNonEmptyString(itemRecord, "id");
+  const kind = readVariant(itemRecord, "kind", TOOLBAR_ITEM_KINDS);
+  readString(itemRecord, "label");
+  readNullableString(itemRecord, "icon");
+  readNullableString(itemRecord, "tooltip");
+  readBoolean(itemRecord, "enabled");
+  readBoolean(itemRecord, "visible");
+  readFiniteNumber(itemRecord, "order");
+  switch (kind) {
+    case "checkbox":
+      readNullableString(itemRecord, "color");
+      readBoolean(itemRecord, "default_value");
+      break;
+    case "select":
+      readStringArray(itemRecord, "options");
+      readString(itemRecord, "default_value");
+      break;
+    case "button":
+    case "separator":
+      break;
   }
 }
 
