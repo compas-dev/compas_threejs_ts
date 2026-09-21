@@ -1,8 +1,13 @@
 <template>
-  <TooltipProvider :delay-duration="600">
+  <TooltipProvider v-if="visible" :delay-duration="600">
     <Tooltip>
       <TooltipTrigger>
-        <Button variant="secondary" size="icon" @click="handleClick">
+        <Button
+          variant="secondary"
+          size="icon"
+          :disabled="!enabled"
+          @click="handleClick"
+        >
           <span class="button-icon save-view-icon">
             <Camera :size="15" :stroke-width="2" aria-hidden="true" />
             <span class="save-view-overlay" aria-hidden="true">
@@ -22,6 +27,7 @@
 import { Camera, Plus } from "lucide-vue-next";
 import type { SavedView } from "@/viewer/viewer_runtime";
 import { useViewerRuntime } from "@/viewer/viewer_context";
+import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import {
@@ -35,6 +41,7 @@ const props = defineProps<{
   defaultName: string;
 }>();
 const runtime = useViewerRuntime();
+const { visible, enabled } = useToolbarControl("save_view");
 
 const emit = defineEmits<{
   (e: "saved", view: SavedView): void;

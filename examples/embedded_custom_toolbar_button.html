@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom toolbar button</title>
+    <link rel="stylesheet" href="../dist-lib/style.css" />
+    <style>
+      html,
+      body,
+      #viewer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "../node_modules/vue/dist/vue.esm-browser.js",
+          "three": "../node_modules/three/build/three.module.js",
+          "three/": "../node_modules/three/",
+          "@gramaziokohler/compas-pb-ts": "../node_modules/@gramaziokohler/compas-pb-ts/dist/index.js",
+          "@bufbuild/protobuf/wire": "../node_modules/@bufbuild/protobuf/dist/esm/wire/index.js"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id="viewer" aria-label="3D viewer"></div>
+
+    <script type="module">
+      import {
+        createViewer,
+        useViewerRuntime,
+        useToolbarControl,
+      } from "../dist-lib/index.js";
+      import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+
+      // A custom toolbar button is just a Vue component - built-in or, like a real
+      // npm-installed module would, authored entirely outside this codebase. It owns
+      // its own icon, label, and click behavior; the id passed to useToolbarControl
+      // is what a backend can later address with
+      // `app.toolbar.set_visible("highlight", False)` /
+      // `app.toolbar.set_enabled("highlight", False)` - the backend can only
+      // show/hide or enable/disable this button, never redefine it.
+      const HighlightButton = {
+        template: `
+          <button
+            v-if="visible"
+            :disabled="!enabled"
+            @click="onClick"
+            title="Highlight (custom toolbar button)"
+            style="
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 8px 12px;
+              border: none;
+              border-radius: 8px;
+              background: var(--secondary, #e4e4e7);
+              color: var(--secondary-foreground, #111);
+              cursor: pointer;
+            "
+          >
+            ⭐ Highlight
+          </button>
+        `,
+        setup() {
+          const runtime = useViewerRuntime();
+          // Defaults to visible/enabled until the backend overrides them - same
+          // reactive state every built-in toolbar button reads from.
+          const { visible, enabled } = useToolbarControl("highlight");
+
+          function onClick() {
+            // The exact message a Checkbox/Select-style toolbar control sends:
+            // { dispatch: "ui_callback", action: "highlight", value: true }.
+            // In `mode: "websocket"` this reaches whatever the backend registered
+            // with `App.register_action("highlight", ...)` (a plain click) or
+            // `App.register_toggle_action("highlight", ...)` (if it wants the
+            // `value`) - see examples/toolbar_control.py in compas_threejs for the
+            // matching backend side.
+            runtime.handleUiAction("highlight", true);
+          }
+
+          return { visible, enabled, onClick };
+        },
+      };
+
+      const container = document.querySelector("#viewer");
+      if (!(container instanceof HTMLElement)) {
+        throw new Error("Viewer container was not found");
+      }
+
+      const viewer = createViewer(container, {
+        mode: "embedded",
+        defaultLighting: true,
+        showToolbar: true,
+        extraToolbarModules: [HighlightButton],
+        onError(error) {
+          console.error(error.code, error.message, error.details);
+        },
+      });
+
+      const box = new Box({
+        data: {
+          guid: crypto.randomUUID(),
+          name: "Box",
+          frame: {
+            point: { x: 0, y: 0, z: 0 },
+            xaxis: { x: 1, y: 0, z: 0 },
+            yaxis: { x: 0, y: 1, z: 0 },
+          },
+          xsize: 3,
+          ysize: 3,
+          zsize: 1,
+        },
+      });
+
+      viewer.dispatch(pbDumpBytes(box));
+      window.addEventListener("pagehide", () => viewer.dispose(), {
+        once: true,
+      });
+    </script>
+  </body>
+</html>

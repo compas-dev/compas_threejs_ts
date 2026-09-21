@@ -7,10 +7,16 @@
     <AddObjectGroup />
     <ViewGroup />
     <DisplayGroup />
+    <component
+      :is="mod"
+      v-for="(mod, index) in extraToolbarModules"
+      :key="index"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Component } from "vue";
 import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
 import AddObjectGroup from "@/components/tools/objects/AddObjectGroup.vue";
 import ViewGroup from "@/components/tools/views/ViewGroup.vue";
@@ -18,6 +24,10 @@ import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
+
+withDefaults(defineProps<{ extraToolbarModules?: Component[] }>(), {
+  extraToolbarModules: () => [],
+});
 
 const toolbarElement = ref<HTMLElement | null>(null);
 const { isHovered } = useHover(toolbarElement);

@@ -1,8 +1,8 @@
 <template>
-  <TooltipProvider :delay-duration="600">
+  <TooltipProvider v-if="visible" :delay-duration="600">
     <Popover v-model:open="isOpen" :modal="true">
       <PopoverTrigger as-child>
-        <Button variant="secondary" size="icon">
+        <Button variant="secondary" size="icon" :disabled="!enabled">
           <Tooltip>
             <TooltipTrigger as-child>
               <span
@@ -98,6 +98,7 @@
 import { ref } from "vue";
 import { Shapes } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
+import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -134,6 +135,7 @@ const SHAPE_TYPES: { value: ShapeType; label: string }[] = [
 ];
 
 const runtime = useViewerRuntime();
+const { visible, enabled } = useToolbarControl("add_objects");
 const isOpen = ref(false);
 const shapeType = ref<ShapeType>("box");
 const boxSize = ref({ xsize: 1, ysize: 1, zsize: 1 });
