@@ -811,11 +811,7 @@ function validateSpinner(record: CommandRecord): void {
 function validateToolbarControl(record: CommandRecord): void {
   readNonEmptyString(record, "obj_id");
   const overrides = record.overrides;
-  if (
-    !overrides ||
-    typeof overrides !== "object" ||
-    Array.isArray(overrides)
-  ) {
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) {
     invalidField(record, "overrides", "an object keyed by toolbar item id");
   }
   Object.values(overrides as CommandRecord).forEach((override) =>
@@ -823,7 +819,10 @@ function validateToolbarControl(record: CommandRecord): void {
   );
 }
 
-function validateToolbarOverride(record: CommandRecord, override: unknown): void {
+function validateToolbarOverride(
+  record: CommandRecord,
+  override: unknown,
+): void {
   if (!override || typeof override !== "object" || Array.isArray(override)) {
     invalidField(record, "overrides", "each override to be an object");
   }

@@ -7,7 +7,11 @@
     <AddObjectGroup />
     <ViewGroup />
     <DisplayGroup />
-    <component :is="mod" v-for="(mod, index) in extraToolbarModules" :key="index" />
+    <component
+      :is="mod"
+      v-for="(mod, index) in extraToolbarModules"
+      :key="index"
+    />
   </div>
 </template>
 

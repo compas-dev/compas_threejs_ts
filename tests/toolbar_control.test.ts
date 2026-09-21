@@ -116,7 +116,9 @@ describe("toolbar_control dispatch (store)", () => {
 
     // A second message must fully replace the first - if this were merged
     // instead of replaced, "add_objects" would still be present alongside "move".
-    internals.dispatchObject(toolbarControlMessage({ move: { enabled: false } }));
+    internals.dispatchObject(
+      toolbarControlMessage({ move: { enabled: false } }),
+    );
 
     expect(runtime.store.toolbarOverrides).toEqual({
       move: { enabled: false },
