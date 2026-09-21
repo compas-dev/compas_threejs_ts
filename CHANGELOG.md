@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.3.0...v1.4.0) (2026-09-21)
+
+
+### Features
+
+* **viewer:** add backend-declared toolbar dispatch, store, and validation ([b74d053](https://github.com/compas-dev/compas_threejs_ts/commit/b74d0532825f937ef8f53acbd0933bed88ddba74))
+* **viewer:** render the backend-declared toolbar generically ([d89be52](https://github.com/compas-dev/compas_threejs_ts/commit/d89be523929a2cc3e51406d5e6ae29e80a99e739))
+
+
+### Reverts
+
+* back out toolbar-schema work that was pushed to main by mistake ([cacb394](https://github.com/compas-dev/compas_threejs_ts/commit/cacb39404ae18628b7e0842a194ed1c8c7dc801e))
+
 ## [1.3.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.2.1...v1.3.0) (2026-09-07)
 
 
