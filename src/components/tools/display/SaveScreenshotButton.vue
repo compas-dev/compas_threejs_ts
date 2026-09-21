@@ -1,8 +1,8 @@
 <template>
-  <TooltipProvider v-if="visible" :delay-duration="600">
+  <TooltipProvider :delay-duration="600">
     <Popover v-model:open="isOpen" :modal="true">
       <PopoverTrigger as-child>
-        <Button variant="secondary" size="icon" :disabled="!enabled">
+        <Button variant="secondary" size="icon">
           <Tooltip>
             <TooltipTrigger as-child>
               <span
@@ -109,7 +109,6 @@ import { computed, ref, watch } from "vue";
 import { ImageDown } from "lucide-vue-next";
 import type { ScreenshotFormat } from "@/viewer/viewer_runtime";
 import { useViewerRuntime } from "@/viewer/viewer_context";
-import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -130,7 +129,6 @@ const height = ref(1080);
 const format = ref<ScreenshotFormat>("png");
 const hasUserOverrides = ref(false);
 const runtime = useViewerRuntime();
-const { visible, enabled } = useToolbarControl("save_screenshot");
 
 const MIN_DIMENSION = 64;
 const MAX_DIMENSION = 8192;

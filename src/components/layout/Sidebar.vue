@@ -1,25 +1,20 @@
 <template>
   <div id="sidebar">
-    <Toolbar v-if="showToolbar" :extra-toolbar-modules="extraToolbarModules" />
+    <Toolbar v-if="showToolbar" />
     <Openbar v-if="sideBarInfoState.isVisible" />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Component } from "vue";
 import Toolbar from "@/components/layout/Toolbar.vue";
 import Openbar from "@/components/layout/Openbar.vue";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 
 const { sideBarInfoState } = useViewerRuntime().store;
 
-withDefaults(
-  defineProps<{ showToolbar?: boolean; extraToolbarModules?: Component[] }>(),
-  {
-    showToolbar: true,
-    extraToolbarModules: () => [],
-  },
-);
+withDefaults(defineProps<{ showToolbar?: boolean }>(), {
+  showToolbar: true,
+});
 </script>
 
 <style scoped>

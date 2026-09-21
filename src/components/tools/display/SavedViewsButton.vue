@@ -1,8 +1,8 @@
 <template>
-  <TooltipProvider v-if="visible" :delay-duration="600">
+  <TooltipProvider :delay-duration="600">
     <Popover v-model:open="isOpen" :modal="true">
       <PopoverTrigger as-child>
-        <Button variant="secondary" size="icon" :disabled="!enabled">
+        <Button variant="secondary" size="icon">
           <Tooltip>
             <TooltipTrigger as-child>
               <span
@@ -68,7 +68,6 @@
 import { onBeforeUnmount, ref, watch } from "vue";
 import { ClipboardList, Trash2 } from "lucide-vue-next";
 import type { SavedView } from "@/viewer/viewer_runtime";
-import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -92,7 +91,6 @@ const emit = defineEmits<{
   (e: "delete", id: string): void;
 }>();
 
-const { visible, enabled } = useToolbarControl("saved_views");
 const isOpen = ref(false);
 const selectedId = ref("");
 const deletePressed = ref(false);

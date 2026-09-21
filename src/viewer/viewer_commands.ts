@@ -378,22 +378,6 @@ export interface SpinnerCommand extends CommandRecord {
   message?: string | null;
 }
 
-/**
- * A backend-sent override for a single frontend-owned toolbar button, keyed by the
- * button's own id. The backend can only show/hide or enable/disable a button the
- * frontend already defines - it never describes what the button looks like or does.
- */
-export interface ToolbarOverride {
-  visible?: boolean;
-  enabled?: boolean;
-}
-
-export interface ToolbarControlCommand extends CommandRecord {
-  dispatch: "toolbar_control";
-  obj_id: string;
-  overrides: Record<string, ToolbarOverride>;
-}
-
 export type ViewerCommand =
   | MaterialCommand
   | LightCommand
@@ -405,8 +389,7 @@ export type ViewerCommand =
   | ObjectInfosCommand
   | ObjectActionCommand
   | HandleGeometryCommand
-  | SpinnerCommand
-  | ToolbarControlCommand;
+  | SpinnerCommand;
 
 const SCENE_TYPES = new Set<SceneCommandType>([
   "background_color",
@@ -497,9 +480,6 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
     case "spinner":
       validateSpinner(record);
       return record as SpinnerCommand;
-    case "toolbar_control":
-      validateToolbarControl(record);
-      return record as ToolbarControlCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",
@@ -805,34 +785,6 @@ function validateSpinner(record: CommandRecord): void {
   readBoolean(record, "visible");
   if (record.message !== undefined && record.message !== null) {
     readOptionalString(record, "message");
-  }
-}
-
-function validateToolbarControl(record: CommandRecord): void {
-  readNonEmptyString(record, "obj_id");
-  const overrides = record.overrides;
-  if (
-    !overrides ||
-    typeof overrides !== "object" ||
-    Array.isArray(overrides)
-  ) {
-    invalidField(record, "overrides", "an object keyed by toolbar item id");
-  }
-  Object.values(overrides as CommandRecord).forEach((override) =>
-    validateToolbarOverride(record, override),
-  );
-}
-
-function validateToolbarOverride(record: CommandRecord, override: unknown): void {
-  if (!override || typeof override !== "object" || Array.isArray(override)) {
-    invalidField(record, "overrides", "each override to be an object");
-  }
-  const overrideRecord = override as CommandRecord;
-  if (overrideRecord.visible !== undefined) {
-    readBoolean(overrideRecord, "visible");
-  }
-  if (overrideRecord.enabled !== undefined) {
-    readBoolean(overrideRecord, "enabled");
   }
 }
 

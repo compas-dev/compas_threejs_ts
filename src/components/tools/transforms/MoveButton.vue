@@ -1,5 +1,5 @@
 <template>
-  <TooltipProvider v-if="visible" :delay-duration="600">
+  <TooltipProvider :delay-duration="600">
     <Tooltip>
       <TooltipTrigger>
         <Button
@@ -10,7 +10,7 @@
             disabled: !pickerEnabled.value,
           }"
           @click="handleClick"
-          :disabled="!enabled || !pickerEnabled.value"
+          :disabled="!pickerEnabled.value"
         >
           <Move3d />
         </Button>
@@ -25,7 +25,6 @@
 <script setup lang="ts">
 import { Move3d } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
-import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 // You don't need `ref` here because you are using the store's ref directly
@@ -39,7 +38,6 @@ import {
 
 const runtime = useViewerRuntime();
 const { pickerEnabled, pickerMode } = runtime.store;
-const { visible, enabled } = useToolbarControl("move");
 function handleClick() {
   runtime.setTransformMode("translate");
 }

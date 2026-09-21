@@ -183,6 +183,4 @@ describe("viewer command validation", () => {
       );
     }
   });
-
-  // toolbar_control command validation is covered in tests/toolbar_control.test.ts
 });

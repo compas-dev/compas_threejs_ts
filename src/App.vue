@@ -1,9 +1,8 @@
 <template>
   <div class="app-container" :class="{ dark: theme.value === 'dark' }">
-    <Sidebar
-      :show-toolbar="props.showToolbar"
-      :extra-toolbar-modules="props.extraToolbarModules"
-    />
+    <!-- <Toolbar />
+        <Openbar v-if="sideBarInfoState.isVisible" /> -->
+    <Sidebar :show-toolbar="props.showToolbar" />
     <div ref="threeContainer" class="three-container"></div>
     <ThemeIndicator />
     <ObjectInfo />
@@ -13,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, type Component } from "vue";
+import { onMounted, ref } from "vue";
 import RightSidebar from "./components/layout/RightSidebar.vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
@@ -22,14 +21,9 @@ import type { ViewerRuntime } from "@/viewer/viewer_runtime";
 
 const threeContainer = ref<HTMLDivElement | null>(null);
 const props = withDefaults(
-  defineProps<{
-    runtime: ViewerRuntime;
-    showToolbar?: boolean;
-    extraToolbarModules?: Component[];
-  }>(),
+  defineProps<{ runtime: ViewerRuntime; showToolbar?: boolean }>(),
   {
     showToolbar: true,
-    extraToolbarModules: () => [],
   },
 );
 const { theme } = props.runtime.store;

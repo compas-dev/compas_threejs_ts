@@ -24,7 +24,6 @@ import {
   type SpinnerCommand,
   type TextCommand,
   type TextTagCommand,
-  type ToolbarControlCommand,
   type UiCommand,
   type ViewerCommand,
 } from "./viewer_commands";
@@ -568,9 +567,6 @@ export class ViewerRuntime {
       case "spinner":
         this.manageSpinner(data);
         break;
-      case "toolbar_control":
-        this.manageToolbarControl(data);
-        break;
     }
   }
 
@@ -801,18 +797,6 @@ export class ViewerRuntime {
     this.store.spinnerState.message = data.visible
       ? (data.message ?? null)
       : null;
-  }
-
-  /**
-   * The backend always sends the full override map (never a diff/patch - same
-   * convention as persisted state like camera position or background color), so this
-   * replaces `toolbarOverrides` wholesale - in place, to keep the reactive proxy's
-   * identity intact for anything already holding a reference to it.
-   */
-  private manageToolbarControl(data: ToolbarControlCommand): void {
-    const overrides = this.store.toolbarOverrides;
-    for (const key of Object.keys(overrides)) delete overrides[key];
-    Object.assign(overrides, data.overrides);
   }
 
   private pickFromPointer(event: MouseEvent): void {

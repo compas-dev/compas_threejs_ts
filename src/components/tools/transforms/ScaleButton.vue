@@ -1,5 +1,5 @@
 <template>
-  <TooltipProvider v-if="visible" :delay-duration="600">
+  <TooltipProvider :delay-duration="600">
     <Tooltip>
       <TooltipTrigger>
         <Button
@@ -11,7 +11,7 @@
             disabled: !pickerEnabled.value,
           }"
           @click="handleClick"
-          :disabled="!enabled || !pickerEnabled.value"
+          :disabled="!pickerEnabled.value"
         >
           <span class="button-icon">
             <Scale3d :size="16" :stroke-width="2" aria-hidden="true" />
@@ -28,7 +28,6 @@
 <script setup lang="ts">
 import { Scale3d } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
-import { useToolbarControl } from "@/viewer/useToolbarControl";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import {
@@ -39,7 +38,6 @@ import {
 } from "@/components/ui/tooltip";
 const runtime = useViewerRuntime();
 const { pickerEnabled, pickerMode } = runtime.store;
-const { visible, enabled } = useToolbarControl("scale");
 
 defineProps<{
   active: boolean;
