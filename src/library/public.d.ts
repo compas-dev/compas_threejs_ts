@@ -166,10 +166,11 @@ export interface ViewerExtensionContext {
    * unsubscribe function. */
   onResize(listener: (size: ViewerSize) => void): () => void;
   /**
-   * Takes over pointer/keyboard input. While held: picking is suspended, any
-   * selection and transform gizmo are cleared, built-in shortcuts don't fire,
-   * and events go to `handlers`. Orbiting (right drag) keeps working. At most
-   * one session exists; beginning another interrupts the current one.
+   * Takes over pointer/keyboard input and focuses the canvas. While held:
+   * picking is suspended, any selection and transform gizmo are cleared,
+   * built-in shortcuts don't fire, and events go to `handlers`. Orbiting (right
+   * drag) keeps working. At most one session exists; beginning another
+   * interrupts the current one.
    */
   beginInteraction(handlers: InteractionHandlers): InteractionSession;
   /** Asks for a redraw after changing overlay objects. */

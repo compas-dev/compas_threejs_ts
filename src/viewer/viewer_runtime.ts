@@ -599,12 +599,15 @@ export class ViewerRuntime {
    * pick (and so detaches the transform gizmo) first; `handlePointerDown`/
    * `handleKeyDown` then route events to `handlers` instead of picking and the
    * built-in shortcuts. OrbitControls listen on the canvas themselves, so
-   * orbiting keeps working throughout.
+   * orbiting keeps working throughout. Focuses the canvas, since a session is
+   * often started from a button outside the viewer, whose focus would otherwise
+   * keep keystrokes (e.g. Escape) from ever reaching `handleKeyDown`.
    */
   beginInteraction(handlers: InteractionHandlers): InteractionSession {
     this.assertUsable();
     this.interruptInteraction();
     this.clearPickedObject();
+    this.renderer.domElement.focus({ preventScroll: true });
     const entry: ActiveInteraction = { handlers, active: true };
     this.interaction = entry;
     return {

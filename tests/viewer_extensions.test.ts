@@ -336,12 +336,18 @@ describe("beginInteraction", () => {
       onPointerMove: vi.fn(),
       onKeyDown: vi.fn(),
     };
+    // Started from a control outside the viewer, which holds focus.
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    outside.focus();
     const session = context.beginInteraction(handlers);
     expect(session.active).toBe(true);
+    expect(document.activeElement).toBe(canvas);
 
     canvas.dispatchEvent(mouse("mousedown"));
     canvas.dispatchEvent(mouse("mousemove"));
-    canvas.dispatchEvent(key("Escape"));
+    // Keys typed after focus moved reach the session via the viewer root.
+    document.activeElement!.dispatchEvent(key("Escape"));
     canvas.dispatchEvent(key("p"));
     expect(handlers.onPointerDown).toHaveBeenCalledOnce();
     expect(handlers.onPointerMove).toHaveBeenCalledOnce();
