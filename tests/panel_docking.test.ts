@@ -188,5 +188,4 @@ describe("panel docking", () => {
       ]);
     },
   );
-
 });
