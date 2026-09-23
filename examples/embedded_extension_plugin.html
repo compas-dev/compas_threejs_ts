@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Embedded COMPAS ThreeJS plugin</title>
+    <link rel="stylesheet" href="../dist-lib/style.css" />
+    <style>
+      html,
+      body,
+      #viewer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+      #marker-tool {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font:
+          14px system-ui,
+          sans-serif;
+        padding: 6px 12px;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "../node_modules/vue/dist/vue.esm-browser.js",
+          "three": "../node_modules/three/build/three.module.js",
+          "three/": "../node_modules/three/",
+          "@gramaziokohler/compas-pb-ts": "../node_modules/@gramaziokohler/compas-pb-ts/dist/index.js",
+          "@bufbuild/protobuf/wire": "../node_modules/@bufbuild/protobuf/dist/esm/wire/index.js"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id="viewer" aria-label="3D viewer"></div>
+    <button id="marker-tool" type="button">Place markers</button>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { createViewer } from "../dist-lib/index.js";
+      import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+
+      // A minimal add-on built only on the public extension API: while its
+      // session is active, a ghost follows the cursor on the ground plane, a left
+      // click drops a marker there, and Escape hands input back to the viewer.
+      function markerPlugin() {
+        let context = null;
+        let session = null;
+        let removeGhost = null;
+        const ghost = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15, 16, 12),
+          new THREE.MeshBasicMaterial({ color: 0xff6a00 }),
+        );
+        const markers = [];
+
+        function stop() {
+          session?.release();
+          session = null;
+          removeGhost?.();
+          removeGhost = null;
+        }
+
+        return {
+          id: "example-markers",
+          install(ctx) {
+            context = ctx;
+            return () => {
+              stop();
+              ghost.geometry.dispose();
+              ghost.material.dispose();
+              for (const marker of markers) {
+                marker.geometry.dispose();
+                marker.material.dispose();
+              }
+            };
+          },
+          start() {
+            if (!context || session) return;
+            ghost.visible = false;
+            removeGhost = context.addOverlay(ghost);
+            session = context.beginInteraction({
+              onPointerMove(event) {
+                const point = context.pointerOnPlane(event, 0);
+                ghost.visible = point !== null;
+                if (point) ghost.position.set(point.x, point.y, point.z);
+              },
+              onPointerDown(event) {
+                if (event.button !== 0) return;
+                const point = context.pointerOnPlane(event, 0);
+                if (!point) return;
+                const marker = new THREE.Mesh(
+                  new THREE.SphereGeometry(0.15, 16, 12),
+                  new THREE.MeshBasicMaterial({ color: 0x2f7de1 }),
+                );
+                marker.position.set(point.x, point.y, point.z);
+                context.addOverlay(marker);
+                markers.push(marker);
+                const [hit] = context.pickObjects(event);
+                console.log(
+                  "marker placed",
+                  point,
+                  "over",
+                  hit?.guid ?? "ground",
+                );
+              },
+              onKeyDown(event) {
+                if (event.key === "Escape") stop();
+              },
+              onInterrupt: stop,
+            });
+          },
+        };
+      }
+
+      const container = document.querySelector("#viewer");
+      if (!(container instanceof HTMLElement)) {
+        throw new Error("Viewer container was not found");
+      }
+
+      const markers = markerPlugin();
+      const viewer = createViewer(container, {
+        mode: "embedded",
+        defaultLighting: true,
+        showToolbar: false,
+        plugins: [markers],
+        onError(error) {
+          console.error(error.code, error.message, error.details);
+        },
+      });
+
+      const box = new Box({
+        data: {
+          guid: crypto.randomUUID(),
+          name: "Box",
+          frame: {
+            point: { x: 0, y: 0, z: 0.5 },
+            xaxis: { x: 1, y: 0, z: 0 },
+            yaxis: { x: 0, y: 1, z: 0 },
+          },
+          xsize: 3,
+          ysize: 3,
+          zsize: 1,
+        },
+      });
+      viewer.dispatch(pbDumpBytes(box));
+
+      document
+        .querySelector("#marker-tool")
+        .addEventListener("click", () => markers.start());
+      window.addEventListener("pagehide", () => viewer.dispose(), {
+        once: true,
+      });
+    </script>
+  </body>
+</html>
