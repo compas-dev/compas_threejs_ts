@@ -377,6 +377,10 @@ export class ViewerRuntime {
       if (fields.color !== undefined) material.color.set(fields.color);
       if (fields.metalness !== undefined) material.metalness = fields.metalness;
       if (fields.roughness !== undefined) material.roughness = fields.roughness;
+      // Show the edit right away instead of leaving it under the highlight.
+      if (this.geometries.get(guid) === this.pickedObject) {
+        this.revealPickedMaterial();
+      }
     }
     this.sendData({ dispatch: "material_edit", guid, ...fields });
   }
@@ -805,7 +809,16 @@ export class ViewerRuntime {
     for (const [objectGuid, materialGuid] of this.geometryMaterials) {
       if (materialGuid !== guid) continue;
       const object = this.geometries.get(objectGuid);
-      if (object) this.assignMaterial(object, material);
+      if (!object) continue;
+      // A picked object wears the highlight, with its own material parked in
+      // `pickedMaterial`. Swap the new material in for the parked one - not for
+      // the highlight - so deselecting restores it rather than a stale one.
+      const picked = object === this.pickedObject;
+      if (picked) this.revealPickedMaterial();
+      this.assignMaterial(object, material);
+      if (picked) {
+        this.pickedMaterial = (object as RenderableObject).material ?? null;
+      }
     }
     this.materials.set(guid, {
       material,
@@ -1056,6 +1069,21 @@ export class ViewerRuntime {
       this.sendData({ dispatch: "object_picked", guid });
     }
     this.store.pickedObjectGuid.value = guid ?? null;
+  }
+
+  /**
+   * Shows the picked object's own material instead of the pick highlight, for
+   * while that material is being edited. The object stays picked, and
+   * `clearPickedObject` restores the same material.
+   */
+  private revealPickedMaterial(): void {
+    if (
+      this.pickedObject &&
+      this.pickedMaterial &&
+      "material" in this.pickedObject
+    ) {
+      (this.pickedObject as RenderableObject).material = this.pickedMaterial;
+    }
   }
 
   private clearPickedObject(): void {
