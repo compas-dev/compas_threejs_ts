@@ -178,6 +178,32 @@ export interface ViewerExtensionContext {
   /** Called when the viewer is disposed, before its renderer is torn down.
    * Returns an unsubscribe function. */
   onDispose(listener: () => void): () => void;
+  /**
+   * Sends a JSON message to the backend - over the WebSocket in `websocket` mode,
+   * or to `CompasViewerOptions.send` in `embedded` mode - exactly like the
+   * viewer's own messages (`{ dispatch: "create_geometry", ... }` and so on).
+   * Returns whether it was handed to a transport.
+   */
+  send(message: Record<string, unknown>): boolean;
+  /** Guid of the currently picked backend object, or null. */
+  selection(): string | null;
+  /** Called with the new guid (or null) whenever the pick changes. Returns an
+   * unsubscribe function. */
+  onSelectionChange(listener: (guid: string | null) => void): () => void;
+  /** The standard material of the object at `guid`, or null if it has none
+   * (or a non-standard one, e.g. a point's). */
+  getMaterial(guid: string): ViewerMaterial | null;
+  /** Edits the object's standard material: applied locally at once, and sent
+   * to the backend as `{ dispatch: "material_edit", guid, ...fields }`. */
+  setMaterial(guid: string, fields: Partial<ViewerMaterial>): void;
+}
+
+/** The editable fields of an object's standard material. */
+export interface ViewerMaterial {
+  /** `#rrggbb` hex color. */
+  color: string;
+  metalness: number;
+  roughness: number;
 }
 
 export interface InteractionHandlers {

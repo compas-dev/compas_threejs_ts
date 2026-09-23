@@ -86,6 +86,17 @@ export interface ViewerExtensionContext {
   beginInteraction(handlers: InteractionHandlers): InteractionSession;
   requestRender(): void;
   onDispose(listener: () => void): () => void;
+  send(message: Record<string, unknown>): boolean;
+  selection(): string | null;
+  onSelectionChange(listener: (guid: string | null) => void): () => void;
+  getMaterial(guid: string): ViewerMaterial | null;
+  setMaterial(guid: string, fields: Partial<ViewerMaterial>): void;
+}
+
+export interface ViewerMaterial {
+  color: string;
+  metalness: number;
+  roughness: number;
 }
 
 export interface InteractionHandlers {

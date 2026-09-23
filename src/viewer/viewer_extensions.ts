@@ -1,3 +1,5 @@
+import { watch } from "vue";
+
 import { asCompasViewerError, CompasViewerError } from "../library/errors";
 import type { ViewerExtensionContext, ViewerPlugin } from "../library/types";
 import type { ViewerRuntime } from "./viewer_runtime";
@@ -23,6 +25,23 @@ export function createExtensionContext(
     beginInteraction: (handlers) => runtime.beginInteraction(handlers),
     requestRender: () => runtime.requestRender(),
     onDispose: (listener) => runtime.addDisposeListener(listener),
+    send: (message) => runtime.sendData(message),
+    selection: () => runtime.store.pickedObjectGuid.value,
+    onSelectionChange(listener) {
+      // Synchronous, so a plugin sees the change in the same tick as the pick.
+      const stop = watch(
+        () => runtime.store.pickedObjectGuid.value,
+        (guid) => listener(guid),
+        { flush: "sync" },
+      );
+      const removeDispose = runtime.addDisposeListener(stop);
+      return () => {
+        stop();
+        removeDispose();
+      };
+    },
+    getMaterial: (guid) => runtime.getMaterialSnapshot(guid),
+    setMaterial: (guid, fields) => runtime.setMaterial(guid, fields),
   } satisfies ViewerExtensionContext);
 }
 

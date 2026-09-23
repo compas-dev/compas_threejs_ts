@@ -316,6 +316,59 @@ describe("ViewerExtensionContext", () => {
   });
 });
 
+describe("backend, selection and material access", () => {
+  it("sends plugin messages through the viewer's transport", () => {
+    const send = vi.fn();
+    const { context } = viewerWithContext({ send });
+
+    const message = {
+      dispatch: "create_geometry",
+      type: "point",
+      point: [1, 2, 3],
+    };
+    expect(context.send(message)).toBe(true);
+
+    expect(send).toHaveBeenCalledWith(message);
+  });
+
+  it("reports the picked object and notifies until unsubscribed", () => {
+    const { viewer, context } = viewerWithContext();
+    viewer.dispatch(boxBytes("box-guid"));
+    const listener = vi.fn();
+    const unsubscribe = context.onSelectionChange(listener);
+    expect(context.selection()).toBeNull();
+
+    context.canvas.dispatchEvent(mouse("mousedown"));
+    expect(context.selection()).toBe("box-guid");
+    expect(listener).toHaveBeenLastCalledWith("box-guid");
+
+    // Beginning an interaction clears the pick.
+    context.beginInteraction({}).release();
+    expect(listener).toHaveBeenLastCalledWith(null);
+
+    unsubscribe();
+    context.canvas.dispatchEvent(mouse("mousedown"));
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads and edits an object's material, telling the backend", () => {
+    const send = vi.fn();
+    const { viewer, context } = viewerWithContext({ send });
+    viewer.dispatch(boxBytes("box-guid"));
+
+    // A box the backend sent without a material has nothing to read.
+    expect(context.getMaterial("box-guid")).toBeNull();
+
+    context.setMaterial("box-guid", { color: "#ff0000", roughness: 0.2 });
+    expect(send).toHaveBeenCalledWith({
+      dispatch: "material_edit",
+      guid: "box-guid",
+      color: "#ff0000",
+      roughness: 0.2,
+    });
+  });
+});
+
 describe("beginInteraction", () => {
   it("routes input to the session instead of picking and shortcuts, until released", () => {
     const send = vi.fn();

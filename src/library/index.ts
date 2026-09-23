@@ -15,6 +15,7 @@ export type {
   InteractionHandlers,
   InteractionSession,
   ViewerExtensionContext,
+  ViewerMaterial,
   ViewerMode,
   ViewerObjectBounds,
   ViewerObjectHit,
