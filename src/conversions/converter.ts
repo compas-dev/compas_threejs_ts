@@ -37,15 +37,7 @@ import * as THREE from "three";
 import * as GEOCONV from "./geometry";
 import * as DATASTRUCTCONV from "./datastructures";
 
-const UNIMPLEMENTED_RENDERABLES = [
-  Arc,
-  Bezier,
-  Ellipse,
-  Graph,
-  Hyperbola,
-  Parabola,
-  Polygon,
-];
+const UNIMPLEMENTED_RENDERABLES = [Bezier, Ellipse, Graph, Hyperbola, Parabola];
 const NON_RENDERABLES = [
   Projection,
   Quaternion,
@@ -91,6 +83,8 @@ export function convertToThreeJSGeometry(object: unknown): THREE.Object3D {
   }
 
   switch (true) {
+    case object instanceof Arc:
+      return GEOCONV.arcToThreeJS(object);
     case object instanceof Box:
       return GEOCONV.boxToThreeJS(object);
     case object instanceof Capsule:
@@ -111,6 +105,8 @@ export function convertToThreeJSGeometry(object: unknown): THREE.Object3D {
       return GEOCONV.pointToThreeJS(object);
     case object instanceof Pointcloud:
       return GEOCONV.pointcloudToThreeJS(object);
+    case object instanceof Polygon:
+      return GEOCONV.polygonToThreeJS(object);
     case object instanceof Polyline:
       return GEOCONV.polylineToThreeJS(object);
     case object instanceof Sphere:
