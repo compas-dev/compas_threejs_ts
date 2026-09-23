@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configurable tab title</title>
+    <link rel="stylesheet" href="../dist-lib/style.css" />
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        font-family: system-ui, sans-serif;
+      }
+
+      #controls {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        background: #1e1e1e;
+        color: #eee;
+      }
+
+      #controls input {
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: none;
+        min-width: 220px;
+      }
+
+      #controls button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+      }
+
+      #viewer {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "../node_modules/vue/dist/vue.esm-browser.js",
+          "three": "../node_modules/three/build/three.module.js",
+          "three/": "../node_modules/three/",
+          "@gramaziokohler/compas-pb-ts": "../node_modules/@gramaziokohler/compas-pb-ts/dist/index.js",
+          "@bufbuild/protobuf/wire": "../node_modules/@bufbuild/protobuf/dist/esm/wire/index.js"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <!--
+      This bar is just this demo page's own controls, outside the viewer container -
+      it's not part of the library. It lets you retype the title to see the effect
+      live; in a real app you'd normally pass `title` once, up front.
+    -->
+    <div id="controls">
+      <label for="titleInput">Title</label>
+      <input id="titleInput" type="text" value="My Custom Viewer" />
+      <button id="applyButton">Apply</button>
+      <span style="opacity: 0.7">
+        Sets both the browser tab title and the toolbar heading (normally
+        "COMPAS ThreeJs").
+      </span>
+    </div>
+
+    <div id="viewer" aria-label="3D viewer"></div>
+
+    <script type="module">
+      import { createViewer } from "../dist-lib/index.js";
+      import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+
+      const container = document.querySelector("#viewer");
+      if (!(container instanceof HTMLElement)) {
+        throw new Error("Viewer container was not found");
+      }
+
+      const titleInput = document.querySelector("#titleInput");
+      const applyButton = document.querySelector("#applyButton");
+
+      let viewer = null;
+
+      function mountViewer() {
+        viewer?.dispose();
+
+        // `title` is a creation-time option - like toolbarPlacement, it's read once
+        // when the viewer mounts, so applying a new value here recreates the viewer
+        // rather than updating it live. It sets `document.title` and, when the
+        // toolbar is shown, replaces its hardcoded "COMPAS ThreeJs" heading.
+        viewer = createViewer(container, {
+          mode: "embedded",
+          defaultLighting: true,
+          showToolbar: true,
+          title: titleInput.value || undefined,
+          onError(error) {
+            console.error(error.code, error.message, error.details);
+          },
+        });
+
+        viewer.dispatch(
+          pbDumpBytes(
+            new Box({
+              data: {
+                guid: crypto.randomUUID(),
+                name: "Box",
+                frame: {
+                  point: { x: 0, y: 0, z: 0 },
+                  xaxis: { x: 1, y: 0, z: 0 },
+                  yaxis: { x: 0, y: 1, z: 0 },
+                },
+                xsize: 3,
+                ysize: 3,
+                zsize: 1,
+              },
+            }),
+          ),
+        );
+      }
+
+      applyButton.addEventListener("click", mountViewer);
+      titleInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") mountViewer();
+      });
+
+      mountViewer();
+      window.addEventListener("pagehide", () => viewer?.dispose(), {
+        once: true,
+      });
+    </script>
+  </body>
+</html>

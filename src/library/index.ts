@@ -7,6 +7,7 @@ import {
   objectActionsPlacementKey,
   openbarPlacementKey,
   toolbarPlacementKey,
+  toolbarTitleKey,
   useViewerRuntime,
   viewerRuntimeKey,
 } from "../viewer/viewer_context";
@@ -48,6 +49,10 @@ export function createViewer(
     );
   }
 
+  if (options.title) {
+    document.title = options.title;
+  }
+
   const runtime = markRaw(new ViewerRuntime(container, options));
   const app = createApp(App, {
     runtime,
@@ -58,6 +63,9 @@ export function createViewer(
   app.provide(toolbarPlacementKey, options.toolbarPlacement ?? "left");
   app.provide(openbarPlacementKey, options.openbarPlacement ?? "left");
   app.provide(metadataPlacementKey, options.metadataPlacement ?? "right");
+  if (options.title) {
+    app.provide(toolbarTitleKey, options.title);
+  }
   app.provide(
     objectActionsPlacementKey,
     options.objectActionsPlacement ?? "right",

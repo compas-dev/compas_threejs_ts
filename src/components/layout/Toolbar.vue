@@ -6,7 +6,7 @@
     id="toolbar"
   >
     <h1 class="text-lg font-bold" :class="{ dark: theme.value === 'dark' }">
-      COMPAS ThreeJs
+      {{ toolbarTitle }}
     </h1>
     <TransformGroup />
     <AddObjectGroup />
@@ -29,6 +29,7 @@ import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
 import {
   isHorizontalPlacement,
   useToolbarPlacement,
+  useToolbarTitle,
   useViewerRuntime,
 } from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
@@ -43,6 +44,7 @@ const { isHovered } = useHover(toolbarElement);
 const { theme, blockPicker } = useViewerRuntime().store;
 const placement = useToolbarPlacement();
 const isHorizontal = isHorizontalPlacement(placement);
+const toolbarTitle = useToolbarTitle();
 
 watchEffect(() => {
   blockPicker.value = isHovered.value;
