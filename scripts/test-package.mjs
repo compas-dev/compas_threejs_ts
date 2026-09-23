@@ -95,8 +95,17 @@ try {
 
   await writeFile(
     join(consumerRoot, "consumer.ts"),
-    `import { createViewer, CompasViewerError, type CompasViewerOptions } from "${packageName}";\n` +
-      `const options: CompasViewerOptions = { mode: "embedded" };\n` +
+    `import { createViewer, CompasViewerError, type CompasViewerOptions, type ViewerPlugin } from "${packageName}";\n` +
+      `const plugin: ViewerPlugin = {\n` +
+      `  id: "consumer",\n` +
+      `  install(context) {\n` +
+      `    const session = context.beginInteraction({ onKeyDown: (event) => void event.key });\n` +
+      `    void context.pointerOnPlane({ clientX: 0, clientY: 0 }, 0)?.z;\n` +
+      `    void context.objectBounds()[0]?.guid;\n` +
+      `    return () => session.release();\n` +
+      `  },\n` +
+      `};\n` +
+      `const options: CompasViewerOptions = { mode: "embedded", plugins: [plugin] };\n` +
       `void createViewer; void CompasViewerError; void options;\n`,
   );
   await writeFile(

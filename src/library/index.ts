@@ -3,6 +3,7 @@ import { createApp, markRaw } from "vue";
 import "../style.css";
 import App from "../App.vue";
 import { useViewerRuntime, viewerRuntimeKey } from "../viewer/viewer_context";
+import { installPlugins } from "../viewer/viewer_extensions";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
 import { useToolbarControl } from "../viewer/useToolbarControl";
 import { CompasViewerError } from "./errors";
@@ -11,7 +12,16 @@ import type { CompasViewer, CompasViewerOptions } from "./types";
 export type {
   CompasViewer,
   CompasViewerOptions,
+  InteractionHandlers,
+  InteractionSession,
+  ViewerExtensionContext,
   ViewerMode,
+  ViewerObjectBounds,
+  ViewerObjectHit,
+  ViewerPlugin,
+  ViewerPoint,
+  ViewerPointerLike,
+  ViewerSize,
   ViewerWebSocketOptions,
 } from "./types";
 export {
@@ -50,7 +60,7 @@ export function createViewer(
   app.mount(container);
 
   let disposed = false;
-  return {
+  const viewer: CompasViewer = {
     dispatch(message) {
       runtime.dispatch(message);
     },
@@ -67,4 +77,13 @@ export function createViewer(
       runtime.dispose();
     },
   };
+
+  try {
+    installPlugins(runtime, options.plugins ?? []);
+  } catch (error) {
+    // Runs the cleanups of any plugin that did install before rethrowing.
+    viewer.dispose();
+    throw error;
+  }
+  return viewer;
 }

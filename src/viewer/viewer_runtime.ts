@@ -8,7 +8,16 @@ import {
 import { lightToThree } from "../conversions/lights";
 import { materialToThree } from "../conversions/material";
 import { asCompasViewerError, CompasViewerError } from "../library/errors";
-import type { CompasViewerOptions } from "../library/types";
+import type {
+  CompasViewerOptions,
+  InteractionHandlers,
+  InteractionSession,
+  ViewerObjectBounds,
+  ViewerObjectHit,
+  ViewerPoint,
+  ViewerPointerLike,
+  ViewerSize,
+} from "../library/types";
 import {
   parseViewerCommand,
   readGeometryGuid,
@@ -95,6 +104,11 @@ const VIEW_PRESETS: Record<ViewPreset, THREE.Vector3> = {
   back_right: new THREE.Vector3(1, 1, 1),
 };
 
+interface ActiveInteraction {
+  handlers: InteractionHandlers;
+  active: boolean;
+}
+
 export class ViewerRuntime {
   readonly store: ViewerStore = createViewerStore();
   readonly scene = new THREE.Scene();
@@ -120,9 +134,19 @@ export class ViewerRuntime {
   private readonly transformHelper: THREE.Object3D;
   private readonly onResize = () => this.resize();
   private readonly onPointerDown = (event: MouseEvent) =>
-    this.pickFromPointer(event);
+    this.handlePointerDown(event);
+  private readonly onPointerMove = (event: MouseEvent) =>
+    this.interaction?.handlers.onPointerMove?.(event);
   private readonly onKeyDown = (event: KeyboardEvent) =>
     this.handleKeyDown(event);
+  // Plugin-owned objects (see addOverlay): rendered, but never picked and never
+  // touched by reset() or backend messages, which only ever walk `geometries`.
+  private readonly overlay = new THREE.Group();
+  // The plugin session currently holding pointer/keyboard input, if any - see
+  // beginInteraction.
+  private interaction: ActiveInteraction | null = null;
+  private readonly resizeListeners = new Set<(size: ViewerSize) => void>();
+  private readonly disposeListeners = new Set<() => void>();
   private animationFrame: number | null = null;
   private attachedContainer: HTMLElement | null = null;
   private componentId = 0;
@@ -190,6 +214,8 @@ export class ViewerRuntime {
     this.labelRenderer.domElement.style.inset = "0";
     this.labelRenderer.domElement.style.pointerEvents = "none";
     this.scene.add(this.axesHelper);
+    this.overlay.name = "compas-viewer-overlay";
+    this.scene.add(this.overlay);
     this.applyTheme("light");
     this.resize();
 
@@ -215,6 +241,7 @@ export class ViewerRuntime {
     container.append(this.renderer.domElement, this.labelRenderer.domElement);
     window.addEventListener("resize", this.onResize);
     this.renderer.domElement.addEventListener("mousedown", this.onPointerDown);
+    this.renderer.domElement.addEventListener("mousemove", this.onPointerMove);
     this.root.addEventListener("keydown", this.onKeyDown);
     if (this.options.defaultLighting) this.addDefaultLighting();
     if ((this.options.mode ?? "embedded") === "websocket") {
@@ -478,17 +505,151 @@ export class ViewerRuntime {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
     this.labelRenderer.setSize(width, height);
+    for (const listener of this.resizeListeners) listener({ width, height });
   }
+
+  /** Adds a plugin-owned object to the overlay layer - see
+   * `ViewerExtensionContext.addOverlay`. */
+  addOverlay(object: THREE.Object3D): () => void {
+    this.assertUsable();
+    this.overlay.add(object);
+    return () => {
+      if (object.parent === this.overlay) this.overlay.remove(object);
+    };
+  }
+
+  pointerRay(event: ViewerPointerLike): THREE.Ray | null {
+    const pointer = this.pointerNdc(event);
+    if (!pointer) return null;
+    this.raycaster.setFromCamera(pointer, this.camera);
+    return this.raycaster.ray.clone();
+  }
+
+  pointerOnPlane(
+    event: ViewerPointerLike,
+    elevation: number,
+  ): ViewerPoint | null {
+    const ray = this.pointerRay(event);
+    if (!ray) return null;
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -elevation);
+    const hit = ray.intersectPlane(plane, new THREE.Vector3());
+    return hit ? this.vectorData(hit) : null;
+  }
+
+  /** The nearest hit per visible backend-managed object, nearest first. */
+  pickObjects(event: ViewerPointerLike): ViewerObjectHit[] {
+    const pointer = this.pointerNdc(event);
+    if (!pointer) return [];
+    this.raycaster.layers.set(0);
+    this.raycaster.setFromCamera(pointer, this.camera);
+    const visible = Array.from(this.geometries.values()).filter(
+      (object) => object.visible,
+    );
+    const hits: ViewerObjectHit[] = [];
+    const seen = new Set<string>();
+    for (const intersection of this.raycaster.intersectObjects(visible, true)) {
+      const guid = this.findGeometryGuid(intersection.object);
+      if (!guid || seen.has(guid)) continue;
+      seen.add(guid);
+      hits.push({
+        guid,
+        point: this.vectorData(intersection.point),
+        distance: intersection.distance,
+      });
+    }
+    return hits;
+  }
+
+  objectBounds(): ViewerObjectBounds[] {
+    const bounds: ViewerObjectBounds[] = [];
+    const box = new THREE.Box3();
+    for (const object of this.geometries.values()) {
+      if (!object.visible) continue;
+      const guid = this.externalGeometryGuids.get(object);
+      if (!guid) continue;
+      box.setFromObject(object);
+      if (box.isEmpty()) continue;
+      bounds.push({
+        guid,
+        min: this.vectorData(box.min),
+        max: this.vectorData(box.max),
+      });
+    }
+    return bounds;
+  }
+
+  viewportSize(): ViewerSize {
+    return this.getDimensions();
+  }
+
+  addResizeListener(listener: (size: ViewerSize) => void): () => void {
+    this.resizeListeners.add(listener);
+    return () => this.resizeListeners.delete(listener);
+  }
+
+  addDisposeListener(listener: () => void): () => void {
+    this.assertUsable();
+    this.disposeListeners.add(listener);
+    return () => this.disposeListeners.delete(listener);
+  }
+
+  /**
+   * Hands pointer/keyboard input to a plugin until the returned session is
+   * released - see `ViewerExtensionContext.beginInteraction`. Clears any current
+   * pick (and so detaches the transform gizmo) first; `handlePointerDown`/
+   * `handleKeyDown` then route events to `handlers` instead of picking and the
+   * built-in shortcuts. OrbitControls listen on the canvas themselves, so
+   * orbiting keeps working throughout.
+   */
+  beginInteraction(handlers: InteractionHandlers): InteractionSession {
+    this.assertUsable();
+    this.interruptInteraction();
+    this.clearPickedObject();
+    const entry: ActiveInteraction = { handlers, active: true };
+    this.interaction = entry;
+    return {
+      get active() {
+        return entry.active;
+      },
+      release: () => {
+        if (!entry.active) return;
+        entry.active = false;
+        if (this.interaction === entry) this.interaction = null;
+      },
+    };
+  }
+
+  /** The viewer already re-renders every animation frame, so this is a no-op
+   * today - it exists so plugins keep working if rendering becomes on-demand. */
+  requestRender(): void {}
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.runPluginCallback(
+      () => this.interruptInteraction(),
+      "A viewer plugin failed to handle an interrupted interaction",
+    );
+    for (const listener of Array.from(this.disposeListeners).reverse()) {
+      this.runPluginCallback(listener, "A viewer plugin failed to clean up");
+    }
+    this.disposeListeners.clear();
+    this.resizeListeners.clear();
+    // Removed one by one rather than dropping the whole group, so each object
+    // gets its own "removed" event - CSS2DObject relies on it to take its DOM
+    // element off the page.
+    for (const child of [...this.overlay.children]) this.overlay.remove(child);
+    this.scene.remove(this.overlay);
     this.connection.dispose();
     window.removeEventListener("resize", this.onResize);
     this.root.removeEventListener("keydown", this.onKeyDown);
     this.renderer.domElement.removeEventListener(
       "mousedown",
       this.onPointerDown,
+    );
+    this.renderer.domElement.removeEventListener(
+      "mousemove",
+      this.onPointerMove,
     );
     if (this.animationFrame !== null) cancelAnimationFrame(this.animationFrame);
     this.animationFrame = null;
@@ -815,6 +976,45 @@ export class ViewerRuntime {
     Object.assign(overrides, data.overrides);
   }
 
+  private handlePointerDown(event: MouseEvent): void {
+    const interaction = this.interaction;
+    if (!interaction) {
+      this.pickFromPointer(event);
+      return;
+    }
+    this.renderer.domElement.focus({ preventScroll: true });
+    interaction.handlers.onPointerDown?.(event);
+  }
+
+  private interruptInteraction(): void {
+    const current = this.interaction;
+    if (!current) return;
+    current.active = false;
+    this.interaction = null;
+    current.handlers.onInterrupt?.();
+  }
+
+  private runPluginCallback(callback: () => void, message: string): void {
+    try {
+      callback();
+    } catch (error) {
+      this.reportAsyncError(
+        asCompasViewerError(error, "lifecycle_error", message),
+      );
+    }
+  }
+
+  /** Normalized device coordinates of a pointer position over the canvas, or
+   * null while the canvas has no size. */
+  private pointerNdc(event: ViewerPointerLike): THREE.Vector2 | null {
+    const bounds = this.renderer.domElement.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return null;
+    return new THREE.Vector2(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+  }
+
   private pickFromPointer(event: MouseEvent): void {
     this.renderer.domElement.focus({ preventScroll: true });
     if (
@@ -825,12 +1025,8 @@ export class ViewerRuntime {
     ) {
       return;
     }
-    const bounds = this.renderer.domElement.getBoundingClientRect();
-    if (!bounds.width || !bounds.height) return;
-    const pointer = new THREE.Vector2(
-      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
-    );
+    const pointer = this.pointerNdc(event);
+    if (!pointer) return;
     this.raycaster.layers.set(0);
     this.raycaster.setFromCamera(pointer, this.camera);
     const visible = Array.from(this.geometries.values()).filter(
@@ -927,6 +1123,13 @@ export class ViewerRuntime {
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
+    // A plugin session gets every key, so e.g. Escape cancels its session
+    // rather than just clearing a stale pick.
+    const interaction = this.interaction;
+    if (interaction) {
+      interaction.handlers.onKeyDown?.(event);
+      return;
+    }
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === "Escape") {
       this.clearPickedObject();
