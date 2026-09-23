@@ -14,6 +14,7 @@ import type {
   InteractionSession,
   ViewerObjectBounds,
   ViewerObjectHit,
+  ViewerObjectVertices,
   ViewerPoint,
   ViewerPointerLike,
   ViewerSize,
@@ -103,6 +104,10 @@ const VIEW_PRESETS: Record<ViewPreset, THREE.Vector3> = {
   back_left: new THREE.Vector3(-1, 1, 1),
   back_right: new THREE.Vector3(1, 1, 1),
 };
+
+/** Mesh vertices `objectVertices` reports per object, at most - enough to snap
+ * to, without walking a dense mesh on every tool start. */
+const MAX_OBJECT_VERTICES = 2000;
 
 interface ActiveInteraction {
   handlers: InteractionHandlers;
@@ -588,6 +593,58 @@ export class ViewerRuntime {
       });
     }
     return bounds;
+  }
+
+  /**
+   * World-space vertices of each visible backend object - see
+   * `ViewerExtensionContext.objectVertices`. Edge overlays (`show_edges`) and a
+   * polygon's outline child only repeat the object's own vertices, so they're
+   * skipped; mesh vertices are deduplicated and capped per object.
+   */
+  objectVertices(): ViewerObjectVertices[] {
+    const result: ViewerObjectVertices[] = [];
+    for (const object of this.geometries.values()) {
+      if (!object.visible) continue;
+      const guid = this.externalGeometryGuids.get(object);
+      if (!guid) continue;
+      object.updateMatrixWorld(true);
+      const kind =
+        object instanceof THREE.Points
+          ? "points"
+          : object instanceof THREE.Line
+            ? "line"
+            : "mesh";
+      const vertices: ViewerPoint[] = [];
+      const seen = new Set<string>();
+      const point = new THREE.Vector3();
+      const collect = (node: THREE.Object3D): void => {
+        const position = (node as RenderableObject).geometry?.getAttribute(
+          "position",
+        );
+        if (!position) return;
+        for (let i = 0; i < position.count; i++) {
+          if (kind === "mesh" && vertices.length >= MAX_OBJECT_VERTICES) return;
+          point.fromBufferAttribute(position, i).applyMatrix4(node.matrixWorld);
+          if (kind !== "line") {
+            const key = point
+              .toArray()
+              .map((v) => v.toFixed(6))
+              .join(",");
+            if (seen.has(key)) continue;
+            seen.add(key);
+          }
+          vertices.push(this.vectorData(point));
+        }
+      };
+      collect(object);
+      if (kind === "mesh") {
+        object.traverse((child) => {
+          if (child !== object && child instanceof THREE.Mesh) collect(child);
+        });
+      }
+      result.push({ guid, kind, vertices });
+    }
+    return result;
   }
 
   viewportSize(): ViewerSize {

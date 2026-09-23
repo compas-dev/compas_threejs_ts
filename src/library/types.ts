@@ -55,6 +55,12 @@ export interface ViewerObjectBounds {
   max: ViewerPoint;
 }
 
+export interface ViewerObjectVertices {
+  guid: string;
+  kind: "points" | "line" | "mesh";
+  vertices: ViewerPoint[];
+}
+
 export interface ViewerObjectHit {
   guid: string;
   point: ViewerPoint;
@@ -81,6 +87,7 @@ export interface ViewerExtensionContext {
   ): ViewerPoint | null;
   pickObjects(event: ViewerPointerLike): ViewerObjectHit[];
   objectBounds(): ViewerObjectBounds[];
+  objectVertices(): ViewerObjectVertices[];
   viewportSize(): ViewerSize;
   onResize(listener: (size: ViewerSize) => void): () => void;
   beginInteraction(handlers: InteractionHandlers): InteractionSession;

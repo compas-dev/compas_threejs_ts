@@ -118,6 +118,16 @@ export interface ViewerObjectBounds {
   max: ViewerPoint;
 }
 
+/** A backend-managed object's world-space vertices. */
+export interface ViewerObjectVertices {
+  guid: string;
+  /** "points" for points and point clouds; "line" for lines, polylines and
+   * arcs, with `vertices` in drawing order; "mesh" for surfaces and solids,
+   * with each vertex once (at most 2000). */
+  kind: "points" | "line" | "mesh";
+  vertices: ViewerPoint[];
+}
+
 export interface ViewerObjectHit {
   guid: string;
   point: ViewerPoint;
@@ -141,8 +151,9 @@ export interface ViewerSize {
  * on these purpose-built primitives.
  */
 export interface ViewerExtensionContext {
-  /** The viewer's canvas (for cursor styles, focus). Do not attach listeners
-   * for input handling - use `beginInteraction` instead. */
+  /** The viewer's canvas (for cursor styles, focus, or keyboard shortcuts
+   * while it has focus). To take over pointer input, use `beginInteraction`
+   * rather than listeners here, so picking and the gizmo stand down. */
   readonly canvas: HTMLCanvasElement;
   /** Adds `object` to a viewer-owned overlay layer: rendered, never picked,
    * untouched by `reset()` and backend messages. Returns a remover
@@ -160,6 +171,9 @@ export interface ViewerExtensionContext {
   pickObjects(event: ViewerPointerLike): ViewerObjectHit[];
   /** World AABBs of all visible backend-managed objects (a snapshot). */
   objectBounds(): ViewerObjectBounds[];
+  /** World-space vertices of all visible backend-managed objects (a
+   * snapshot), e.g. for snapping to them. */
+  objectVertices(): ViewerObjectVertices[];
   /** Canvas size in CSS pixels (e.g. for `LineMaterial.resolution`). */
   viewportSize(): ViewerSize;
   /** Called with the new canvas size whenever the viewer resizes. Returns an

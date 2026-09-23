@@ -20,6 +20,7 @@ export function createExtensionContext(
       runtime.pointerOnPlane(event, elevation),
     pickObjects: (event) => runtime.pickObjects(event),
     objectBounds: () => runtime.objectBounds(),
+    objectVertices: () => runtime.objectVertices(),
     viewportSize: () => runtime.viewportSize(),
     onResize: (listener) => runtime.addResizeListener(listener),
     beginInteraction: (handlers) => runtime.beginInteraction(handlers),

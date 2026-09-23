@@ -20,6 +20,7 @@ export type {
   ViewerMode,
   ViewerObjectBounds,
   ViewerObjectHit,
+  ViewerObjectVertices,
   ViewerPlugin,
   ViewerPoint,
   ViewerPointerLike,

@@ -1,6 +1,6 @@
 /** @vitest-environment happy-dom */
 
-import { Box, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+import { Box, Line, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("three", async () => {
@@ -300,6 +300,53 @@ describe("ViewerExtensionContext", () => {
     expect(bounds?.max.x).toBeCloseTo(0.5);
     expect(bounds?.max.y).toBeCloseTo(1);
     expect(bounds?.max.z).toBeCloseTo(1.5);
+  });
+
+  it("reports each visible object's world vertices by kind", () => {
+    const { viewer, context } = viewerWithContext();
+    viewer.dispatch(boxBytes("box-guid"));
+    const point = (x: number, y: number, z: number) => ({
+      guid: "",
+      name: "",
+      x,
+      y,
+      z,
+    });
+    viewer.dispatch(
+      pbDumpBytes(
+        new Line({
+          data: {
+            guid: "line-guid",
+            name: "Line",
+            start: point(5, 0, 0),
+            end: point(7, 1, 0),
+          },
+        }),
+      ),
+    );
+
+    const byGuid = Object.fromEntries(
+      context.objectVertices().map((entry) => [entry.guid, entry]),
+    );
+
+    // The 1 x 2 x 3 box: its 8 corners, each once.
+    expect(byGuid["box-guid"]!.kind).toBe("mesh");
+    const corners = byGuid["box-guid"]!.vertices;
+    expect(corners).toHaveLength(8);
+    for (const corner of corners) {
+      expect(Math.abs(corner.x)).toBeCloseTo(0.5, 9);
+      expect(Math.abs(corner.y)).toBeCloseTo(1, 9);
+      expect(Math.abs(corner.z)).toBeCloseTo(1.5, 9);
+    }
+    // The line: its endpoints, in order.
+    expect(byGuid["line-guid"]).toEqual({
+      guid: "line-guid",
+      kind: "line",
+      vertices: [
+        { x: 5, y: 0, z: 0 },
+        { x: 7, y: 1, z: 0 },
+      ],
+    });
   });
 
   it("reports viewport size and notifies resize listeners until unsubscribed", () => {

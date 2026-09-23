@@ -102,6 +102,7 @@ try {
       `    const session = context.beginInteraction({ onKeyDown: (event) => void event.key });\n` +
       `    void context.pointerOnPlane({ clientX: 0, clientY: 0 }, 0)?.z;\n` +
       `    void context.objectBounds()[0]?.guid;\n` +
+      `    void context.objectVertices()[0]?.kind;\n` +
       `    const stop = context.onSelectionChange((guid) => {\n` +
       `      if (guid) void context.getMaterial(guid)?.color;\n` +
       `    });\n` +
