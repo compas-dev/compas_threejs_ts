@@ -106,6 +106,7 @@ try {
       `      if (guid) void context.getMaterial(guid)?.color;\n` +
       `    });\n` +
       `    context.send({ dispatch: "create_geometry", type: "point", point: [0, 0, 0] });\n` +
+      `    context.setTransformSnap({ grid: 0.5, angle: Math.PI / 12 });\n` +
       `    return () => { stop(); session.release(); };\n` +
       `  },\n` +
       `};\n` +
