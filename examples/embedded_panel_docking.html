@@ -109,7 +109,11 @@
 
     <script type="module">
       import { createViewer } from "../dist-lib/index.js";
-      import { Box, Dictionary, pbDumpBytes } from "@gramaziokohler/compas-pb-ts";
+      import {
+        Box,
+        Dictionary,
+        pbDumpBytes,
+      } from "@gramaziokohler/compas-pb-ts";
 
       const container = document.querySelector("#viewer");
       if (!(container instanceof HTMLElement)) {

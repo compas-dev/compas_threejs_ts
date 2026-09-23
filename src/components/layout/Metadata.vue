@@ -72,8 +72,7 @@ import {
 } from "@/viewer/viewer_context";
 
 const runtime = useViewerRuntime();
-const { objectBarData, blockPicker, theme, selectedObjectGuid } =
-  runtime.store;
+const { objectBarData, blockPicker, theme, selectedObjectGuid } = runtime.store;
 const metadataPanel = ref<HTMLElement | null>(null);
 const placement = useMetadataPlacement();
 const isHorizontal = isHorizontalPlacement(placement);
