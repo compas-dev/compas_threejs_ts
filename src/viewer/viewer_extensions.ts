@@ -42,6 +42,7 @@ export function createExtensionContext(
     },
     getMaterial: (guid) => runtime.getMaterialSnapshot(guid),
     setMaterial: (guid, fields) => runtime.setMaterial(guid, fields),
+    setTransformSnap: (snap) => runtime.setTransformSnap(snap),
   } satisfies ViewerExtensionContext);
 }
 

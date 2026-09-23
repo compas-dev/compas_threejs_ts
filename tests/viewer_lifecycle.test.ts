@@ -345,6 +345,103 @@ describe("createViewer", () => {
     runtime.dispose();
   });
 
+  describe("setTransformSnap", () => {
+    function setup() {
+      const container = document.createElement("div");
+      document.body.append(container);
+      const send = vi.fn();
+      const runtime = new ViewerRuntime(container, { mode: "embedded", send });
+      runtime.attach(container);
+      // Box of size 1 x 2 x 3 centered on the origin.
+      runtime.dispatch(boxBytes("snap-box"));
+      const box = runtime.geometries.get("snap-box")!;
+      const internals = runtime as unknown as {
+        transformControls: THREE.EventDispatcher & {
+          attach(object: THREE.Object3D): void;
+          setMode(mode: string): void;
+          translationSnap: number | null;
+          rotationSnap: number | null;
+        };
+      };
+      const controls = internals.transformControls;
+      controls.attach(box);
+      function drag(mode: string, edit: () => void): void {
+        controls.setMode(mode);
+        controls.dispatchEvent({
+          type: "dragging-changed",
+          value: true,
+        } as never);
+        edit();
+        box.updateMatrixWorld(true);
+        controls.dispatchEvent({
+          type: "dragging-changed",
+          value: false,
+        } as never);
+        controls.dispatchEvent({ type: "mouseUp" } as never);
+      }
+      return { runtime, box, controls, drag, send };
+    }
+
+    it("sets the gizmo's translation and rotation snap", () => {
+      const { runtime, controls } = setup();
+      runtime.setTransformSnap({ grid: 0.5, angle: Math.PI / 12 });
+      expect(controls.translationSnap).toBe(0.5);
+      expect(controls.rotationSnap).toBeCloseTo(Math.PI / 12);
+
+      runtime.setTransformSnap({ grid: null, angle: null });
+      expect(controls.translationSnap).toBeNull();
+      expect(controls.rotationSnap).toBeNull();
+      runtime.dispose();
+    });
+
+    it("snaps the distance moved on release, leaving other axes alone", () => {
+      const { runtime, box, drag, send } = setup();
+      runtime.setTransformSnap({ grid: 0.5, angle: null });
+
+      drag("translate", () => {
+        box.position.x += 0.37;
+        box.position.y += 0.0001;
+      });
+
+      expect(box.position.x).toBeCloseTo(0.5, 9);
+      expect(box.position.y).toBeCloseTo(0, 9);
+      expect(box.position.z).toBeCloseTo(0, 9);
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dispatch: "object_transform",
+          guid: "snap-box",
+        }),
+      );
+      runtime.dispose();
+    });
+
+    it("snaps each moved face to the grid when scaling", () => {
+      const { runtime, box, drag } = setup();
+      runtime.setTransformSnap({ grid: 1, angle: null });
+
+      // x faces move from -0.5/0.5 to -0.85/0.85: they snap to -1 and 1.
+      drag("scale", () => {
+        box.scale.x = 1.7;
+      });
+
+      const bounds = new THREE.Box3().setFromObject(box);
+      expect(bounds.min.x).toBeCloseTo(-1, 9);
+      expect(bounds.max.x).toBeCloseTo(1, 9);
+      expect(bounds.min.y).toBeCloseTo(-1, 9);
+      expect(bounds.max.z).toBeCloseTo(1.5, 9);
+      runtime.dispose();
+    });
+
+    it("leaves drags alone while snapping is off", () => {
+      const { box, drag, runtime } = setup();
+      drag("translate", () => {
+        box.position.x += 0.37;
+      });
+      expect(box.position.x).toBeCloseTo(0.37, 9);
+      runtime.dispose();
+    });
+  });
+
   it("renders geometry without an external GUID", () => {
     const container = document.createElement("div");
     document.body.append(container);

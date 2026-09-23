@@ -91,6 +91,12 @@ export interface ViewerExtensionContext {
   onSelectionChange(listener: (guid: string | null) => void): () => void;
   getMaterial(guid: string): ViewerMaterial | null;
   setMaterial(guid: string, fields: Partial<ViewerMaterial>): void;
+  setTransformSnap(snap: ViewerTransformSnap): void;
+}
+
+export interface ViewerTransformSnap {
+  grid: number | null;
+  angle: number | null;
 }
 
 export interface ViewerMaterial {

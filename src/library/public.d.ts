@@ -196,6 +196,20 @@ export interface ViewerExtensionContext {
   /** Edits the object's standard material: applied locally at once, and sent
    * to the backend as `{ dispatch: "material_edit", guid, ...fields }`. */
   setMaterial(guid: string, fields: Partial<ViewerMaterial>): void;
+  /**
+   * Snaps edits made with the transform gizmo. `grid` (world units): translate
+   * and scale snap while dragging, and on release the object's bounding-box
+   * faces that moved land exactly on the grid. `angle` (radians): rotate snaps
+   * to that step. null turns either off. Off by default.
+   */
+  setTransformSnap(snap: ViewerTransformSnap): void;
+}
+
+export interface ViewerTransformSnap {
+  /** Grid step in world units, or null for no snapping. */
+  grid: number | null;
+  /** Rotation step in radians, or null for no snapping. */
+  angle: number | null;
 }
 
 /** The editable fields of an object's standard material. */

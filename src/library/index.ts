@@ -16,6 +16,7 @@ export type {
   InteractionSession,
   ViewerExtensionContext,
   ViewerMaterial,
+  ViewerTransformSnap,
   ViewerMode,
   ViewerObjectBounds,
   ViewerObjectHit,
