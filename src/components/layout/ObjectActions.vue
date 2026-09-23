@@ -1,7 +1,10 @@
 <template>
   <div
     class="theme object-actions"
-    :class="{ 'is-empty': !objectActionsState.length }"
+    :class="{
+      'is-empty': !objectActionsState.length,
+      'panel-horizontal': isHorizontal,
+    }"
     id="actions-panel"
     ref="actionsPanel"
   >
@@ -20,7 +23,7 @@
         v-if="action.type === 'button'"
         variant="outline"
         @click="handleObjectAction(action)"
-        class="w-full"
+        :class="{ 'w-full': !isHorizontal }"
       >
         {{ action.text }}
       </Button>
@@ -37,7 +40,7 @@
           }
         "
       >
-        <SelectTrigger class="w-full">
+        <SelectTrigger :class="{ 'w-full': !isHorizontal }">
           <SelectValue
             :placeholder="action.placeholder ?? 'Select an option'"
           />
@@ -67,7 +70,11 @@ import {
 } from "@/components/ui/select";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
-import { useViewerRuntime } from "@/viewer/viewer_context";
+import {
+  isHorizontalPlacement,
+  useObjectActionsPlacement,
+  useViewerRuntime,
+} from "@/viewer/viewer_context";
 import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
@@ -75,6 +82,8 @@ const { objectActionsState, blockPicker, theme } = runtime.store;
 const handleObjectAction = (action: ObjectAction, value?: unknown) =>
   runtime.handleObjectAction({ ...action }, value);
 const actionsPanel = ref<HTMLElement | null>(null);
+const placement = useObjectActionsPlacement();
+const isHorizontal = isHorizontalPlacement(placement);
 
 const { isHovered } = useHover(actionsPanel);
 
@@ -90,7 +99,7 @@ div.object-actions {
   max-width: 400px;
   border-radius: 10px;
   margin: 0px;
-  flex: 0 1 auto; /* Size to content within RightSidebar's column, but shrink if it doesn't fit */
+  flex: 0 1 auto; /* Size to content within its dock zone, but shrink if it doesn't fit */
   max-height: 100%;
   overflow-y: auto;
   display: flex;
@@ -100,11 +109,20 @@ div.object-actions {
   pointer-events: auto;
 }
 
+div.object-actions.panel-horizontal {
+  /* Full width - top/bottom docks stack panels as separate full-width bars. */
+  max-width: none;
+  width: 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  max-height: none;
+  overflow-y: visible;
+}
+
 div.object-actions.is-empty {
-  /* Stay mounted (rather than v-if) so ordinary content refreshes — e.g.
-     reselecting a different object — don't trigger RightSidebar's
-     TransitionGroup enter/leave transition, which is reserved for the
-     deliberate ObjectInfo open/close toggle. */
+  /* Stay mounted (rather than v-if) so ordinary content refreshes - e.g.
+     reselecting a different object - don't trigger a mount/unmount flash. */
   display: none;
 }
 

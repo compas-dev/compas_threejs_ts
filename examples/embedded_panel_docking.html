@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel docking</title>
+    <link rel="stylesheet" href="../dist-lib/style.css" />
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        font-family: system-ui, sans-serif;
+      }
+
+      #controls {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 16px;
+        background: #1e1e1e;
+        color: #eee;
+      }
+
+      #controls label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+      }
+
+      #viewer {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "../node_modules/vue/dist/vue.esm-browser.js",
+          "three": "../node_modules/three/build/three.module.js",
+          "three/": "../node_modules/three/",
+          "@gramaziokohler/compas-pb-ts": "../node_modules/@gramaziokohler/compas-pb-ts/dist/index.js",
+          "@bufbuild/protobuf/wire": "../node_modules/@bufbuild/protobuf/dist/esm/wire/index.js"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <!--
+      This bar is just this demo page's own controls, outside the viewer container -
+      it's not part of the library. It lets you flip each panel's placement live to
+      see the effect; in a real app you'd normally pass these options once, up front.
+    -->
+    <div id="controls">
+      <label>
+        Toolbar
+        <select id="toolbarPlacement">
+          <option value="left" selected>left</option>
+          <option value="right">right</option>
+          <option value="top">top</option>
+          <option value="bottom">bottom</option>
+        </select>
+      </label>
+      <label>
+        Openbar
+        <select id="openbarPlacement">
+          <option value="left" selected>left</option>
+          <option value="right">right</option>
+          <option value="top">top</option>
+          <option value="bottom">bottom</option>
+        </select>
+      </label>
+      <label>
+        Metadata
+        <select id="metadataPlacement">
+          <option value="right" selected>right</option>
+          <option value="left">left</option>
+          <option value="top">top</option>
+          <option value="bottom">bottom</option>
+        </select>
+      </label>
+      <label>
+        Object actions
+        <select id="objectActionsPlacement">
+          <option value="right" selected>right</option>
+          <option value="left">left</option>
+          <option value="top">top</option>
+          <option value="bottom">bottom</option>
+        </select>
+      </label>
+      <span style="opacity: 0.7">
+        Click the box to select it - that's what populates Metadata and Object
+        actions (Metadata starts collapsed, click its arrow button to open it).
+      </span>
+    </div>
+
+    <div id="viewer" aria-label="3D viewer"></div>
+
+    <script type="module">
+      import { createViewer } from "../dist-lib/index.js";
+      import {
+        Box,
+        Dictionary,
+        pbDumpBytes,
+      } from "@gramaziokohler/compas-pb-ts";
+
+      const container = document.querySelector("#viewer");
+      if (!(container instanceof HTMLElement)) {
+        throw new Error("Viewer container was not found");
+      }
+
+      const toolbarSelect = document.querySelector("#toolbarPlacement");
+      const openbarSelect = document.querySelector("#openbarPlacement");
+      const metadataSelect = document.querySelector("#metadataPlacement");
+      const objectActionsSelect = document.querySelector(
+        "#objectActionsPlacement",
+      );
+
+      // Same Dictionary-encoding helper used to send "ui"/"object_action"/
+      // "object_infos" commands over the wire in real deployments - see
+      // examples/embedded_kitchen_sink.js for more dispatch examples.
+      const commandValue = (value) =>
+        typeof value === "number" ? { doubleValue: value } : { value };
+      const command = (values) =>
+        new Dictionary({
+          data: {
+            items: Object.fromEntries(
+              Object.entries(values).map(([key, value]) => [
+                key,
+                commandValue(value),
+              ]),
+            ),
+          },
+        });
+
+      const boxGuid = crypto.randomUUID();
+      let viewer = null;
+
+      // Metadata and Object actions are populated by the backend in response to an
+      // "object_picked" message the viewer sends when you click a geometry - see
+      // ViewerRuntime.handlePointerDown/sendData. There's no real backend here, so
+      // `send` stands in for one: it's what mode: "embedded" calls instead of a
+      // WebSocket send, and it's exactly where a real backend integration would
+      // react to selection the same way.
+      function handleSend(message) {
+        if (!message || typeof message !== "object") return true;
+
+        if (message.dispatch === "object_picked" && message.guid === boxGuid) {
+          viewer.dispatch(
+            pbDumpBytes(
+              command({
+                dispatch: "object_infos",
+                Name: "Demo Box",
+                Volume: "9.0 m³",
+              }),
+            ),
+          );
+          viewer.dispatch(
+            pbDumpBytes(
+              command({
+                dispatch: "object_action",
+                guid: "highlight-action",
+                object_guid: message.guid,
+                type: "button",
+                text: "Highlight",
+              }),
+            ),
+          );
+        } else if (message.dispatch === "object_action_callback") {
+          // The message sent when the "Highlight" button above is clicked - a real
+          // backend would react to it here (App.register_action-style).
+          console.log("object action callback:", message);
+        } else if (message.dispatch === "ui_callback") {
+          // The message sent when the Openbar's Opacity slider moves.
+          console.log("ui callback:", message);
+        }
+        return true;
+      }
+
+      function mountViewer() {
+        viewer?.dispose();
+
+        // toolbarPlacement/openbarPlacement/metadataPlacement/objectActionsPlacement
+        // are creation-time options - like showToolbar, they're read once when the
+        // viewer mounts, so switching a dropdown here recreates the viewer rather
+        // than moving a panel live.
+        viewer = createViewer(container, {
+          mode: "embedded",
+          defaultLighting: true,
+          showToolbar: true,
+          toolbarPlacement: toolbarSelect.value,
+          openbarPlacement: openbarSelect.value,
+          metadataPlacement: metadataSelect.value,
+          objectActionsPlacement: objectActionsSelect.value,
+          send: handleSend,
+          onError(error) {
+            console.error(error.code, error.message, error.details);
+          },
+        });
+
+        // Give every panel some content so the docking is visible regardless of
+        // which edge it lands on.
+        viewer.dispatch(
+          pbDumpBytes(
+            new Box({
+              data: {
+                guid: boxGuid,
+                name: "Box",
+                frame: {
+                  point: { x: 0, y: 0, z: 0 },
+                  xaxis: { x: 1, y: 0, z: 0 },
+                  yaxis: { x: 0, y: 1, z: 0 },
+                },
+                xsize: 3,
+                ysize: 3,
+                zsize: 1,
+              },
+            }),
+          ),
+        );
+        viewer.dispatch(
+          pbDumpBytes(
+            command({
+              dispatch: "ui",
+              type: "slider",
+              guid: "opacity",
+              label: "Opacity",
+              min: 0,
+              max: 1,
+              step: 0.1,
+              default_value: 0.8,
+            }),
+          ),
+        );
+        // Metadata and Object actions are populated by `handleSend` above, once you
+        // click the box - not pre-dispatched here, the same way a real backend only
+        // knows what's selected after the viewer tells it.
+      }
+
+      for (const select of [
+        toolbarSelect,
+        openbarSelect,
+        metadataSelect,
+        objectActionsSelect,
+      ]) {
+        select.addEventListener("change", mountViewer);
+      }
+
+      mountViewer();
+      window.addEventListener("pagehide", () => viewer?.dispose(), {
+        once: true,
+      });
+    </script>
+  </body>
+</html>

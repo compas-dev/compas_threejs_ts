@@ -61,13 +61,13 @@ export default [
     // Vendored shadcn-vue primitives keep their generated single-word names
     // so they stay in sync with upstream and with the shadcn CLI.
     //
-    // The three layout shells are grandfathered in. Renaming them is a
-    // public-facing naming decision that belongs to the Phase 3 "standardize
-    // remaining naming" task, not to this mechanical slice.
+    // Openbar/Toolbar/Metadata are the dockable panels' short, public-facing
+    // names (matched by the toolbarPlacement/openbarPlacement/
+    // metadataPlacement options), not grandfathered debt.
     files: [
       "src/components/ui/**/*.vue",
+      "src/components/layout/Metadata.vue",
       "src/components/layout/Openbar.vue",
-      "src/components/layout/Sidebar.vue",
       "src/components/layout/Toolbar.vue",
     ],
     rules: {

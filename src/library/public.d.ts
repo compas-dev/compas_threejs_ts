@@ -32,6 +32,12 @@ export interface ViewerWebSocketOptions {
   secure?: boolean;
 }
 
+/**
+ * Which edge of the viewer a panel docks to. Panels sharing an edge stack along it, in
+ * a fixed priority order (toolbar, openbar, metadata, objectActions).
+ */
+export type PanelPlacement = "top" | "right" | "bottom" | "left";
+
 export interface CompasViewerOptions {
   mode?: ViewerMode;
   websocket?: ViewerWebSocketOptions;
@@ -44,6 +50,16 @@ export interface CompasViewerOptions {
    * visible/enabled state (see `useToolbarControl`), never define what it renders.
    */
   extraToolbarModules?: Component[];
+  /**
+   * Which edge of the viewer each panel docks to. Panels sharing an edge stack along
+   * it, in a fixed priority order (toolbar, openbar, metadata, objectActions).
+   * Defaults preserve the original floating-corner layout: toolbar/openbar on the
+   * left, metadata/objectActions on the right.
+   */
+  toolbarPlacement?: PanelPlacement;
+  openbarPlacement?: PanelPlacement;
+  metadataPlacement?: PanelPlacement;
+  objectActionsPlacement?: PanelPlacement;
   send?: (message: unknown) => boolean | void;
   onError?: (error: CompasViewerError) => void;
 }
