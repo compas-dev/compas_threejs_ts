@@ -88,6 +88,42 @@ the supported geometry objects they contain. In `websocket` mode the standalone
 app reads `ws_host`, `ws_port`, and `workspace` from the URL, preserving the
 Python package integration.
 
+### Plugins
+
+Add-ons such as authoring tools extend the viewer through `plugins` rather than
+through the core package. Each plugin gets a narrow `ViewerExtensionContext`
+when the viewer mounts. It can add its own objects to an overlay layer that is
+never picked or reset, raycast the pointer onto a horizontal plane or against
+backend objects, read object bounds, and take over pointer and keyboard input
+for the length of a session:
+
+```ts
+import type { ViewerPlugin } from "@compas-dev/compas-threejs-ts";
+
+const plugin: ViewerPlugin = {
+  id: "my-tool",
+  install(context) {
+    const session = context.beginInteraction({
+      onPointerDown(event) {
+        const point = context.pointerOnPlane(event, 0);
+        // ...
+      },
+      onKeyDown(event) {
+        if (event.key === "Escape") session.release();
+      },
+    });
+    return () => session.release(); // runs on viewer.dispose()
+  },
+};
+
+createViewer(container, { plugins: [plugin] });
+```
+
+While a session is held, ordinary picking, the transform gizmo and the built-in
+keyboard shortcuts are suspended; orbiting keeps working. The scene, camera,
+renderer and controls are deliberately not part of this API. See
+`examples/embedded_extension_plugin.html` for a complete example.
+
 For a broader visual smoke test, open
 `examples/embedded_kitchen_sink.html`. It uses the same public embedded API to
 display every geometry and helper type included in the 1.0 support matrix in a

@@ -95,8 +95,23 @@ try {
 
   await writeFile(
     join(consumerRoot, "consumer.ts"),
-    `import { createViewer, CompasViewerError, type CompasViewerOptions } from "${packageName}";\n` +
-      `const options: CompasViewerOptions = { mode: "embedded" };\n` +
+    `import { createViewer, CompasViewerError, type CompasViewerOptions, type ViewerPlugin } from "${packageName}";\n` +
+      `const plugin: ViewerPlugin = {\n` +
+      `  id: "consumer",\n` +
+      `  install(context) {\n` +
+      `    const session = context.beginInteraction({ onKeyDown: (event) => void event.key });\n` +
+      `    void context.pointerOnPlane({ clientX: 0, clientY: 0 }, 0)?.z;\n` +
+      `    void context.objectBounds()[0]?.guid;\n` +
+      `    void context.objectVertices()[0]?.kind;\n` +
+      `    const stop = context.onSelectionChange((guid) => {\n` +
+      `      if (guid) void context.getMaterial(guid)?.color;\n` +
+      `    });\n` +
+      `    context.send({ dispatch: "create_geometry", type: "point", point: [0, 0, 0] });\n` +
+      `    context.setTransformSnap({ grid: 0.5, angle: Math.PI / 12 });\n` +
+      `    return () => { stop(); session.release(); };\n` +
+      `  },\n` +
+      `};\n` +
+      `const options: CompasViewerOptions = { mode: "embedded", plugins: [plugin] };\n` +
       `void createViewer; void CompasViewerError; void options;\n`,
   );
   await writeFile(

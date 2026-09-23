@@ -1,4 +1,5 @@
 import type { Component } from "vue";
+import type { Object3D, Ray } from "three";
 import type { CompasViewerError } from "./errors";
 
 export type ViewerMode = "embedded" | "websocket";
@@ -24,6 +25,8 @@ export interface CompasViewerOptions {
   extraToolbarModules?: Component[];
   send?: (message: unknown) => boolean | void;
   onError?: (error: CompasViewerError) => void;
+  /** Add-ons installed once the viewer is mounted, in array order. */
+  plugins?: ViewerPlugin[];
 }
 
 export interface CompasViewer {
@@ -31,4 +34,92 @@ export interface CompasViewer {
   reset(): void;
   resize(): void;
   dispose(): void;
+}
+
+export interface ViewerPlugin {
+  /** Unique per viewer; a duplicate id throws a `lifecycle_error`. */
+  readonly id: string;
+  /** Called once. The returned function (if any) runs on viewer dispose. */
+  install(context: ViewerExtensionContext): void | (() => void);
+}
+
+export interface ViewerPoint {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface ViewerObjectBounds {
+  guid: string;
+  min: ViewerPoint;
+  max: ViewerPoint;
+}
+
+export interface ViewerObjectVertices {
+  guid: string;
+  kind: "points" | "line" | "mesh";
+  vertices: ViewerPoint[];
+}
+
+export interface ViewerObjectHit {
+  guid: string;
+  point: ViewerPoint;
+  distance: number;
+}
+
+export interface ViewerPointerLike {
+  clientX: number;
+  clientY: number;
+}
+
+export interface ViewerSize {
+  width: number;
+  height: number;
+}
+
+export interface ViewerExtensionContext {
+  readonly canvas: HTMLCanvasElement;
+  addOverlay(object: Object3D): () => void;
+  pointerRay(event: ViewerPointerLike): Ray | null;
+  pointerOnPlane(
+    event: ViewerPointerLike,
+    elevation: number,
+  ): ViewerPoint | null;
+  pickObjects(event: ViewerPointerLike): ViewerObjectHit[];
+  objectBounds(): ViewerObjectBounds[];
+  objectVertices(): ViewerObjectVertices[];
+  viewportSize(): ViewerSize;
+  onResize(listener: (size: ViewerSize) => void): () => void;
+  beginInteraction(handlers: InteractionHandlers): InteractionSession;
+  requestRender(): void;
+  onDispose(listener: () => void): () => void;
+  send(message: Record<string, unknown>): boolean;
+  selection(): string | null;
+  onSelectionChange(listener: (guid: string | null) => void): () => void;
+  getMaterial(guid: string): ViewerMaterial | null;
+  setMaterial(guid: string, fields: Partial<ViewerMaterial>): void;
+  setTransformSnap(snap: ViewerTransformSnap): void;
+}
+
+export interface ViewerTransformSnap {
+  grid: number | null;
+  angle: number | null;
+}
+
+export interface ViewerMaterial {
+  color: string;
+  metalness: number;
+  roughness: number;
+}
+
+export interface InteractionHandlers {
+  onPointerDown?(event: MouseEvent): void;
+  onPointerMove?(event: MouseEvent): void;
+  onKeyDown?(event: KeyboardEvent): void;
+  onInterrupt?(): void;
+}
+
+export interface InteractionSession {
+  readonly active: boolean;
+  release(): void;
 }

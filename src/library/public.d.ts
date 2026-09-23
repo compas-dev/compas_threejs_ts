@@ -1,4 +1,5 @@
 import type { Component, ComputedRef } from "vue";
+import type { Object3D, Ray } from "three";
 
 export type ViewerMode = "embedded" | "websocket";
 
@@ -46,6 +47,8 @@ export interface CompasViewerOptions {
   extraToolbarModules?: Component[];
   send?: (message: unknown) => boolean | void;
   onError?: (error: CompasViewerError) => void;
+  /** Add-ons installed once the viewer is mounted, in array order. */
+  plugins?: ViewerPlugin[];
 }
 
 export interface CompasViewer {
@@ -89,3 +92,160 @@ export declare function useToolbarControl(id: string): {
   visible: ComputedRef<boolean>;
   enabled: ComputedRef<boolean>;
 };
+
+/**
+ * An add-on that extends the viewer through `ViewerExtensionContext` - e.g. an
+ * authoring tool that draws its own overlay geometry and takes over pointer input
+ * for the length of a session. Pass it via `CompasViewerOptions.plugins`.
+ */
+export interface ViewerPlugin {
+  /** Unique per viewer; a duplicate id throws a `lifecycle_error`. */
+  readonly id: string;
+  /** Called once. The returned function (if any) runs on viewer dispose. */
+  install(context: ViewerExtensionContext): void | (() => void);
+}
+
+export interface ViewerPoint {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** A backend-managed object's world-space axis-aligned bounding box. */
+export interface ViewerObjectBounds {
+  guid: string;
+  min: ViewerPoint;
+  max: ViewerPoint;
+}
+
+/** A backend-managed object's world-space vertices. */
+export interface ViewerObjectVertices {
+  guid: string;
+  /** "points" for points and point clouds; "line" for lines, polylines and
+   * arcs, with `vertices` in drawing order; "mesh" for surfaces and solids,
+   * with each vertex once (at most 2000). */
+  kind: "points" | "line" | "mesh";
+  vertices: ViewerPoint[];
+}
+
+export interface ViewerObjectHit {
+  guid: string;
+  point: ViewerPoint;
+  distance: number;
+}
+
+/** Anything carrying viewport pointer coordinates, e.g. a `MouseEvent`. */
+export interface ViewerPointerLike {
+  clientX: number;
+  clientY: number;
+}
+
+export interface ViewerSize {
+  width: number;
+  height: number;
+}
+
+/**
+ * What an installed `ViewerPlugin` may do with the viewer. Deliberately narrow:
+ * the scene, camera, renderer and controls stay internal, so add-ons only depend
+ * on these purpose-built primitives.
+ */
+export interface ViewerExtensionContext {
+  /** The viewer's canvas (for cursor styles, focus, or keyboard shortcuts
+   * while it has focus). To take over pointer input, use `beginInteraction`
+   * rather than listeners here, so picking and the gizmo stand down. */
+  readonly canvas: HTMLCanvasElement;
+  /** Adds `object` to a viewer-owned overlay layer: rendered, never picked,
+   * untouched by `reset()` and backend messages. Returns a remover
+   * (idempotent). Anything still added is removed on dispose. */
+  addOverlay(object: Object3D): () => void;
+  /** World-space ray under the pointer, or null if the canvas has no size. */
+  pointerRay(event: ViewerPointerLike): Ray | null;
+  /** Where the pointer ray meets the horizontal plane z = `elevation`, or null
+   * if it doesn't (e.g. the ray runs parallel to it). */
+  pointerOnPlane(
+    event: ViewerPointerLike,
+    elevation: number,
+  ): ViewerPoint | null;
+  /** Visible backend-managed objects under the pointer, nearest first. */
+  pickObjects(event: ViewerPointerLike): ViewerObjectHit[];
+  /** World AABBs of all visible backend-managed objects (a snapshot). */
+  objectBounds(): ViewerObjectBounds[];
+  /** World-space vertices of all visible backend-managed objects (a
+   * snapshot), e.g. for snapping to them. */
+  objectVertices(): ViewerObjectVertices[];
+  /** Canvas size in CSS pixels (e.g. for `LineMaterial.resolution`). */
+  viewportSize(): ViewerSize;
+  /** Called with the new canvas size whenever the viewer resizes. Returns an
+   * unsubscribe function. */
+  onResize(listener: (size: ViewerSize) => void): () => void;
+  /**
+   * Takes over pointer/keyboard input and focuses the canvas. While held:
+   * picking is suspended, any selection and transform gizmo are cleared,
+   * built-in shortcuts don't fire, and events go to `handlers`. Orbiting (right
+   * drag) keeps working. At most one session exists; beginning another
+   * interrupts the current one.
+   */
+  beginInteraction(handlers: InteractionHandlers): InteractionSession;
+  /** Asks for a redraw after changing overlay objects. */
+  requestRender(): void;
+  /** Called when the viewer is disposed, before its renderer is torn down.
+   * Returns an unsubscribe function. */
+  onDispose(listener: () => void): () => void;
+  /**
+   * Sends a JSON message to the backend - over the WebSocket in `websocket` mode,
+   * or to `CompasViewerOptions.send` in `embedded` mode - exactly like the
+   * viewer's own messages (`{ dispatch: "create_geometry", ... }` and so on).
+   * Returns whether it was handed to a transport.
+   */
+  send(message: Record<string, unknown>): boolean;
+  /** Guid of the currently picked backend object, or null. */
+  selection(): string | null;
+  /** Called with the new guid (or null) whenever the pick changes. Returns an
+   * unsubscribe function. */
+  onSelectionChange(listener: (guid: string | null) => void): () => void;
+  /** The standard material of the object at `guid`, or null if it has none
+   * (or a non-standard one, e.g. a point's). */
+  getMaterial(guid: string): ViewerMaterial | null;
+  /** Edits the object's standard material: applied locally at once, and sent
+   * to the backend as `{ dispatch: "material_edit", guid, ...fields }`. */
+  setMaterial(guid: string, fields: Partial<ViewerMaterial>): void;
+  /**
+   * Snaps edits made with the transform gizmo. `grid` (world units): translate
+   * and scale snap while dragging, and on release the object's bounding-box
+   * faces that moved land exactly on the grid. `angle` (radians): rotate snaps
+   * to that step. null turns either off. Off by default.
+   */
+  setTransformSnap(snap: ViewerTransformSnap): void;
+}
+
+export interface ViewerTransformSnap {
+  /** Grid step in world units, or null for no snapping. */
+  grid: number | null;
+  /** Rotation step in radians, or null for no snapping. */
+  angle: number | null;
+}
+
+/** The editable fields of an object's standard material. */
+export interface ViewerMaterial {
+  /** `#rrggbb` hex color. */
+  color: string;
+  metalness: number;
+  roughness: number;
+}
+
+export interface InteractionHandlers {
+  onPointerDown?(event: MouseEvent): void;
+  onPointerMove?(event: MouseEvent): void;
+  onKeyDown?(event: KeyboardEvent): void;
+  /** The viewer ended the session (another `beginInteraction`, or dispose),
+   * not the add-on's own `release()`. */
+  onInterrupt?(): void;
+}
+
+export interface InteractionSession {
+  /** False once released or interrupted. */
+  readonly active: boolean;
+  /** Restores normal picking/shortcuts. Idempotent. */
+  release(): void;
+}
