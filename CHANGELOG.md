@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.4.1...v1.5.0) (2026-10-13)
+
+
+### Features
+
+* **viewer:** display COMPAS Polygon and Arc ([5189986](https://github.com/compas-dev/compas_threejs_ts/commit/5189986bdaf975c5011b01cad78ad892d27f09a2))
+
 ## [1.4.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.4.0...v1.4.1) (2026-10-13)
 
 
