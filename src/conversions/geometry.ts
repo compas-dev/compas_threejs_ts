@@ -178,17 +178,53 @@ function positionsFromPoints(points: readonly Point[]): Float32Array {
 }
 
 /**
- * Convert a COMPAS Arc to a THREE.js object.
+ * Convert a COMPAS Arc to a THREE.Line.
  *
- * NOTE: This function is currently unimplemented and will throw. The intended
- * implementation should sample the arc (or use THREE.ArcCurve) and return a
- * visible representation (e.g. a THREE.Line or a thin THREE.Mesh).
+ * Samples the arc between its start and end angle, measured in the plane of
+ * its circle's frame from the frame's x-axis, like COMPAS does.
  *
  * @param arc - COMPAS Arc protobuf object
- * @returns A THREE object representing the arc (Line or Mesh)
+ * @param segments - number of segments for a full circle; an arc uses its share
+ * @returns A THREE.Line along the arc
  */
-export function arcToThreeJS(_arc: Arc) {
-  throw new Error("Method not implemented.");
+export function arcToThreeJS(arc: Arc, segments = 64): THREE.Line {
+  const circle = arc.circle!;
+  const frame = circle.frame!;
+  const origin = new THREE.Vector3(
+    frame.point!.x,
+    frame.point!.y,
+    frame.point!.z,
+  );
+  const xaxis = new THREE.Vector3(
+    frame.xaxis!.x,
+    frame.xaxis!.y,
+    frame.xaxis!.z,
+  ).normalize();
+  const yaxis = new THREE.Vector3(
+    frame.yaxis!.x,
+    frame.yaxis!.y,
+    frame.yaxis!.z,
+  ).normalize();
+  const sweep = arc.endAngle - arc.startAngle;
+  const count = Math.max(
+    2,
+    Math.ceil((Math.abs(sweep) / (2 * Math.PI)) * segments),
+  );
+  const points: THREE.Vector3[] = [];
+  for (let i = 0; i <= count; i++) {
+    const angle = arc.startAngle + (sweep * i) / count;
+    points.push(
+      origin
+        .clone()
+        .addScaledVector(xaxis, circle.radius * Math.cos(angle))
+        .addScaledVector(yaxis, circle.radius * Math.sin(angle)),
+    );
+  }
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return new THREE.Line(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 0x000000 }),
+  );
 }
 
 /**
@@ -478,18 +514,64 @@ export function pointcloudToThreeJS(pointcloud: Pointcloud): THREE.Points {
 }
 
 /**
- * Convert a COMPAS Polygon to a THREE.Mesh.
+ * Convert a COMPAS Polygon to a filled THREE.Mesh with its outline as a child
+ * THREE.LineLoop.
  *
- * NOTE: This function is currently unimplemented and will throw. The intended
- * implementation should triangulate the polygon (possibly using a fan
- * triangulation or a proper earcut library) and return a mesh with a
- * BufferGeometry.
+ * The face is triangulated with three.js's earcut (`ShapeUtils`) in the
+ * polygon's own plane, found with Newell's method, so concave polygons fill
+ * correctly. A horizontal polygon's face always points up, whichever way its
+ * points run, so it's visible from above.
  *
  * @param polygon - COMPAS Polygon protobuf object
  * @returns THREE.Mesh representing the filled polygon
  */
-export function polygonToThreeJS(_polygon: Polygon): THREE.Mesh {
-  throw new Error("Not implemented");
+export function polygonToThreeJS(polygon: Polygon): THREE.Mesh {
+  let points = polygon.points.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+  const first = points[0];
+  const last = points[points.length - 1];
+  // A closing point repeating the first one isn't a vertex of its own.
+  if (points.length > 3 && first && last && first.distanceTo(last) < 1e-9) {
+    points = points.slice(0, -1);
+  }
+
+  const normal = new THREE.Vector3();
+  points.forEach((current, i) => {
+    const next = points[(i + 1) % points.length]!;
+    normal.x += (current.y - next.y) * (current.z + next.z);
+    normal.y += (current.z - next.z) * (current.x + next.x);
+    normal.z += (current.x - next.x) * (current.y + next.y);
+  });
+  if (normal.lengthSq() < 1e-18) normal.set(0, 0, 1);
+  normal.normalize();
+  if (normal.z < -1e-6) {
+    points = [...points].reverse();
+    normal.negate();
+  }
+
+  // Any in-plane basis works for triangulating.
+  const u = new THREE.Vector3()
+    .crossVectors(
+      Math.abs(normal.z) < 0.9
+        ? new THREE.Vector3(0, 0, 1)
+        : new THREE.Vector3(1, 0, 0),
+      normal,
+    )
+    .normalize();
+  const v = new THREE.Vector3().crossVectors(normal, u);
+  const contour = points.map((p) => new THREE.Vector2(p.dot(u), p.dot(v)));
+  const triangles = THREE.ShapeUtils.triangulateShape(contour, []);
+
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  geometry.setIndex(triangles.flat());
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry);
+
+  const outline = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color: 0x000000 }),
+  );
+  mesh.add(outline);
+  return mesh;
 }
 
 /**
