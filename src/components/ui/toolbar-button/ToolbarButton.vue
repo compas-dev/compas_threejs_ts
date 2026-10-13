@@ -5,8 +5,8 @@
         <Button
           variant="secondary"
           size="icon"
-          :class="{ active, disabled }"
-          :disabled="disabled"
+          :class="{ active, disabled: isDisabled }"
+          :disabled="isDisabled"
           @click="emit('click', $event)"
         >
           <slot />
@@ -25,8 +25,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed, inject } from "vue";
+
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { buttonStateKey } from "@/library/plugins";
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     tooltip?: string;
     shortcut?: string;
@@ -44,4 +47,7 @@ withDefaults(
   { tooltip: "", shortcut: "", active: false, disabled: false },
 );
 const emit = defineEmits<{ click: [event: MouseEvent] }>();
+// Disabled by its own prop, or by Python through the plugin's button state.
+const state = inject(buttonStateKey, null);
+const isDisabled = computed(() => props.disabled || state?.enabled === false);
 </script>

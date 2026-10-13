@@ -19,14 +19,17 @@
       </h2>
       <div class="toolbar-groups">
         <div
-          v-for="(group, groupIndex) in section.groups"
-          :key="groupIndex"
+          v-for="group in section.groups"
+          :key="group.id"
           class="toolbar-group"
+          :data-group="group.id"
         >
-          <component
-            :is="button"
-            v-for="(button, index) in group"
-            :key="index"
+          <ToolbarSlot
+            v-for="button in group.buttons"
+            :key="button.id"
+            :plugin="section.name"
+            :group="group.id"
+            :button="button"
           />
         </div>
       </div>
@@ -35,24 +38,37 @@
 </template>
 
 <script setup lang="ts">
+import ToolbarSlot from "@/components/layout/ToolbarSlot.vue";
 import { buttonGroups } from "@/library/plugins";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
-import { ref, watchEffect } from "vue";
+import { computed, ref, watchEffect } from "vue";
 
 const toolbarElement = ref<HTMLElement | null>(null);
 const { isHovered } = useHover(toolbarElement);
 const runtime = useViewerRuntime();
-const { theme, blockPicker } = runtime.store;
-// One section per plugin that has buttons, in the order the plugins were given;
-// inside it, one segment per button group.
-const sections = runtime.plugins
-  .map((plugin) => ({
-    name: plugin.name,
-    title: plugin.title,
-    groups: buttonGroups(plugin.buttons ?? []),
-  }))
-  .filter((section) => section.groups.length);
+const { theme, blockPicker, pluginButtons } = runtime.store;
+// One section per plugin, in the order the plugins were given; inside it, one segment
+// per button group. Groups and buttons Python hid are left out, and so are groups
+// and sections left empty.
+const sections = computed(() =>
+  runtime.plugins
+    .map((plugin) => {
+      const hidden = new Set(pluginButtons[plugin.name]?.hidden);
+      return {
+        name: plugin.name,
+        title: plugin.title,
+        groups: buttonGroups(plugin)
+          .filter((group) => !hidden.has(group.id))
+          .map((group) => ({
+            id: group.id,
+            buttons: group.buttons.filter((button) => !hidden.has(button.id)),
+          }))
+          .filter((group) => group.buttons.length),
+      };
+    })
+    .filter((section) => section.groups.length),
+);
 
 watchEffect(() => {
   blockPicker.value = isHovered.value;

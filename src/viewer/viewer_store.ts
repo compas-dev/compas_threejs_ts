@@ -1,5 +1,7 @@
 import { reactive } from "vue";
 
+import type { ButtonStates } from "../library/plugins";
+
 export interface ObjectAction {
   guid: string;
   label?: string;
@@ -88,6 +90,8 @@ export interface ViewerStore {
   theme: { value: "light" | "dark" };
   spinnerState: { visible: boolean; message: string | null };
   selectedObjectGuid: { value: string | null };
+  /** Plugin buttons Python hid or disabled, by plugin name. */
+  pluginButtons: ButtonStates;
 }
 
 export function createViewerStore(): ViewerStore {
@@ -116,5 +120,6 @@ export function createViewerStore(): ViewerStore {
     }),
 
     selectedObjectGuid: reactive({ value: null as string | null }),
+    pluginButtons: reactive<ButtonStates>({}),
   };
 }

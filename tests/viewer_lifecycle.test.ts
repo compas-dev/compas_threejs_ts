@@ -178,13 +178,15 @@ describe("createViewer", () => {
     document.body.append(firstRoot, secondRoot);
     const darkMode = definePlugin({
       name: "dark_mode",
-      buttons: [
-        defineComponent(() => {
-          const viewer = useViewer();
-          useShortcuts({ d: () => viewer.toggleTheme() });
-          return () => h("button");
-        }),
-      ],
+      groups: {
+        display: {
+          theme: defineComponent(() => {
+            const viewer = useViewer();
+            useShortcuts({ d: () => viewer.toggleTheme() });
+            return () => h("button");
+          }),
+        },
+      },
     });
     const first = createViewer(firstRoot, {
       mode: "embedded",

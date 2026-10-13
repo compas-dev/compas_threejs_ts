@@ -606,6 +606,12 @@ export class ViewerRuntime {
       case "spinner":
         this.manageSpinner(data);
         break;
+      case "plugin_buttons":
+        this.store.pluginButtons[data.plugin] = {
+          hidden: data.hidden,
+          disabled: data.disabled,
+        };
+        break;
       case "plugin":
         this.pluginHandlers
           .get(`${data.plugin}/${data.action}`)

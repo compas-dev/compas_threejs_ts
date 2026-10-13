@@ -108,7 +108,11 @@ import { FrontButton, SaveViewButton, TopButton } from "./buttons";
 const camera = definePlugin({
   name: "camera",
   title: "Camera", // optional, shown above the section
-  buttons: [[TopButton, FrontButton], [SaveViewButton]], // Vue components in toolbar order; an inner array is a group (one segment)
+  // Groups of Vue components, by id, in toolbar order; each group is one segment.
+  groups: {
+    presets: { top: TopButton, front: FrontButton },
+    saved: { save_view: SaveViewButton },
+  },
   setup(viewer) {}, // optional; may return a cleanup
 });
 
@@ -117,7 +121,13 @@ createViewer(container, { plugins: [camera] });
 
 Inside a button, `useViewer()` gives the viewer (views, gizmo mode, screenshots, ...),
 `useChannel(name)` sends to and receives from the plugin's Python half, and
-`useShortcuts({ key: handler })` binds keys. `ToolbarButton`, `Button`, `Popover`,
+`useShortcuts({ key: handler })` binds keys.
+
+The Python half can hide or disable a group or a single button by its id. The viewer
+applies it to any button: a disabled one is greyed out and inert, and its `useShortcuts`
+stand down.
+
+`ToolbarButton`, `Button`, `Popover`,
 `Tooltip`, ... make buttons look like the viewer's own.
 
 The page the Python `App` serves loads its plugins at runtime from `plugins.json`. It

@@ -26,6 +26,7 @@ import {
   createViewer,
   definePlugin,
   useChannel,
+  useShortcuts,
   type CompasViewerOptions,
   type PluginChannel,
 } from "../src/library";
@@ -38,6 +39,13 @@ const CAMERA_VIEWS =
 // {"dispatch": "plugin", "plugin": "other", "action": "views", "data": None}
 const OTHER_VIEWS =
   "ClIyUAoTCgZwbHVnaW4SCRIHGgVvdGhlcgoWCghkaXNwYXRjaBIKEggaBnBsdWdpbgoMCgRkYXRhEgQSAggAChMKBmFjdGlvbhIJEgcaBXZpZXdzEgUxLjIuMA==";
+
+// {"dispatch": "plugin_buttons", "plugin": "a", "hidden": ["g2", "a2"], "disabled": ["a3"]}
+const HIDE_G2_A2_DISABLE_A3 =
+  "CmkyZwoWCghkaXNhYmxlZBIKOggKBhIEGgJhMwocCgZoaWRkZW4SEjoQCgYSBBoCZzIKBhIEGgJhMgoeCghkaXNwYXRjaBISEhAaDnBsdWdpbl9idXR0b25zCg8KBnBsdWdpbhIFEgMaAWESBTEuMi4w";
+// {"dispatch": "plugin_buttons", "plugin": "a", "hidden": [], "disabled": ["g1"]}
+const DISABLE_G1 =
+  "ClkyVwoWCghkaXNhYmxlZBIKOggKBhIEGgJnMQoMCgZoaWRkZW4SAjoACh4KCGRpc3BhdGNoEhISEBoOcGx1Z2luX2J1dHRvbnMKDwoGcGx1Z2luEgUSAxoBYRIFMS4yLjA=";
 
 function fromBase64(text: string): Uint8Array {
   return Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
@@ -72,10 +80,10 @@ describe("plugins", () => {
         definePlugin({
           name: "a",
           title: "First",
-          buttons: [button("a1"), button("a2")],
+          groups: { main: { a1: button("a1"), a2: button("a2") } },
         }),
-        definePlugin({ name: "empty" }),
-        definePlugin({ name: "b", buttons: [button("b1")] }),
+        definePlugin({ name: "empty", groups: { none: {} } }),
+        definePlugin({ name: "b", groups: { main: { b1: button("b1") } } }),
       ],
     });
     const sections = [...root.querySelectorAll(".toolbar-section")];
@@ -117,18 +125,104 @@ describe("plugins", () => {
       plugins: [
         definePlugin({
           name: "a",
-          buttons: [
-            [button("a1"), button("a2")],
-            button("a3"),
-            button("a4"),
-            [],
-            [button("a5")],
-          ],
+          groups: {
+            g1: { a1: button("a1"), a2: button("a2") },
+            empty: {},
+            g2: { a3: button("a3") },
+          },
         }),
       ],
     });
-    const rows = [...root.querySelectorAll(".toolbar-section .toolbar-group")];
-    expect(rows.map((row) => row.textContent)).toEqual(["a1a2", "a3a4", "a5"]);
+    const groups = [...root.querySelectorAll(".toolbar-group")];
+    expect(groups.map((group) => group.getAttribute("data-group"))).toEqual([
+      "g1",
+      "g2",
+    ]);
+    expect(groups.map((group) => group.textContent)).toEqual(["a1a2", "a3"]);
+  });
+
+  it("rejects an id used twice in a plugin", () => {
+    expect(() =>
+      mount({
+        plugins: [
+          definePlugin({
+            name: "a",
+            groups: { g1: { x: button("x") }, x: { y: button("y") } },
+          }),
+        ],
+      }),
+    ).toThrowError(/"a" plugin uses the id "x" twice/);
+  });
+
+  it("hides and disables groups and buttons as Python says", async () => {
+    let pressed = 0;
+    const shortcut = defineComponent(() => {
+      useShortcuts({ k: () => (pressed += 1) });
+      return () => h("button", { class: "probe" }, "a3");
+    });
+    const { root, viewer } = mount({
+      plugins: [
+        definePlugin({
+          name: "a",
+          groups: {
+            g1: { a1: button("a1"), a2: button("a2"), a3: shortcut },
+            g2: { a4: button("a4") },
+          },
+        }),
+      ],
+    });
+    const press = () =>
+      root.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "k", bubbles: true }),
+      );
+    const visible = () =>
+      [...root.querySelectorAll(".toolbar-slot")].map(
+        (slot) =>
+          slot.getAttribute("data-button") +
+          (slot.hasAttribute("inert") ? " (disabled)" : ""),
+      );
+
+    // hidden: ["g2", "a2"], disabled: ["a3"]
+    viewer.dispatch(fromBase64(HIDE_G2_A2_DISABLE_A3));
+    await nextTick();
+    expect(visible()).toEqual(["a1", "a3 (disabled)"]);
+    press();
+    expect(pressed).toBe(0);
+
+    // hidden: [], disabled: ["g1"]
+    viewer.dispatch(fromBase64(DISABLE_G1));
+    await nextTick();
+    expect(visible()).toEqual([
+      "a1 (disabled)",
+      "a2 (disabled)",
+      "a3 (disabled)",
+      "a4",
+    ]);
+    press();
+    expect(pressed).toBe(0);
+  });
+
+  it("enables a button again", async () => {
+    let pressed = 0;
+    const { root } = mount({
+      plugins: [
+        definePlugin({
+          name: "a",
+          groups: {
+            g1: {
+              a1: defineComponent(() => {
+                useShortcuts({ k: () => (pressed += 1) });
+                return () => h("button");
+              }),
+            },
+          },
+        }),
+      ],
+    });
+    root.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", bubbles: true }),
+    );
+    expect(pressed).toBe(1);
   });
 
   it("rejects two plugins with the same name", () => {
@@ -149,13 +243,15 @@ describe("plugins", () => {
       plugins: [
         definePlugin({
           name: "camera",
-          buttons: [
-            defineComponent(() => {
-              channel = useChannel("camera");
-              channel.on("views", (data) => received.push(data));
-              return () => h("button");
-            }),
-          ],
+          groups: {
+            views: {
+              saved: defineComponent(() => {
+                channel = useChannel("camera");
+                channel.on("views", (data) => received.push(data));
+                return () => h("button");
+              }),
+            },
+          },
         }),
       ],
     });

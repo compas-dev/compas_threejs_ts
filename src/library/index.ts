@@ -5,7 +5,7 @@ import App from "../App.vue";
 import { viewerRuntimeKey } from "../viewer/viewer_context";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
 import { CompasViewerError } from "./errors";
-import { createPluginViewer, pluginViewerKey } from "./plugins";
+import { buttonGroups, createPluginViewer, pluginViewerKey } from "./plugins";
 import type { CompasViewer, CompasViewerOptions } from "./types";
 
 export type {
@@ -25,6 +25,7 @@ export {
   useShortcuts,
   useViewer,
   type PluginChannel,
+  type ButtonGroup,
   type PluginViewer,
   type TransformMode,
   type ViewerPlugin,
@@ -77,6 +78,17 @@ export function createViewer(
       );
     }
     names.add(plugin.name);
+    const ids = buttonGroups(plugin).flatMap((group) => [
+      group.id,
+      ...group.buttons.map((button) => button.id),
+    ]);
+    const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);
+    if (duplicate !== undefined) {
+      throw new CompasViewerError(
+        "lifecycle_error",
+        `The "${plugin.name}" plugin uses the id "${duplicate}" twice`,
+      );
+    }
     const cleanup = plugin.setup?.(viewer);
     if (cleanup) cleanups.push(cleanup);
   }

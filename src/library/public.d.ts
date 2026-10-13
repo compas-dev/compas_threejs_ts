@@ -117,6 +117,9 @@ export interface PluginViewer {
   channel(plugin: string): PluginChannel;
 }
 
+/** A group of toolbar buttons, by id: `{ move: MoveButton, rotate: RotateButton }`. */
+export type ButtonGroup = Record<string, Component>;
+
 /**
  * A viewer plugin: a toolbar section of buttons (each a Vue component, shown in this order) and an
  * optional `setup`, run once before the viewer mounts; it may return a cleanup.
@@ -125,8 +128,13 @@ export interface ViewerPlugin {
   name: string;
   /** Shown above the plugin's buttons, which get a toolbar section of their own. */
   title?: string;
-  /** Buttons in toolbar order; an inner array is a group, shown as one segment. */
-  buttons?: (Component | Component[])[];
+  /**
+   * Button groups by id, each shown as one segment, in this order:
+   * `{ gizmo: { move: MoveButton, rotate: RotateButton }, display: { ... } }`.
+   * Python hides or disables a group or a single button by its id, so ids are unique
+   * within the plugin; use names, not numbers, to keep the order.
+   */
+  groups?: Record<string, ButtonGroup>;
   setup?(viewer: PluginViewer): void | (() => void);
 }
 
@@ -135,7 +143,10 @@ export declare function definePlugin(plugin: ViewerPlugin): ViewerPlugin;
 export declare function useViewer(): PluginViewer;
 /** The plugin's channel to Python; handlers registered with `on` end with the component. */
 export declare function useChannel(plugin: string): PluginChannel;
-/** Binds keys (lower-case `event.key`) to handlers while the component is mounted. */
+/**
+ * Binds keys (lower-case `event.key`) to handlers while the component is mounted. In a
+ * toolbar button, they stand down while Python disables the button.
+ */
 export declare function useShortcuts(
   shortcuts: Record<string, (event: KeyboardEvent) => void>,
 ): void;

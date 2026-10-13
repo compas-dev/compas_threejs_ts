@@ -39,6 +39,9 @@ export interface PluginViewer {
   channel(plugin: string): PluginChannel;
 }
 
+/** A group of toolbar buttons, by id: `{ move: MoveButton, rotate: RotateButton }`. */
+export type ButtonGroup = Record<string, Component>;
+
 /**
  * A viewer plugin: a toolbar section of buttons (each a Vue component, shown in this order) and an
  * optional `setup`, run once before the viewer mounts; it may return a cleanup.
@@ -47,29 +50,54 @@ export interface ViewerPlugin {
   name: string;
   /** Shown above the plugin's buttons, which get a toolbar section of their own. */
   title?: string;
-  /** Buttons in toolbar order; an inner array is a group, shown as one segment. */
-  buttons?: (Component | Component[])[];
+  /**
+   * Button groups by id, each shown as one segment, in this order:
+   * `{ gizmo: { move: MoveButton, rotate: RotateButton }, display: { ... } }`.
+   * Python hides or disables a group or a single button by its id, so ids are unique
+   * within the plugin; use names, not numbers, to keep the order.
+   */
+  groups?: Record<string, ButtonGroup>;
   setup?(viewer: PluginViewer): void | (() => void);
 }
 
-/** Splits `buttons` into groups: each inner array is one, and loose buttons in a row form one. */
-export function buttonGroups(
-  buttons: readonly (Component | Component[])[],
-): Component[][] {
-  const groups: Component[][] = [];
-  let loose: Component[] = [];
-  for (const item of buttons) {
-    if (Array.isArray(item)) {
-      if (loose.length) groups.push(loose);
-      loose = [];
-      if (item.length) groups.push(item);
-    } else {
-      loose.push(item);
-    }
-  }
-  if (loose.length) groups.push(loose);
-  return groups;
+export interface PluginButton {
+  id: string;
+  component: Component;
 }
+
+export interface PluginButtonGroup {
+  id: string;
+  buttons: PluginButton[];
+}
+
+/** The plugin's groups and their buttons, in order, without empty groups. */
+export function buttonGroups(plugin: ViewerPlugin): PluginButtonGroup[] {
+  return Object.entries(plugin.groups ?? {})
+    .map(([id, group]) => ({
+      id,
+      buttons: Object.entries(group).map(([buttonId, component]) => ({
+        id: buttonId,
+        component,
+      })),
+    }))
+    .filter((group) => group.buttons.length);
+}
+
+/** Whether Python has disabled a button; see `ButtonStates`. */
+export interface ButtonState {
+  readonly enabled: boolean;
+}
+
+/** Provided to each toolbar button, so ToolbarButton and useShortcuts follow Python's state. */
+export const buttonStateKey: InjectionKey<ButtonState> = Symbol(
+  "compas-plugin-button-state",
+);
+
+/** The group and button ids Python hid or disabled, per plugin name. */
+export type ButtonStates = Record<
+  string,
+  { hidden: readonly string[]; disabled: readonly string[] }
+>;
 
 export function definePlugin(plugin: ViewerPlugin): ViewerPlugin {
   return plugin;
@@ -132,13 +160,17 @@ function ignoresShortcuts(event: KeyboardEvent): boolean {
   return target.isContentEditable;
 }
 
-/** Binds keys (lower-case `event.key`) to handlers while the component is mounted. */
+/**
+ * Binds keys (lower-case `event.key`) to handlers while the component is mounted. In a
+ * toolbar button, they stand down while Python disables the button.
+ */
 export function useShortcuts(
   shortcuts: Record<string, (event: KeyboardEvent) => void>,
 ): void {
   const { root } = useViewer();
+  const button = inject(buttonStateKey, null);
   const onKeyDown = (event: KeyboardEvent) => {
-    if (ignoresShortcuts(event)) return;
+    if (ignoresShortcuts(event) || button?.enabled === false) return;
     const handler = shortcuts[event.key.toLowerCase()];
     if (!handler) return;
     event.preventDefault();

@@ -385,8 +385,16 @@ export interface PluginCommand extends CommandRecord {
   data?: unknown;
 }
 
+export interface PluginButtonsCommand extends CommandRecord {
+  dispatch: "plugin_buttons";
+  plugin: string;
+  hidden: string[];
+  disabled: string[];
+}
+
 export type ViewerCommand =
   | PluginCommand
+  | PluginButtonsCommand
   | MaterialCommand
   | LightCommand
   | SceneCommand
@@ -492,6 +500,11 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
       readNonEmptyString(record, "plugin");
       readNonEmptyString(record, "action");
       return record as PluginCommand;
+    case "plugin_buttons":
+      readNonEmptyString(record, "plugin");
+      readStringArray(record, "hidden");
+      readStringArray(record, "disabled");
+      return record as PluginButtonsCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",
