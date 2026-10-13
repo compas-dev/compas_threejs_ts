@@ -112,6 +112,25 @@ describe("plugins", () => {
     expect(calls).toEqual(["setup function", "cleanup"]);
   });
 
+  it("shows each button group of a plugin as a segment of its own", () => {
+    const { root } = mount({
+      plugins: [
+        definePlugin({
+          name: "a",
+          buttons: [
+            [button("a1"), button("a2")],
+            button("a3"),
+            button("a4"),
+            [],
+            [button("a5")],
+          ],
+        }),
+      ],
+    });
+    const rows = [...root.querySelectorAll(".toolbar-section .toolbar-group")];
+    expect(rows.map((row) => row.textContent)).toEqual(["a1a2", "a3a4", "a5"]);
+  });
+
   it("rejects two plugins with the same name", () => {
     expect(() =>
       mount({ plugins: [{ name: "a" }, { name: "a" }] }),

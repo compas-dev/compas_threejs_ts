@@ -125,7 +125,8 @@ export interface ViewerPlugin {
   name: string;
   /** Shown above the plugin's buttons, which get a toolbar section of their own. */
   title?: string;
-  buttons?: Component[];
+  /** Buttons in toolbar order; an inner array is a group, shown as one segment. */
+  buttons?: (Component | Component[])[];
   setup?(viewer: PluginViewer): void | (() => void);
 }
 

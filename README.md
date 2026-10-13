@@ -103,12 +103,12 @@ The viewer has no toolbar of its own: plugins add it, each in a section of its o
 
 ```ts
 import { createViewer, definePlugin } from "@compas-dev/compas-threejs-ts";
-import SaveViewButton from "./SaveViewButton.vue";
+import { FrontButton, SaveViewButton, TopButton } from "./buttons";
 
 const camera = definePlugin({
   name: "camera",
   title: "Camera", // optional, shown above the section
-  buttons: [SaveViewButton], // Vue components, in toolbar order
+  buttons: [[TopButton, FrontButton], [SaveViewButton]], // Vue components in toolbar order; an inner array is a group (one segment)
   setup(viewer) {}, // optional; may return a cleanup
 });
 

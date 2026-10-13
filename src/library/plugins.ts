@@ -47,8 +47,28 @@ export interface ViewerPlugin {
   name: string;
   /** Shown above the plugin's buttons, which get a toolbar section of their own. */
   title?: string;
-  buttons?: Component[];
+  /** Buttons in toolbar order; an inner array is a group, shown as one segment. */
+  buttons?: (Component | Component[])[];
   setup?(viewer: PluginViewer): void | (() => void);
+}
+
+/** Splits `buttons` into groups: each inner array is one, and loose buttons in a row form one. */
+export function buttonGroups(
+  buttons: readonly (Component | Component[])[],
+): Component[][] {
+  const groups: Component[][] = [];
+  let loose: Component[] = [];
+  for (const item of buttons) {
+    if (Array.isArray(item)) {
+      if (loose.length) groups.push(loose);
+      loose = [];
+      if (item.length) groups.push(item);
+    } else {
+      loose.push(item);
+    }
+  }
+  if (loose.length) groups.push(loose);
+  return groups;
 }
 
 export function definePlugin(plugin: ViewerPlugin): ViewerPlugin {
