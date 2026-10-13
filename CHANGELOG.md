@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/compas-dev/compas_threejs_ts/compare/v1.4.0...v1.4.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **viewer:** keep material edits on a picked object after deselecting it ([f4ea4ad](https://github.com/compas-dev/compas_threejs_ts/commit/f4ea4ad03df154276ba4f749b06f073f4a60fea0))
+
 ## [1.4.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.3.0...v1.4.0) (2026-10-13)
 
 
