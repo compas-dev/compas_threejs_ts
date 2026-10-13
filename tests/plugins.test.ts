@@ -109,7 +109,7 @@ describe("plugins", () => {
         definePlugin({
           name: "a",
           setup(context) {
-            calls.push(`setup ${typeof context.setCameraView}`);
+            calls.push(`setup ${typeof context.camera.setView}`);
             return () => calls.push("cleanup");
           },
         }),
@@ -139,6 +139,37 @@ describe("plugins", () => {
       "g2",
     ]);
     expect(groups.map((group) => group.textContent)).toEqual(["a1a2", "a3"]);
+  });
+
+  it("shows object actions for the selected object, minus those Python hid", async () => {
+    let viewerSelected: { value: string | null } | undefined;
+    const { root, viewer } = mount({
+      plugins: [
+        definePlugin({
+          name: "a",
+          objectActions: { a1: button("a1"), a2: button("a2") },
+          setup(context) {
+            viewerSelected = context.state.selectedGuid as {
+              value: string | null;
+            };
+          },
+        }),
+      ],
+    });
+    const actions = () =>
+      [...root.querySelectorAll(".plugin-actions .toolbar-slot")].map((slot) =>
+        slot.getAttribute("data-button"),
+      );
+    expect(actions()).toEqual([]);
+
+    viewerSelected!.value = "some-object";
+    await nextTick();
+    expect(actions()).toEqual(["a1", "a2"]);
+
+    // {"dispatch": "plugin_buttons", "plugin": "a", "hidden": ["g2", "a2"], ...}
+    viewer.dispatch(fromBase64(HIDE_G2_A2_DISABLE_A3));
+    await nextTick();
+    expect(actions()).toEqual(["a1"]);
   });
 
   it("rejects an id used twice in a plugin", () => {

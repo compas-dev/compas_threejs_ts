@@ -1,3 +1,4 @@
+import type * as THREE from "three";
 import type { Component, DefineComponent } from "vue";
 
 export type ViewerMode = "embedded" | "websocket";
@@ -55,8 +56,6 @@ export declare function createViewer(
   options?: CompasViewerOptions,
 ): CompasViewer;
 
-export type TransformMode = "translate" | "rotate" | "scale";
-
 export type ViewPreset =
   | "top"
   | "bottom"
@@ -69,23 +68,12 @@ export type ViewPreset =
   | "back_left"
   | "back_right";
 
-export interface SavedView {
-  id: string;
-  name: string;
-  cameraPosition: { x: number; y: number; z: number };
+/** Where the camera is and what it looks at. */
+export interface CameraState {
+  position: { x: number; y: number; z: number };
   target: { x: number; y: number; z: number };
   zoom: number;
   fov: number;
-}
-
-export type ScreenshotFormat = "png" | "jpg" | "webp";
-
-export interface ScreenshotOptions {
-  width?: number;
-  height?: number;
-  format?: ScreenshotFormat;
-  fileName?: string;
-  quality?: number;
 }
 
 /** A two-way message channel between a plugin's frontend and its Python half. */
@@ -96,25 +84,61 @@ export interface PluginChannel {
   on(action: string, handler: (data: unknown) => void): () => void;
 }
 
-/** What a plugin can see and do. */
+/**
+ * Scene-level access, for plugins that build interactive tools (a gizmo, drawing, ...).
+ * It is closer to the viewer's internals than the rest of `PluginViewer`.
+ */
+export interface PluginThree {
+  readonly camera: THREE.PerspectiveCamera;
+  readonly canvas: HTMLCanvasElement;
+  /** The scene object of a backend geometry, by guid. */
+  object(guid: string): THREE.Object3D | undefined;
+  /** Adds a plugin-owned object to the scene; never picked. Returns its removal. */
+  addOverlay(object: THREE.Object3D): () => void;
+  /** Stops camera navigation until released. */
+  pauseNavigation(): () => void;
+  /** A click picks nothing while `guard` returns true. Returns its removal. */
+  addPickGuard(guard: (event: MouseEvent) => boolean): () => void;
+  /** Backend updates of this object wait until released (e.g. during a drag). */
+  holdObjectUpdates(guid: string): () => void;
+}
+
+/** What a plugin can see and do: the viewer's primitives; the tools are the plugins'. */
 export interface PluginViewer {
   readonly root: HTMLElement;
-  readonly canvas: HTMLCanvasElement;
-  /** Reactive state; read and write `.value`. */
+  /** Reactive state; read `.value`. `pickerEnabled` may also be written. */
   readonly state: {
     readonly pickerEnabled: { value: boolean };
-    readonly pickerMode: { readonly value: TransformMode };
     readonly selectedGuid: { readonly value: string | null };
     readonly theme: { readonly value: "light" | "dark" };
   };
-  setTransformMode(mode: TransformMode): void;
-  setCameraView(preset: ViewPreset): void;
-  captureView(name: string): SavedView;
-  applyView(view: SavedView): void;
-  saveScreenshot(options?: ScreenshotOptions): void;
-  showAllObjects(): void;
-  toggleTheme(): void;
+  readonly selection: {
+    clear(): void;
+    /** Called with the picked guid (or null) when it changes, or its object is rebuilt. */
+    onChange(listener: (guid: string | null) => void): () => void;
+  };
+  readonly objects: {
+    /** Hides the object in this browser (deselecting it) until `showAll`. */
+    hide(guid: string): void;
+    showAll(): void;
+    /** Whether clicking can pick it; making a picked object unpickable deselects it. */
+    setPickable(guid: string, pickable: boolean): void;
+    /** Tells Python the object moved by `matrix`, a row-major 4x4 delta. */
+    commitTransform(guid: string, matrix: number[][]): void;
+  };
+  readonly camera: {
+    get(): CameraState;
+    set(state: Partial<CameraState>): void;
+    setView(preset: ViewPreset): void;
+  };
+  setTheme(mode: "light" | "dark"): void;
+  /** Renders the current view into a new canvas (default size: the viewport's). */
+  captureImage(options?: {
+    width?: number;
+    height?: number;
+  }): HTMLCanvasElement;
   channel(plugin: string): PluginChannel;
+  readonly three: PluginThree;
 }
 
 /** A group of toolbar buttons, by id: `{ move: MoveButton, rotate: RotateButton }`. */
@@ -135,6 +159,12 @@ export interface ViewerPlugin {
    * within the plugin; use names, not numbers, to keep the order.
    */
   groups?: Record<string, ButtonGroup>;
+  /**
+   * Actions for the selected object, by id, shown in its panel: `{ hide: HideAction }`.
+   * Each is a Vue component that reads the object from `useViewer().state.selectedGuid`.
+   * Their ids share the plugin's namespace with groups and buttons.
+   */
+  objectActions?: ButtonGroup;
   setup?(viewer: PluginViewer): void | (() => void);
 }
 

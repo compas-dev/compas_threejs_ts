@@ -26,16 +26,11 @@ export {
   useViewer,
   type PluginChannel,
   type ButtonGroup,
+  type PluginThree,
   type PluginViewer,
-  type TransformMode,
   type ViewerPlugin,
 } from "./plugins";
-export type {
-  SavedView,
-  ScreenshotFormat,
-  ScreenshotOptions,
-  ViewPreset,
-} from "../viewer/viewer_runtime";
+export type { CameraState, ViewPreset } from "../viewer/viewer_runtime";
 export * from "../components/ui/button";
 export * from "../components/ui/checkbox";
 export * from "../components/ui/kbd";
@@ -78,10 +73,13 @@ export function createViewer(
       );
     }
     names.add(plugin.name);
-    const ids = buttonGroups(plugin).flatMap((group) => [
-      group.id,
-      ...group.buttons.map((button) => button.id),
-    ]);
+    const ids = [
+      ...buttonGroups(plugin).flatMap((group) => [
+        group.id,
+        ...group.buttons.map((button) => button.id),
+      ]),
+      ...Object.keys(plugin.objectActions ?? {}),
+    ];
     const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);
     if (duplicate !== undefined) {
       throw new CompasViewerError(

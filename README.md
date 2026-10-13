@@ -119,9 +119,15 @@ const camera = definePlugin({
 createViewer(container, { plugins: [camera] });
 ```
 
-Inside a button, `useViewer()` gives the viewer (views, gizmo mode, screenshots, ...),
-`useChannel(name)` sends to and receives from the plugin's Python half, and
-`useShortcuts({ key: handler })` binds keys.
+A plugin owns its tools' behaviour; the viewer only gives primitives. Inside a button,
+`useViewer()` gives the selection, objects (hide, pickable, commit a transform), the
+camera (get, set, view presets), the theme and image capture; `viewer.three` goes closer
+to the scene (camera, canvas, objects, overlays, pausing navigation, vetoing picks) for
+interactive tools like a gizmo. `useChannel(name)` sends to and receives from the
+plugin's Python half, and `useShortcuts({ key: handler })` binds keys.
+
+A plugin can also add `objectActions` (`{ hide: HideAction }`): components shown in the
+FUNCTIONS panel for the selected object.
 
 The Python half can hide or disable a group or a single button by its id. The viewer
 applies it to any button: a disabled one is greyed out and inert, and its `useShortcuts`

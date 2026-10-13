@@ -8,12 +8,6 @@
         >
           METADATA
         </h1>
-        <div v-if="selectedObjectGuid.value" class="single_data">
-          <Button variant="outline" class="w-full" @click="handleHide">
-            <EyeOff class="size-4" />
-            Hide
-          </Button>
-        </div>
         <div
           v-for="(value, key) in objectBarData.data"
           :key="key"
@@ -41,18 +35,12 @@
 import { Button } from "@/components/ui/button";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
-import { ArrowBigRightDash, EyeOff } from "lucide-vue-next";
+import { ArrowBigRightDash } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 
 const runtime = useViewerRuntime();
-const { objectBarData, blockPicker, theme, selectedObjectGuid } = runtime.store;
+const { objectBarData, blockPicker, theme } = runtime.store;
 const infoPanel = ref<HTMLElement | null>(null);
-
-function handleHide() {
-  if (!selectedObjectGuid.value) return;
-  runtime.hideObjectByGuid(selectedObjectGuid.value);
-  runtime.deselectObject();
-}
 
 const { isHovered } = useHover(infoPanel);
 

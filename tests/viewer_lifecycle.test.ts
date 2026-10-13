@@ -182,7 +182,12 @@ describe("createViewer", () => {
         display: {
           theme: defineComponent(() => {
             const viewer = useViewer();
-            useShortcuts({ d: () => viewer.toggleTheme() });
+            useShortcuts({
+              d: () =>
+                viewer.setTheme(
+                  viewer.state.theme.value === "dark" ? "light" : "dark",
+                ),
+            });
             return () => h("button");
           }),
         },
@@ -423,7 +428,75 @@ describe("createViewer", () => {
     runtime.dispose();
   });
 
-  it("skips an apply_transform command for an object currently being dragged", () => {
+  it("lets plugins veto picks, make objects unpickable, and follow the selection", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    vi.spyOn(
+      runtime.renderer.domElement,
+      "getBoundingClientRect",
+    ).mockReturnValue({ left: 0, top: 0, width: 800, height: 600 } as DOMRect);
+    runtime.dispatch(boxBytes("box"));
+    const internals = runtime as unknown as {
+      pickFromPointer(event: MouseEvent): void;
+    };
+    const click = () =>
+      internals.pickFromPointer(
+        new MouseEvent("mousedown", { clientX: 400, clientY: 300, button: 0 }),
+      );
+    const seen: (string | null)[] = [];
+    runtime.onSelectionChange((guid) => seen.push(guid));
+
+    // An overlay in front of the box is never picked.
+    const overlay = new THREE.Mesh(
+      new THREE.BoxGeometry(50, 50, 50),
+      new THREE.MeshBasicMaterial(),
+    );
+    const removeOverlay = runtime.addOverlay(overlay);
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBe("box");
+    removeOverlay();
+    expect(overlay.parent).toBeNull();
+
+    // Locking the picked object deselects it, and it can't be picked again.
+    runtime.setObjectPickable("box", false);
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+    runtime.setObjectPickable("box", true);
+
+    // A guard vetoes the pick.
+    let busy = true;
+    const removeGuard = runtime.addPickGuard(() => busy);
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+    busy = false;
+    click();
+    removeGuard();
+
+    // Rebuilding the picked object (the backend's echo) tells listeners again.
+    runtime.dispatch(boxBytes("box"));
+    expect(seen).toEqual(["box", null, "box", "box"]);
+
+    runtime.dispose();
+  });
+
+  it("renders the view into a canvas of the requested size", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    const context = { drawImage: vi.fn() };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      context as never,
+    );
+    const canvas = runtime.captureImage({ width: 320, height: 200 });
+    expect([canvas.width, canvas.height]).toEqual([320, 200]);
+    expect(context.drawImage).toHaveBeenCalledOnce();
+    runtime.dispose();
+  });
+
+  it("skips an apply_transform command for an object a plugin holds", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const runtime = new ViewerRuntime(container, { mode: "embedded" });
@@ -433,24 +506,27 @@ describe("createViewer", () => {
     const object = runtime.geometries.get("dragged-box")!;
     const internals = runtime as unknown as {
       dispatchObject(object: unknown): void;
-      transformControls: { dragging: boolean; object?: THREE.Object3D };
     };
-    internals.transformControls.dragging = true;
-    internals.transformControls.object = object;
+    const moveBy = (x: number) =>
+      internals.dispatchObject({
+        dispatch: "handle_geometry",
+        type: "apply_transform",
+        guid: "dragged-box",
+        matrix: [
+          [1, 0, 0, x],
+          [0, 1, 0, 0],
+          [0, 0, 1, 0],
+          [0, 0, 0, 1],
+        ],
+      });
 
-    internals.dispatchObject({
-      dispatch: "handle_geometry",
-      type: "apply_transform",
-      guid: "dragged-box",
-      matrix: [
-        [1, 0, 0, 99],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
-      ],
-    });
-
+    const release = runtime.holdObjectUpdates("dragged-box");
+    moveBy(99);
     expect(object.position.toArray()).toEqual([0, 0, 0]);
+
+    release();
+    moveBy(2);
+    expect(object.position.toArray()).toEqual([2, 0, 0]);
 
     runtime.dispose();
   });

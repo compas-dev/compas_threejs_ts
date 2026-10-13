@@ -1,14 +1,12 @@
 import { inject, onBeforeUnmount, onMounted } from "vue";
 import type { Component, InjectionKey } from "vue";
+import type * as THREE from "three";
 
 import type {
-  SavedView,
-  ScreenshotOptions,
+  CameraState,
   ViewerRuntime,
   ViewPreset,
 } from "../viewer/viewer_runtime";
-
-export type TransformMode = "translate" | "rotate" | "scale";
 
 /** A two-way message channel between a plugin's frontend and its Python half. */
 export interface PluginChannel {
@@ -18,25 +16,61 @@ export interface PluginChannel {
   on(action: string, handler: (data: unknown) => void): () => void;
 }
 
-/** What a plugin can see and do. Deliberately narrow: the scene, camera and renderer stay internal. */
+/**
+ * Scene-level access, for plugins that build interactive tools (a gizmo, drawing, ...).
+ * It is closer to the viewer's internals than the rest of `PluginViewer`.
+ */
+export interface PluginThree {
+  readonly camera: THREE.PerspectiveCamera;
+  readonly canvas: HTMLCanvasElement;
+  /** The scene object of a backend geometry, by guid. */
+  object(guid: string): THREE.Object3D | undefined;
+  /** Adds a plugin-owned object to the scene; never picked. Returns its removal. */
+  addOverlay(object: THREE.Object3D): () => void;
+  /** Stops camera navigation until released. */
+  pauseNavigation(): () => void;
+  /** A click picks nothing while `guard` returns true. Returns its removal. */
+  addPickGuard(guard: (event: MouseEvent) => boolean): () => void;
+  /** Backend updates of this object wait until released (e.g. during a drag). */
+  holdObjectUpdates(guid: string): () => void;
+}
+
+/** What a plugin can see and do: the viewer's primitives; the tools are the plugins'. */
 export interface PluginViewer {
   readonly root: HTMLElement;
-  readonly canvas: HTMLCanvasElement;
-  /** Reactive state; read and write `.value`. */
+  /** Reactive state; read `.value`. `pickerEnabled` may also be written. */
   readonly state: {
     readonly pickerEnabled: { value: boolean };
-    readonly pickerMode: { readonly value: TransformMode };
     readonly selectedGuid: { readonly value: string | null };
     readonly theme: { readonly value: "light" | "dark" };
   };
-  setTransformMode(mode: TransformMode): void;
-  setCameraView(preset: ViewPreset): void;
-  captureView(name: string): SavedView;
-  applyView(view: SavedView): void;
-  saveScreenshot(options?: ScreenshotOptions): void;
-  showAllObjects(): void;
-  toggleTheme(): void;
+  readonly selection: {
+    clear(): void;
+    /** Called with the picked guid (or null) when it changes, or its object is rebuilt. */
+    onChange(listener: (guid: string | null) => void): () => void;
+  };
+  readonly objects: {
+    /** Hides the object in this browser (deselecting it) until `showAll`. */
+    hide(guid: string): void;
+    showAll(): void;
+    /** Whether clicking can pick it; making a picked object unpickable deselects it. */
+    setPickable(guid: string, pickable: boolean): void;
+    /** Tells Python the object moved by `matrix`, a row-major 4x4 delta. */
+    commitTransform(guid: string, matrix: number[][]): void;
+  };
+  readonly camera: {
+    get(): CameraState;
+    set(state: Partial<CameraState>): void;
+    setView(preset: ViewPreset): void;
+  };
+  setTheme(mode: "light" | "dark"): void;
+  /** Renders the current view into a new canvas (default size: the viewport's). */
+  captureImage(options?: {
+    width?: number;
+    height?: number;
+  }): HTMLCanvasElement;
   channel(plugin: string): PluginChannel;
+  readonly three: PluginThree;
 }
 
 /** A group of toolbar buttons, by id: `{ move: MoveButton, rotate: RotateButton }`. */
@@ -57,6 +91,12 @@ export interface ViewerPlugin {
    * within the plugin; use names, not numbers, to keep the order.
    */
   groups?: Record<string, ButtonGroup>;
+  /**
+   * Actions for the selected object, by id, shown in its panel: `{ hide: HideAction }`.
+   * Each is a Vue component that reads the object from `useViewer().state.selectedGuid`.
+   * Their ids share the plugin's namespace with groups and buttons.
+   */
+  objectActions?: ButtonGroup;
   setup?(viewer: PluginViewer): void | (() => void);
 }
 
@@ -108,22 +148,45 @@ export const pluginViewerKey: InjectionKey<PluginViewer> = Symbol(
 );
 
 export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
-  const { pickerEnabled, pickerMode, pickedObjectGuid, theme } = runtime.store;
+  const { pickerEnabled, pickedObjectGuid, theme } = runtime.store;
   return {
     root: runtime.root,
-    canvas: runtime.renderer.domElement,
-    state: { pickerEnabled, pickerMode, selectedGuid: pickedObjectGuid, theme },
-    setTransformMode: (mode) => runtime.setTransformMode(mode),
-    setCameraView: (preset) => runtime.setCameraViewPreset(preset),
-    captureView: (name) => runtime.captureCurrentView(name),
-    applyView: (view) => runtime.applySavedView(view),
-    saveScreenshot: (options) => runtime.saveCurrentCanvasImage(options),
-    showAllObjects: () => runtime.showAllObjects(),
-    toggleTheme: () => runtime.toggleTheme(),
+    state: { pickerEnabled, selectedGuid: pickedObjectGuid, theme },
+    selection: {
+      clear: () => runtime.deselectObject(),
+      onChange: (listener) => runtime.onSelectionChange(listener),
+    },
+    objects: {
+      hide(guid) {
+        if (pickedObjectGuid.value === guid) runtime.deselectObject();
+        runtime.hideObjectByGuid(guid);
+      },
+      showAll: () => runtime.showAllObjects(),
+      setPickable: (guid, pickable) =>
+        runtime.setObjectPickable(guid, pickable),
+      commitTransform: (guid, matrix) =>
+        runtime.commitObjectTransform(guid, matrix),
+    },
+    camera: {
+      get: () => runtime.getCamera(),
+      set: (state) => runtime.setCamera(state),
+      setView: (preset) => runtime.setCameraViewPreset(preset),
+    },
+    setTheme: (mode) => runtime.setTheme(mode),
+    captureImage: (options) => runtime.captureImage(options),
     channel: (plugin) => ({
       send: (action, data) => runtime.sendToPlugin(plugin, action, data),
       on: (action, handler) => runtime.onPluginMessage(plugin, action, handler),
     }),
+    three: {
+      camera: runtime.camera,
+      canvas: runtime.renderer.domElement,
+      object: (guid) => runtime.object(guid),
+      addOverlay: (object) => runtime.addOverlay(object),
+      pauseNavigation: () => runtime.pauseNavigation(),
+      addPickGuard: (guard) => runtime.addPickGuard(guard),
+      holdObjectUpdates: (guid) => runtime.holdObjectUpdates(guid),
+    },
   };
 }
 

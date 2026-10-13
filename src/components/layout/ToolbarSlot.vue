@@ -19,7 +19,7 @@ import { useViewerRuntime } from "@/viewer/viewer_context";
 // out and inert (so popovers can't open), and its ToolbarButton and shortcuts stand down.
 const props = defineProps<{
   plugin: string;
-  group: string;
+  group?: string;
   button: PluginButton;
 }>();
 const { pluginButtons } = useViewerRuntime().store;
@@ -27,7 +27,10 @@ const { pluginButtons } = useViewerRuntime().store;
 // Disabling the group disables each of its buttons.
 const enabled = computed(() => {
   const disabled = pluginButtons[props.plugin]?.disabled ?? [];
-  return !disabled.includes(props.group) && !disabled.includes(props.button.id);
+  return (
+    !(props.group && disabled.includes(props.group)) &&
+    !disabled.includes(props.button.id)
+  );
 });
 provide(
   buttonStateKey,

@@ -1,7 +1,7 @@
 <template>
   <div
     class="theme object-actions"
-    :class="{ 'is-empty': !objectActionsState.length }"
+    :class="{ 'is-empty': !objectActionsState.length && !pluginActions.length }"
     id="actions-panel"
     ref="actionsPanel"
   >
@@ -11,6 +11,14 @@
     >
       FUNCTIONS
     </h1>
+    <div v-if="pluginActions.length" class="single_data plugin-actions">
+      <ToolbarSlot
+        v-for="action in pluginActions"
+        :key="`${action.plugin}/${action.button.id}`"
+        :plugin="action.plugin"
+        :button="action.button"
+      />
+    </div>
     <div
       v-for="action in objectActionsState"
       :key="action.guid"
@@ -66,12 +74,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useHover } from "@/composables/useHover";
-import { ref, watchEffect } from "vue";
+import { computed, ref, watchEffect } from "vue";
+import ToolbarSlot from "@/components/layout/ToolbarSlot.vue";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
-const { objectActionsState, blockPicker, theme } = runtime.store;
+const {
+  objectActionsState,
+  blockPicker,
+  theme,
+  pickedObjectGuid,
+  pluginButtons,
+} = runtime.store;
+// The plugins' actions for the picked object, in plugin order, minus those Python hid.
+const pluginActions = computed(() =>
+  pickedObjectGuid.value === null
+    ? []
+    : runtime.plugins.flatMap((plugin) => {
+        const hidden = pluginButtons[plugin.name]?.hidden ?? [];
+        return Object.entries(plugin.objectActions ?? {})
+          .filter(([id]) => !hidden.includes(id))
+          .map(([id, component]) => ({
+            plugin: plugin.name,
+            button: { id, component },
+          }));
+      }),
+);
 const handleObjectAction = (action: ObjectAction, value?: unknown) =>
   runtime.handleObjectAction({ ...action }, value);
 const actionsPanel = ref<HTMLElement | null>(null);
@@ -98,6 +127,12 @@ div.object-actions {
   gap: 30px;
   color: var(--foreground);
   pointer-events: auto;
+}
+
+div.plugin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 div.object-actions.is-empty {
