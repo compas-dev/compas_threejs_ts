@@ -266,6 +266,30 @@ describe("plugins", () => {
     expect(pressed).toBe(1);
   });
 
+  it("shares snap steps between plugins", () => {
+    const seen: (number | null)[] = [];
+    let setGrid: ((grid: number) => void) | undefined;
+    mount({
+      plugins: [
+        definePlugin({
+          name: "setter",
+          setup(viewer) {
+            setGrid = (grid) => (viewer.state.snap.grid = grid);
+          },
+        }),
+        definePlugin({
+          name: "follower",
+          setup(viewer) {
+            seen.push(viewer.state.snap.grid);
+            setGrid!(0.5);
+            seen.push(viewer.state.snap.grid);
+          },
+        }),
+      ],
+    });
+    expect(seen).toEqual([null, 0.5]);
+  });
+
   it("enables a button again", async () => {
     let pressed = 0;
     const { root } = mount({

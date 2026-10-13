@@ -74,6 +74,12 @@ export interface PluginViewer {
     readonly theme: { readonly value: "light" | "dark" };
     /** Whether a plugin holds input (`three.beginInteraction`). */
     readonly interacting: { readonly value: boolean };
+    /**
+     * Snap steps shared between plugins - one sets them (Draw's Snap settings),
+     * others follow them (Essentials' gizmo): `grid` in world units, `angle` in
+     * degrees, null for off.
+     */
+    readonly snap: { grid: number | null; angle: number | null };
   };
   readonly selection: {
     clear(): void;
@@ -183,7 +189,8 @@ export const pluginViewerKey: InjectionKey<PluginViewer> = Symbol(
 );
 
 export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
-  const { pickerEnabled, pickedObjectGuid, theme, interacting } = runtime.store;
+  const { pickerEnabled, pickedObjectGuid, theme, interacting, snap } =
+    runtime.store;
   return {
     root: runtime.root,
     state: {
@@ -191,6 +198,7 @@ export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
       selectedGuid: pickedObjectGuid,
       theme,
       interacting,
+      snap,
     },
     selection: {
       clear: () => runtime.deselectObject(),
