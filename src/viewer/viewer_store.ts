@@ -89,6 +89,8 @@ export interface ViewerStore {
   theme: { value: "light" | "dark" };
   spinnerState: { visible: boolean; message: string | null };
   selectedObjectGuid: { value: string | null };
+  /** Whether a plugin holds pointer/keyboard input (beginInteraction). */
+  interacting: { value: boolean };
   /** Plugin buttons Python hid or disabled, by plugin name. */
   pluginButtons: ButtonStates;
 }
@@ -118,6 +120,7 @@ export function createViewerStore(): ViewerStore {
     }),
 
     selectedObjectGuid: reactive({ value: null as string | null }),
+    interacting: reactive({ value: false }),
     pluginButtons: reactive<ButtonStates>({}),
   };
 }

@@ -233,6 +233,39 @@ describe("plugins", () => {
     expect(pressed).toBe(0);
   });
 
+  it("stands plugin shortcuts down while a plugin holds input", () => {
+    let pressed = 0;
+    let begin: (() => { release(): void }) | undefined;
+    const { root } = mount({
+      plugins: [
+        definePlugin({
+          name: "a",
+          groups: {
+            g1: {
+              a1: defineComponent(() => {
+                useShortcuts({ k: () => (pressed += 1) });
+                return () => h("button");
+              }),
+            },
+          },
+          setup(viewer) {
+            begin = () => viewer.three.beginInteraction({});
+          },
+        }),
+      ],
+    });
+    const press = () =>
+      root.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "k", bubbles: true }),
+      );
+    const session = begin!();
+    press();
+    expect(pressed).toBe(0);
+    session.release();
+    press();
+    expect(pressed).toBe(1);
+  });
+
   it("enables a button again", async () => {
     let pressed = 0;
     const { root } = mount({

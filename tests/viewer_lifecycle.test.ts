@@ -481,6 +481,58 @@ describe("createViewer", () => {
     runtime.dispose();
   });
 
+  it("hands input to one plugin interaction at a time", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    const canvas = runtime.renderer.domElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+    } as DOMRect);
+    runtime.dispatch(boxBytes("box"));
+    const at = { clientX: 400, clientY: 300, button: 0, bubbles: true };
+
+    expect(runtime.pointerRay(at)?.direction.length()).toBeCloseTo(1);
+    expect(runtime.visibleObjects().map((entry) => entry.guid)).toEqual([
+      "box",
+    ]);
+
+    const events: string[] = [];
+    const first = runtime.beginInteraction({
+      onPointerDown: () => events.push("first down"),
+      onPointerMove: () => events.push("first move"),
+      onKeyDown: (event) => events.push(`first ${event.key}`),
+      onInterrupt: () => events.push("first interrupted"),
+    });
+    expect(runtime.store.interacting.value).toBe(true);
+    canvas.dispatchEvent(new MouseEvent("mousedown", at));
+    canvas.dispatchEvent(new MouseEvent("mousemove", at));
+    container.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    // The click went to the plugin, so nothing was picked.
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+
+    const second = runtime.beginInteraction({});
+    expect(first.active).toBe(false);
+    second.release();
+    expect(runtime.store.interacting.value).toBe(false);
+    canvas.dispatchEvent(new MouseEvent("mousedown", at));
+    expect(runtime.store.pickedObjectGuid.value).toBe("box");
+
+    expect(events).toEqual([
+      "first down",
+      "first move",
+      "first Escape",
+      "first interrupted",
+    ]);
+    runtime.dispose();
+  });
+
   it("renders the view into a canvas of the requested size", () => {
     const container = document.createElement("div");
     document.body.append(container);

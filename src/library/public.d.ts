@@ -84,6 +84,29 @@ export interface PluginChannel {
   on(action: string, handler: (data: unknown) => void): () => void;
 }
 
+/** The editable fields of an object's standard material. */
+export interface ObjectMaterial {
+  /** `#rrggbb` */
+  color: string;
+  metalness: number;
+  roughness: number;
+}
+
+export interface InteractionHandlers {
+  onPointerDown?(event: MouseEvent): void;
+  onPointerMove?(event: MouseEvent): void;
+  onKeyDown?(event: KeyboardEvent): void;
+  /** The viewer ended the session (another `beginInteraction`, or dispose). */
+  onInterrupt?(): void;
+}
+
+export interface InteractionSession {
+  /** False once released or interrupted. */
+  readonly active: boolean;
+  /** Gives input back to picking and shortcuts. Idempotent. */
+  release(): void;
+}
+
 /**
  * Scene-level access, for plugins that build interactive tools (a gizmo, drawing, ...).
  * It is closer to the viewer's internals than the rest of `PluginViewer`.
@@ -101,6 +124,23 @@ export interface PluginThree {
   addPickGuard(guard: (event: MouseEvent) => boolean): () => void;
   /** Backend updates of this object wait until released (e.g. during a drag). */
   holdObjectUpdates(guid: string): () => void;
+  /** The world-space ray under the pointer, or null while the canvas has no size. */
+  pointerRay(event: { clientX: number; clientY: number }): THREE.Ray | null;
+  /** The visible backend objects, with their guids (e.g. to snap to them). */
+  objects(): { guid: string; object: THREE.Object3D }[];
+  /** The canvas size in CSS pixels. */
+  viewportSize(): { width: number; height: number };
+  /** Called with the new size whenever the viewer resizes. Returns its removal. */
+  onResize(
+    listener: (size: { width: number; height: number }) => void,
+  ): () => void;
+  /**
+   * Takes over pointer and keyboard input until released, e.g. while a drawing tool
+   * is active: picking, the viewer's keys and every plugin's `useShortcuts` stand
+   * down, the selection is cleared, and events go to `handlers`. Orbiting keeps
+   * working. Beginning another session interrupts this one (`onInterrupt`).
+   */
+  beginInteraction(handlers: InteractionHandlers): InteractionSession;
 }
 
 /** What a plugin can see and do: the viewer's primitives; the tools are the plugins'. */
@@ -111,6 +151,8 @@ export interface PluginViewer {
     readonly pickerEnabled: { value: boolean };
     readonly selectedGuid: { readonly value: string | null };
     readonly theme: { readonly value: "light" | "dark" };
+    /** Whether a plugin holds input (`three.beginInteraction`). */
+    readonly interacting: { readonly value: boolean };
   };
   readonly selection: {
     clear(): void;
@@ -125,6 +167,10 @@ export interface PluginViewer {
     setPickable(guid: string, pickable: boolean): void;
     /** Tells Python the object moved by `matrix`, a row-major 4x4 delta. */
     commitTransform(guid: string, matrix: number[][]): void;
+    /** The object's standard material, or null if it has none. */
+    getMaterial(guid: string): ObjectMaterial | null;
+    /** Edits the object's standard material, here and in Python. */
+    setMaterial(guid: string, fields: Partial<ObjectMaterial>): void;
   };
   readonly camera: {
     get(): CameraState;

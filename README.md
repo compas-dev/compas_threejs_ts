@@ -122,8 +122,9 @@ createViewer(container, { plugins: [camera] });
 A plugin owns its tools' behaviour; the viewer only gives primitives. Inside a button,
 `useViewer()` gives the selection, objects (hide, pickable, commit a transform), the
 camera (get, set, view presets), the theme and image capture; `viewer.three` goes closer
-to the scene (camera, canvas, objects, overlays, pausing navigation, vetoing picks) for
-interactive tools like a gizmo. `useChannel(name)` sends to and receives from the
+to the scene (camera, canvas, objects, overlays, pointer rays, pausing navigation,
+vetoing picks, taking over input with `beginInteraction`) for interactive tools like a
+gizmo or drawing tools. `useChannel(name)` sends to and receives from the
 plugin's Python half, and `useShortcuts({ key: handler })` binds keys.
 
 A plugin can also add `objectActions` (`{ hide: HideAction }`): components shown in the

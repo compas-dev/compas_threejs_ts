@@ -48,6 +48,22 @@ import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 export type ViewPreset = CameraViewPreset;
 
+/** Pointer handlers for a plugin that takes over input - see `beginInteraction`. */
+export interface InteractionHandlers {
+  onPointerDown?(event: MouseEvent): void;
+  onPointerMove?(event: MouseEvent): void;
+  onKeyDown?(event: KeyboardEvent): void;
+  /** The viewer ended the session (another `beginInteraction`, or dispose). */
+  onInterrupt?(): void;
+}
+
+export interface InteractionSession {
+  /** False once released or interrupted. */
+  readonly active: boolean;
+  /** Gives input back to picking and shortcuts. Idempotent. */
+  release(): void;
+}
+
 /** Where the camera is and what it looks at. */
 export interface CameraState {
   position: { x: number; y: number; z: number };
@@ -106,8 +122,10 @@ export class ViewerRuntime {
   private readonly connection: ViewerConnection;
   private readonly raycaster = new THREE.Raycaster();
   private readonly onResize = () => this.resize();
+  private readonly onPointerMove = (event: MouseEvent) =>
+    this.interaction?.handlers.onPointerMove?.(event);
   private readonly onPointerDown = (event: MouseEvent) =>
-    this.pickFromPointer(event);
+    this.handlePointerDown(event);
   private readonly onKeyDown = (event: KeyboardEvent) =>
     this.handleKeyDown(event);
   private animationFrame: number | null = null;
@@ -132,6 +150,14 @@ export class ViewerRuntime {
   >();
   private readonly overlays = new Set<THREE.Object3D>();
   private navigationPauses = 0;
+  // The plugin session holding pointer/keyboard input, if any (beginInteraction).
+  private interaction: {
+    handlers: InteractionHandlers;
+    active: boolean;
+  } | null = null;
+  private readonly resizeListeners = new Set<
+    (size: { width: number; height: number }) => void
+  >();
   private readonly highlightMaterial = new THREE.MeshStandardMaterial({
     color: "orange",
     emissive: "yellow",
@@ -195,6 +221,7 @@ export class ViewerRuntime {
     container.append(this.renderer.domElement, this.labelRenderer.domElement);
     window.addEventListener("resize", this.onResize);
     this.renderer.domElement.addEventListener("mousedown", this.onPointerDown);
+    this.renderer.domElement.addEventListener("mousemove", this.onPointerMove);
     this.root.addEventListener("keydown", this.onKeyDown);
     if (this.options.defaultLighting) this.addDefaultLighting();
     if ((this.options.mode ?? "embedded") === "websocket") {
@@ -508,6 +535,76 @@ export class ViewerRuntime {
     };
   }
 
+  /** The world-space ray under the pointer, or null while the canvas has no size. */
+  pointerRay(event: { clientX: number; clientY: number }): THREE.Ray | null {
+    const bounds = this.renderer.domElement.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return null;
+    const pointer = new THREE.Vector2(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(pointer, this.camera);
+    return this.raycaster.ray.clone();
+  }
+
+  /** The visible backend objects, with their guids. */
+  visibleObjects(): { guid: string; object: THREE.Object3D }[] {
+    return Array.from(this.geometries)
+      .filter(([, object]) => object.visible)
+      .map(([guid, object]) => ({ guid, object }));
+  }
+
+  viewportSize(): { width: number; height: number } {
+    return this.getDimensions();
+  }
+
+  addResizeListener(
+    listener: (size: { width: number; height: number }) => void,
+  ): () => void {
+    this.resizeListeners.add(listener);
+    return () => {
+      this.resizeListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Hands pointer and keyboard input to a plugin until the session is released: picking,
+   * the viewer's own keys and every plugin's `useShortcuts` stand down, and events go to
+   * `handlers`. Orbiting keeps working. Clears the selection and focuses the canvas (a
+   * session is often started from a toolbar button, which would keep the keys). One
+   * session at a time: beginning another interrupts the current one.
+   */
+  beginInteraction(handlers: InteractionHandlers): InteractionSession {
+    this.interruptInteraction();
+    this.clearPickedObject();
+    this.renderer.domElement.focus({ preventScroll: true });
+    const entry = { handlers, active: true };
+    this.interaction = entry;
+    this.store.interacting.value = true;
+    return {
+      get active() {
+        return entry.active;
+      },
+      release: () => {
+        if (!entry.active) return;
+        entry.active = false;
+        if (this.interaction === entry) {
+          this.interaction = null;
+          this.store.interacting.value = false;
+        }
+      },
+    };
+  }
+
+  private interruptInteraction(): void {
+    const current = this.interaction;
+    if (!current) return;
+    current.active = false;
+    this.interaction = null;
+    this.store.interacting.value = false;
+    current.handlers.onInterrupt?.();
+  }
+
   /** Stops camera navigation until every pause is released (e.g. during a gizmo drag). */
   pauseNavigation(): () => void {
     this.navigationPauses += 1;
@@ -548,6 +645,7 @@ export class ViewerRuntime {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
     this.labelRenderer.setSize(width, height);
+    this.resizeListeners.forEach((listener) => listener({ width, height }));
   }
 
   dispose(): void {
@@ -556,6 +654,12 @@ export class ViewerRuntime {
     this.connection.dispose();
     window.removeEventListener("resize", this.onResize);
     this.root.removeEventListener("keydown", this.onKeyDown);
+    this.renderer.domElement.removeEventListener(
+      "mousemove",
+      this.onPointerMove,
+    );
+    this.interruptInteraction();
+    this.resizeListeners.clear();
     this.renderer.domElement.removeEventListener(
       "mousedown",
       this.onPointerDown,
@@ -884,6 +988,16 @@ export class ViewerRuntime {
       : null;
   }
 
+  private handlePointerDown(event: MouseEvent): void {
+    const interaction = this.interaction;
+    if (!interaction) {
+      this.pickFromPointer(event);
+      return;
+    }
+    this.renderer.domElement.focus({ preventScroll: true });
+    interaction.handlers.onPointerDown?.(event);
+  }
+
   private pickFromPointer(event: MouseEvent): void {
     this.renderer.domElement.focus({ preventScroll: true });
     if (
@@ -982,6 +1096,12 @@ export class ViewerRuntime {
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
+    // A plugin session gets every key, so e.g. Escape ends its tool rather than
+    // clearing a stale pick.
+    if (this.interaction) {
+      this.interaction.handlers.onKeyDown?.(event);
+      return;
+    }
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === "Escape") {
       this.clearPickedObject();

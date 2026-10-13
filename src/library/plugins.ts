@@ -4,9 +4,13 @@ import type * as THREE from "three";
 
 import type {
   CameraState,
+  InteractionHandlers,
+  InteractionSession,
   ViewerRuntime,
   ViewPreset,
 } from "../viewer/viewer_runtime";
+
+export type { InteractionHandlers, InteractionSession };
 
 /** A two-way message channel between a plugin's frontend and its Python half. */
 export interface PluginChannel {
@@ -14,6 +18,14 @@ export interface PluginChannel {
   send(action: string, data?: unknown): boolean;
   /** Calls `handler` with every `action` Python sends; returns an unsubscribe function. */
   on(action: string, handler: (data: unknown) => void): () => void;
+}
+
+/** The editable fields of an object's standard material. */
+export interface ObjectMaterial {
+  /** `#rrggbb` */
+  color: string;
+  metalness: number;
+  roughness: number;
 }
 
 /**
@@ -33,6 +45,23 @@ export interface PluginThree {
   addPickGuard(guard: (event: MouseEvent) => boolean): () => void;
   /** Backend updates of this object wait until released (e.g. during a drag). */
   holdObjectUpdates(guid: string): () => void;
+  /** The world-space ray under the pointer, or null while the canvas has no size. */
+  pointerRay(event: { clientX: number; clientY: number }): THREE.Ray | null;
+  /** The visible backend objects, with their guids (e.g. to snap to them). */
+  objects(): { guid: string; object: THREE.Object3D }[];
+  /** The canvas size in CSS pixels. */
+  viewportSize(): { width: number; height: number };
+  /** Called with the new size whenever the viewer resizes. Returns its removal. */
+  onResize(
+    listener: (size: { width: number; height: number }) => void,
+  ): () => void;
+  /**
+   * Takes over pointer and keyboard input until released, e.g. while a drawing tool
+   * is active: picking, the viewer's keys and every plugin's `useShortcuts` stand
+   * down, the selection is cleared, and events go to `handlers`. Orbiting keeps
+   * working. Beginning another session interrupts this one (`onInterrupt`).
+   */
+  beginInteraction(handlers: InteractionHandlers): InteractionSession;
 }
 
 /** What a plugin can see and do: the viewer's primitives; the tools are the plugins'. */
@@ -43,6 +72,8 @@ export interface PluginViewer {
     readonly pickerEnabled: { value: boolean };
     readonly selectedGuid: { readonly value: string | null };
     readonly theme: { readonly value: "light" | "dark" };
+    /** Whether a plugin holds input (`three.beginInteraction`). */
+    readonly interacting: { readonly value: boolean };
   };
   readonly selection: {
     clear(): void;
@@ -57,6 +88,10 @@ export interface PluginViewer {
     setPickable(guid: string, pickable: boolean): void;
     /** Tells Python the object moved by `matrix`, a row-major 4x4 delta. */
     commitTransform(guid: string, matrix: number[][]): void;
+    /** The object's standard material, or null if it has none. */
+    getMaterial(guid: string): ObjectMaterial | null;
+    /** Edits the object's standard material, here and in Python. */
+    setMaterial(guid: string, fields: Partial<ObjectMaterial>): void;
   };
   readonly camera: {
     get(): CameraState;
@@ -148,10 +183,15 @@ export const pluginViewerKey: InjectionKey<PluginViewer> = Symbol(
 );
 
 export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
-  const { pickerEnabled, pickedObjectGuid, theme } = runtime.store;
+  const { pickerEnabled, pickedObjectGuid, theme, interacting } = runtime.store;
   return {
     root: runtime.root,
-    state: { pickerEnabled, selectedGuid: pickedObjectGuid, theme },
+    state: {
+      pickerEnabled,
+      selectedGuid: pickedObjectGuid,
+      theme,
+      interacting,
+    },
     selection: {
       clear: () => runtime.deselectObject(),
       onChange: (listener) => runtime.onSelectionChange(listener),
@@ -166,6 +206,8 @@ export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
         runtime.setObjectPickable(guid, pickable),
       commitTransform: (guid, matrix) =>
         runtime.commitObjectTransform(guid, matrix),
+      getMaterial: (guid) => runtime.getMaterialSnapshot(guid),
+      setMaterial: (guid, fields) => runtime.setMaterial(guid, fields),
     },
     camera: {
       get: () => runtime.getCamera(),
@@ -186,6 +228,11 @@ export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
       pauseNavigation: () => runtime.pauseNavigation(),
       addPickGuard: (guard) => runtime.addPickGuard(guard),
       holdObjectUpdates: (guid) => runtime.holdObjectUpdates(guid),
+      pointerRay: (event) => runtime.pointerRay(event),
+      objects: () => runtime.visibleObjects(),
+      viewportSize: () => runtime.viewportSize(),
+      onResize: (listener) => runtime.addResizeListener(listener),
+      beginInteraction: (handlers) => runtime.beginInteraction(handlers),
     },
   };
 }
@@ -230,10 +277,12 @@ function ignoresShortcuts(event: KeyboardEvent): boolean {
 export function useShortcuts(
   shortcuts: Record<string, (event: KeyboardEvent) => void>,
 ): void {
-  const { root } = useViewer();
+  const { root, state } = useViewer();
   const button = inject(buttonStateKey, null);
   const onKeyDown = (event: KeyboardEvent) => {
     if (ignoresShortcuts(event) || button?.enabled === false) return;
+    // A plugin holding input (e.g. a drawing tool) gets the keys instead.
+    if (state.interacting.value) return;
     const handler = shortcuts[event.key.toLowerCase()];
     if (!handler) return;
     event.preventDefault();
