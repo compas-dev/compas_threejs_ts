@@ -5,7 +5,15 @@ import prettier from "eslint-config-prettier";
 
 export default [
   {
-    ignores: ["node_modules/", "dist/", "dist-lib/", "build/", "coverage/"],
+    ignores: [
+      "node_modules/",
+      "dist/",
+      "dist-lib/",
+      "build/",
+      "coverage/",
+      "playwright-report/",
+      "test-results/",
+    ],
   },
   js.configs.recommended,
   ...ts.configs.recommended,

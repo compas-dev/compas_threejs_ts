@@ -101,12 +101,43 @@ export function meshFaceListToThreeJS(_faceList: MeshFaceList): THREE.Mesh {
 }
 
 /**
+ * Re-center a geometry on its own bounding-box middle and return that
+ * midpoint.
+ *
+ * `mesh.vertices`/`polyhedron.vertices` arrive as absolute world
+ * coordinates, and get written into the BufferGeometry as-is - so without
+ * this step, the returned THREE.Mesh's own `.position` stays at the world
+ * origin no matter where the mesh actually sits. That's invisible for
+ * rendering (the geometry itself is already in the right place), but it
+ * breaks anything that reads `.position`/`matrixWorld` instead of the
+ * geometry - notably `TransformControls.attach`, which plants the transform
+ * gizmo at the object's origin, not at its visual center. Translating the
+ * geometry by `-center` and setting `mesh.position = center` keeps every
+ * rendered vertex in exactly the same world position while giving the
+ * object an origin a gizmo (or anything else keyed off object position)
+ * finds where the mesh actually is.
+ *
+ * @param geometry - geometry already populated with absolute-coordinate positions
+ * @returns the world-space center the geometry was translated by
+ */
+function centerGeometry(geometry: THREE.BufferGeometry): THREE.Vector3 {
+  geometry.computeBoundingBox();
+  const center = new THREE.Vector3();
+  geometry.boundingBox?.getCenter(center);
+  geometry.translate(-center.x, -center.y, -center.z);
+  return center;
+}
+
+/**
  * Convert a COMPAS Mesh object to a THREE.Mesh.
  *
  * The conversion:
  * - Creates a BufferGeometry and fills its "position" attribute from mesh.vertices.
  * - Triangulates polygonal faces using a simple fan triangulation (indices: 0,i,i+1).
  * - Sets the index buffer and computes vertex normals.
+ * - Re-centers the geometry on its bounding-box middle and moves that offset onto
+ *   `mesh.position` (see `centerGeometry`), so the returned object's own origin -
+ *   not just its rendered geometry - sits where the mesh visually is.
  * - Creates a MeshStandardMaterial with a default blue color and flat shading.
  *
  * Limitations:
@@ -128,6 +159,8 @@ export function meshToThreeJS(mesh: Mesh): THREE.Mesh {
   geometry.setIndex(indices);
   geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
 
+  const center = centerGeometry(geometry);
+
   // Compute normals for shading
   geometry.computeVertexNormals();
 
@@ -139,13 +172,17 @@ export function meshToThreeJS(mesh: Mesh): THREE.Mesh {
   });
 
   // Create and return the THREE.js Mesh
-  return new THREE.Mesh(geometry, material);
+  const result = new THREE.Mesh(geometry, material);
+  result.position.copy(center);
+  return result;
 }
 
 /**
  * Convert a COMPAS Polyhedron object to a THREE.Mesh.
  *
- * Similar to meshToThreeJS but reads faces from `face.vertexIndices` and uses a default green material.
+ * Similar to meshToThreeJS but reads faces from `face.vertexIndices` and uses a default
+ * green material. Also re-centers the geometry and moves the offset onto `mesh.position`,
+ * for the same reason as `meshToThreeJS` - see `centerGeometry`.
  *
  * @param polyhedron - Polyhedron protobuf object to convert
  * @returns THREE.Mesh representing the polyhedron
@@ -162,6 +199,8 @@ export function polyhedronToThreeJS(polyhedron: Polyhedron): THREE.Mesh {
   geometry.setIndex(indices);
   geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
 
+  const center = centerGeometry(geometry);
+
   geometry.computeVertexNormals();
 
   const material = new THREE.MeshStandardMaterial({
@@ -170,5 +209,6 @@ export function polyhedronToThreeJS(polyhedron: Polyhedron): THREE.Mesh {
   });
 
   const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(center);
   return mesh;
 }
