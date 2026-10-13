@@ -111,30 +111,38 @@ export class ViewerConnection {
   private drain(): void {
     this.drainHandle = null;
     const deadline = performance.now() + FRAME_BUDGET_MS;
-    while (this.inboxHead < this.inbox.length && performance.now() < deadline) {
-      const message = this.inbox[this.inboxHead]!;
-      // Advance past this message BEFORE dispatching it, and catch a throw from
-      // dispatch() itself - one malformed/unsupported message must never silently
-      // strand every message queued after it (which would otherwise happen here: an
-      // uncaught throw exits this loop without rescheduling, so the drain simply never
-      // resumes). options.dispatch already reports most failures through its own
-      // onError callback instead of throwing, but this is the difference between one
-      // skipped message and the rest of a large model - including a final "stop
-      // loading" message - never arriving at all.
-      this.inboxHead += 1;
-      try {
-        this.options.dispatch(message);
-      } catch (error) {
-        this.options.onError(
-          error instanceof Error ? error : new Error(String(error)),
-        );
+    // The finally block makes sure that whatever ends this slice - the budget, an
+    // empty inbox, or something throwing out of the loop (e.g. onError itself) - the
+    // drain either resets the inbox or reschedules for the next frame. Without it, a
+    // throw would leave messages queued with no drain pending, so the rest of a large
+    // model - including a final "stop loading" message - would never arrive.
+    try {
+      while (
+        this.inboxHead < this.inbox.length &&
+        performance.now() < deadline
+      ) {
+        const message = this.inbox[this.inboxHead]!;
+        // Advance past this message BEFORE dispatching it, and catch a throw from
+        // dispatch() itself - one malformed/unsupported message is skipped and
+        // reported, rather than retried forever or ending the slice early.
+        // options.dispatch already reports most failures through its own onError
+        // callback instead of throwing.
+        this.inboxHead += 1;
+        try {
+          this.options.dispatch(message);
+        } catch (error) {
+          this.options.onError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
       }
-    }
-    if (this.inboxHead >= this.inbox.length) {
-      this.inbox.length = 0;
-      this.inboxHead = 0;
-    } else {
-      this.scheduleDrain();
+    } finally {
+      if (this.inboxHead >= this.inbox.length) {
+        this.inbox.length = 0;
+        this.inboxHead = 0;
+      } else {
+        this.scheduleDrain();
+      }
     }
   }
 

@@ -105,6 +105,31 @@ describe("ViewerConnection message batching", () => {
     expect(dispatched.map((message) => message[0])).toEqual([0, 1, 2, 3, 4]);
   });
 
+  it("keeps draining on the next frame if onError throws while reporting a failed dispatch", () => {
+    const dispatched: Uint8Array[] = [];
+    const connection = new ViewerConnection({
+      dispatch: (message) => {
+        if (message[0] === 0) throw new Error("bad message");
+        dispatched.push(message);
+      },
+      onError: () => {
+        throw new Error("onError failed too");
+      },
+    });
+    connection.start();
+    const socket = sockets[0]!;
+    for (let i = 0; i < 3; i++) {
+      socket.onmessage?.({ data: bytes(i).buffer } as MessageEvent);
+    }
+
+    expect(() => flushOneFrame()).toThrow("onError failed too");
+    // The throw ended the slice early, but a follow-up frame is still scheduled.
+    expect(rafCallbacks).toHaveLength(1);
+
+    flushOneFrame();
+    expect(dispatched.map((message) => message[0])).toEqual([1, 2]);
+  });
+
   it("dispose() cancels a pending drain and drops whatever was still queued", () => {
     const dispatched: Uint8Array[] = [];
     const connection = new ViewerConnection({
