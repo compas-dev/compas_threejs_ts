@@ -290,6 +290,61 @@ describe("createViewer", () => {
     expect(registeredDispose).toHaveBeenCalledOnce();
   });
 
+  it("keeps a material edit on a picked object after it is deselected", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    vi.spyOn(
+      runtime.renderer.domElement,
+      "getBoundingClientRect",
+    ).mockReturnValue({ left: 0, top: 0, width: 800, height: 600 } as DOMRect);
+    // A backend object without a material of its own, like `add_geometry(box)`.
+    runtime.dispatch(boxBytes("plain-box"));
+    const box = runtime.geometries.get("plain-box") as THREE.Mesh;
+    const internals = runtime as unknown as {
+      dispatchObject(object: unknown): void;
+      pickFromPointer(event: MouseEvent): void;
+      clearPickedObject(): void;
+    };
+    internals.pickFromPointer(
+      new MouseEvent("mousedown", { clientX: 400, clientY: 300, button: 0 }),
+    );
+    expect(runtime.store.pickedObjectGuid.value).toBe("plain-box");
+
+    // The backend's echo of a material edit arrives while the box is picked.
+    internals.dispatchObject({
+      dispatch: "material",
+      type: "standard_material",
+      guid: "edited-material",
+      geometry_guid: "plain-box",
+      color: "#00ff00",
+      metalness: 0,
+      roughness: 1,
+      emissive: "#000000",
+      emissive_intensity: 0,
+      flat_shading: false,
+      wireframe: false,
+      transparent: false,
+      opacity: 1,
+    });
+    const shown = () =>
+      `#${(box.material as THREE.MeshStandardMaterial).color.getHexString()}`;
+    expect(shown()).toBe("#00ff00");
+
+    internals.clearPickedObject();
+    expect(shown()).toBe("#00ff00");
+
+    // A local edit shows at once too, instead of hiding under the highlight.
+    internals.pickFromPointer(
+      new MouseEvent("mousedown", { clientX: 400, clientY: 300, button: 0 }),
+    );
+    runtime.setMaterial("plain-box", { color: "#0000ff" });
+    expect(shown()).toBe("#0000ff");
+
+    runtime.dispose();
+  });
+
   it("renders geometry without an external GUID", () => {
     const container = document.createElement("div");
     document.body.append(container);
