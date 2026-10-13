@@ -378,7 +378,15 @@ export interface SpinnerCommand extends CommandRecord {
   message?: string | null;
 }
 
+export interface PluginCommand extends CommandRecord {
+  dispatch: "plugin";
+  plugin: string;
+  action: string;
+  data?: unknown;
+}
+
 export type ViewerCommand =
+  | PluginCommand
   | MaterialCommand
   | LightCommand
   | SceneCommand
@@ -480,6 +488,10 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
     case "spinner":
       validateSpinner(record);
       return record as SpinnerCommand;
+    case "plugin":
+      readNonEmptyString(record, "plugin");
+      readNonEmptyString(record, "action");
+      return record as PluginCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",

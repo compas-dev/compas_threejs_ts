@@ -9,6 +9,7 @@ import { lightToThree } from "../conversions/lights";
 import { materialToThree } from "../conversions/material";
 import { asCompasViewerError, CompasViewerError } from "../library/errors";
 import type { CompasViewerOptions } from "../library/types";
+import type { ViewerPlugin } from "../library/plugins";
 import {
   parseViewerCommand,
   readGeometryGuid,
@@ -102,6 +103,7 @@ export class ViewerRuntime {
   readonly labelRenderer = new CSS2DRenderer();
   readonly controls: OrbitControls;
   readonly geometries = new Map<string, THREE.Object3D>();
+  readonly plugins: readonly ViewerPlugin[];
 
   private readonly materials = new Map<string, MaterialEntry>();
   private readonly geometryMaterials = new Map<string, string>();
@@ -129,6 +131,10 @@ export class ViewerRuntime {
   private pickedObject: THREE.Object3D | null = null;
   private pickedMaterial: THREE.Material | THREE.Material[] | null = null;
   private readonly hiddenGuids = new Set<string>();
+  private readonly pluginHandlers = new Map<
+    string,
+    Set<(data: unknown) => void>
+  >();
   private dragStartMatrix: THREE.Matrix4 | null = null;
   private readonly highlightMaterial = new THREE.MeshStandardMaterial({
     color: "orange",
@@ -140,6 +146,7 @@ export class ViewerRuntime {
     readonly root: HTMLElement,
     private readonly options: CompasViewerOptions,
   ) {
+    this.plugins = options.plugins ?? [];
     const { width, height } = this.getDimensions();
     this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     this.camera.up.set(0, 0, 1);
@@ -281,6 +288,34 @@ export class ViewerRuntime {
       action,
       value: value ?? null,
     });
+  }
+
+  /** Sends `data` to the backend half of `plugin`, as its `action`. */
+  sendToPlugin(plugin: string, action: string, data?: unknown): boolean {
+    return this.sendData({
+      dispatch: "plugin",
+      plugin,
+      action,
+      data: data ?? null,
+    });
+  }
+
+  /** Calls `handler` with the data of every `action` the backend sends to `plugin`. */
+  onPluginMessage(
+    plugin: string,
+    action: string,
+    handler: (data: unknown) => void,
+  ): () => void {
+    const key = `${plugin}/${action}`;
+    let handlers = this.pluginHandlers.get(key);
+    if (!handlers) {
+      handlers = new Set();
+      this.pluginHandlers.set(key, handlers);
+    }
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+    };
   }
 
   handleObjectAction(action: Record<string, unknown>, value?: unknown): void {
@@ -570,6 +605,11 @@ export class ViewerRuntime {
         break;
       case "spinner":
         this.manageSpinner(data);
+        break;
+      case "plugin":
+        this.pluginHandlers
+          .get(`${data.plugin}/${data.action}`)
+          ?.forEach((handler) => handler(data.data ?? null));
         break;
     }
   }

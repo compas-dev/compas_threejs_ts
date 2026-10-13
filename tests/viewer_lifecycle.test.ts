@@ -6,7 +6,7 @@ import {
   pbDumpBytes,
   Quaternion,
 } from "@gramaziokohler/compas-pb-ts";
-import { nextTick } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("three", async () => {
@@ -31,7 +31,13 @@ vi.mock("three", async () => {
   return { ...actual, WebGLRenderer };
 });
 
-import { CompasViewerError, createViewer } from "../src/library";
+import {
+  CompasViewerError,
+  createViewer,
+  definePlugin,
+  useShortcuts,
+  useViewer,
+} from "../src/library";
 import { ViewerRuntime } from "../src/viewer/viewer_runtime";
 import * as THREE from "three";
 
@@ -170,11 +176,23 @@ describe("createViewer", () => {
     const firstRoot = document.createElement("div");
     const secondRoot = document.createElement("div");
     document.body.append(firstRoot, secondRoot);
+    const darkMode = definePlugin({
+      name: "dark_mode",
+      buttons: [
+        defineComponent(() => {
+          const viewer = useViewer();
+          useShortcuts({ d: () => viewer.toggleTheme() });
+          return () => h("button");
+        }),
+      ],
+    });
     const first = createViewer(firstRoot, {
       mode: "embedded",
+      plugins: [darkMode],
     });
     const second = createViewer(secondRoot, {
       mode: "embedded",
+      plugins: [darkMode],
     });
     viewers.push(first, second);
 

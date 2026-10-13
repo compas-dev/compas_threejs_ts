@@ -1,27 +1,39 @@
 <template>
-  <div ref="toolbarElement" class="toolbar theme" id="toolbar">
+  <div
+    v-if="groups.length"
+    ref="toolbarElement"
+    class="toolbar theme"
+    id="toolbar"
+  >
     <h1 class="text-lg font-bold" :class="{ dark: theme.value === 'dark' }">
       COMPAS ThreeJs
     </h1>
-    <TransformGroup />
-    <AddObjectGroup />
-    <ViewGroup />
-    <DisplayGroup />
+    <div
+      v-for="plugin in groups"
+      :key="plugin.name"
+      class="toolbar-group"
+      :data-plugin="plugin.name"
+    >
+      <component
+        :is="button"
+        v-for="(button, index) in plugin.buttons"
+        :key="index"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import TransformGroup from "@/components/tools/transforms/TransformGroup.vue";
-import AddObjectGroup from "@/components/tools/objects/AddObjectGroup.vue";
-import ViewGroup from "@/components/tools/views/ViewGroup.vue";
-import DisplayGroup from "@/components/tools/display/DisplayGroup.vue";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
 
 const toolbarElement = ref<HTMLElement | null>(null);
 const { isHovered } = useHover(toolbarElement);
-const { theme, blockPicker } = useViewerRuntime().store;
+const runtime = useViewerRuntime();
+const { theme, blockPicker } = runtime.store;
+// One row per plugin that has buttons, in the order the plugins were given.
+const groups = runtime.plugins.filter((plugin) => plugin.buttons?.length);
 
 watchEffect(() => {
   blockPicker.value = isHovered.value;
@@ -43,28 +55,10 @@ watchEffect(() => {
   pointer-events: auto;
 }
 
-:deep(.toolbar-group) {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  padding-right: 6px;
-}
-
-:deep(.button-icon) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  transform-origin: center;
-}
-
-:deep(.button-icon.front-icon) {
-  transform: scale(0.75);
-}
-
-:deep(.display-tools-wrapper) {
-  display: contents;
 }
 
 :deep(Button) {

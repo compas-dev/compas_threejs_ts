@@ -96,3 +96,30 @@ labelled 4×4 grid.
 Maintainers can find the dependency policy in
 [`docs/dependencies.md`](docs/dependencies.md) and the automated release flow in
 [`docs/releasing.md`](docs/releasing.md).
+
+## Plugins
+
+The viewer has no toolbar of its own: plugins add it, one row each.
+
+```ts
+import { createViewer, definePlugin } from "@compas-dev/compas-threejs-ts";
+import SaveViewButton from "./SaveViewButton.vue";
+
+const camera = definePlugin({
+  name: "camera",
+  buttons: [SaveViewButton], // Vue components, in toolbar order
+  setup(viewer) {}, // optional; may return a cleanup
+});
+
+createViewer(container, { plugins: [camera] });
+```
+
+Inside a button, `useViewer()` gives the viewer (views, gizmo mode, screenshots, ...),
+`useChannel(name)` sends to and receives from the plugin's Python half, and
+`useShortcuts({ key: handler })` binds keys. `ToolbarButton`, `Button`, `Popover`,
+`Tooltip`, ... make buttons look like the viewer's own.
+
+The page the Python `App` serves loads its plugins at runtime from `plugins.json`. It
+maps `vue`, `three` and `@compas-dev/compas-threejs-ts` with an import map, so a plugin is
+built with those three left external and shares the page's copies. See
+[compas_threejs_plugins](https://github.com/compas-dev/compas_threejs_plugins).
