@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.4.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.3.0...v1.4.0) (2026-10-13)
+
+
+### Features
+
+* **viewer:** add backend-declared toolbar dispatch, store, and validation ([b74d053](https://github.com/compas-dev/compas_threejs_ts/commit/b74d0532825f937ef8f53acbd0933bed88ddba74))
+* **viewer:** render the backend-declared toolbar generically ([d89be52](https://github.com/compas-dev/compas_threejs_ts/commit/d89be523929a2cc3e51406d5e6ae29e80a99e739))
+
+
+### Bug Fixes
+
+* **ci:** pass shell: true so test:package can spawn npm.cmd on Windows ([70a55db](https://github.com/compas-dev/compas_threejs_ts/commit/70a55db213668253d19bb96afbb3c9b4520c29db))
+* **conversions:** re-center mesh/polyhedron geometry so TransformControls attaches at the visual center ([71e4d1c](https://github.com/compas-dev/compas_threejs_ts/commit/71e4d1ce252f0f063b88a4b5abb0a302e2db45d2))
+* **conversions:** re-center mesh/polyhedron geometry so TransformControls attaches at the visual center ([54079dd](https://github.com/compas-dev/compas_threejs_ts/commit/54079dd6de17930e1c46306a323b834a4e06c65f))
+* **deps:** bump vue to 3.5.44 and source-map-js to 1.2.2 ([9829e25](https://github.com/compas-dev/compas_threejs_ts/commit/9829e251b99bb12afa8a368047db898ed771856c))
+* **lint:** exclude playwright-report/ and test-results/ from eslint ([7a72662](https://github.com/compas-dev/compas_threejs_ts/commit/7a7266208e0cea4eb6d24fc13e17190f38b583c7))
+* **viewer:** always reschedule or reset the drain, even if the loop throws ([64a901e](https://github.com/compas-dev/compas_threejs_ts/commit/64a901e885c6b82b7eead1b4cea2489a2c0db241))
+* **viewer:** drain WebSocket messages in frame-budgeted slices, not all at once ([07555d1](https://github.com/compas-dev/compas_threejs_ts/commit/07555d1ff9fd4b88d822507330c26cfcab0ead71))
+
+
+### Reverts
+
+* back out toolbar-schema work that was pushed to main by mistake ([cacb394](https://github.com/compas-dev/compas_threejs_ts/commit/cacb39404ae18628b7e0842a194ed1c8c7dc801e))
+
 ## [1.3.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.2.1...v1.3.0) (2026-09-07)
 
 
