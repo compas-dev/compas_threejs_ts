@@ -99,7 +99,7 @@ Maintainers can find the dependency policy in
 
 ## Plugins
 
-The viewer has no toolbar of its own: plugins add it, one row each.
+The viewer has no toolbar of its own: plugins add it, each in a section of its own.
 
 ```ts
 import { createViewer, definePlugin } from "@compas-dev/compas-threejs-ts";
@@ -107,6 +107,7 @@ import SaveViewButton from "./SaveViewButton.vue";
 
 const camera = definePlugin({
   name: "camera",
+  title: "Camera", // optional, shown above the section
   buttons: [SaveViewButton], // Vue components, in toolbar order
   setup(viewer) {}, // optional; may return a cleanup
 });

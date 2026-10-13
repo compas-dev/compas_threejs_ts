@@ -40,11 +40,13 @@ export interface PluginViewer {
 }
 
 /**
- * A viewer plugin: toolbar buttons (each a Vue component, shown in this order) and an
+ * A viewer plugin: a toolbar section of buttons (each a Vue component, shown in this order) and an
  * optional `setup`, run once before the viewer mounts; it may return a cleanup.
  */
 export interface ViewerPlugin {
   name: string;
+  /** Shown above the plugin's buttons, which get a toolbar section of their own. */
+  title?: string;
   buttons?: Component[];
   setup?(viewer: PluginViewer): void | (() => void);
 }

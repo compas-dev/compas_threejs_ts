@@ -66,20 +66,32 @@ describe("plugins", () => {
     expect(root.querySelector("#toolbar")).toBeNull();
   });
 
-  it("shows one toolbar row per plugin, buttons in order", () => {
+  it("gives each plugin its own toolbar section, buttons in order", () => {
     const { root } = mount({
       plugins: [
-        definePlugin({ name: "a", buttons: [button("a1"), button("a2")] }),
+        definePlugin({
+          name: "a",
+          title: "First",
+          buttons: [button("a1"), button("a2")],
+        }),
         definePlugin({ name: "empty" }),
         definePlugin({ name: "b", buttons: [button("b1")] }),
       ],
     });
-    const rows = [...root.querySelectorAll(".toolbar-group")];
-    expect(rows.map((row) => row.getAttribute("data-plugin"))).toEqual([
-      "a",
-      "b",
-    ]);
-    expect(rows.map((row) => row.textContent)).toEqual(["a1a2", "b1"]);
+    const sections = [...root.querySelectorAll(".toolbar-section")];
+    expect(
+      sections.map((section) => section.getAttribute("data-plugin")),
+    ).toEqual(["a", "b"]);
+    expect(
+      sections.map((section) =>
+        section.querySelector("h2")?.textContent?.trim(),
+      ),
+    ).toEqual(["First", undefined]);
+    expect(
+      sections.map(
+        (section) => section.querySelector(".toolbar-group")?.textContent,
+      ),
+    ).toEqual(["a1a2", "b1"]);
   });
 
   it("runs setup before mounting and its cleanup on dispose", () => {
