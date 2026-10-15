@@ -29,6 +29,7 @@ import {
   useShortcuts,
   type CompasViewerOptions,
   type PluginChannel,
+  type PluginViewer,
 } from "../src/library";
 
 const viewers: Array<{ dispose(): void }> = [];
@@ -317,6 +318,21 @@ describe("plugins", () => {
     expect(() =>
       mount({ plugins: [{ name: "a" }, { name: "a" }] }),
     ).toThrowError(/Two plugins are named "a"/);
+  });
+
+  it("knows its workspace and gives the URL of another", () => {
+    window.history.replaceState(null, "", "/?ws_port=9001&workspace=beam");
+    let seen: PluginViewer | undefined;
+    mount({
+      plugins: [
+        definePlugin({ name: "a", setup: (viewer) => void (seen = viewer) }),
+      ],
+    });
+    expect(seen?.workspace).toBe("beam");
+    const url = new URL(seen?.workspaceUrl("column 2") ?? "");
+    expect(url.searchParams.get("workspace")).toBe("column 2");
+    expect(url.searchParams.get("ws_port")).toBe("9001");
+    window.history.replaceState(null, "", "/");
   });
 
   it("sends and receives plugin messages through the channel", async () => {

@@ -67,6 +67,14 @@ export interface PluginThree {
 /** What a plugin can see and do: the viewer's primitives; the tools are the plugins'. */
 export interface PluginViewer {
   readonly root: HTMLElement;
+  /** The id of the workspace this page shows ("main" unless the URL has `?workspace=`). */
+  readonly workspace: string;
+  /**
+   * This page's URL, showing workspace `id` instead. Open it from a click, e.g.
+   * `window.open(viewer.workspaceUrl(guid))`, while Python fills the workspace - a tab
+   * opened after waiting for Python is blocked as a pop-up.
+   */
+  workspaceUrl(id: string): string;
   /** Reactive state; read `.value`. `pickerEnabled` may also be written. */
   readonly state: {
     readonly pickerEnabled: { value: boolean };
@@ -193,6 +201,12 @@ export function createPluginViewer(runtime: ViewerRuntime): PluginViewer {
     runtime.store;
   return {
     root: runtime.root,
+    workspace: runtime.workspace,
+    workspaceUrl(id) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("workspace", id);
+      return url.href;
+    },
     state: {
       pickerEnabled,
       selectedGuid: pickedObjectGuid,

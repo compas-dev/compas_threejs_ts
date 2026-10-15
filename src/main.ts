@@ -1,3 +1,4 @@
+import { workspaceId } from "./communications/viewer_connection";
 import { createViewer, type ViewerPlugin } from "./library";
 
 interface PluginEntry {
@@ -6,13 +7,14 @@ interface PluginEntry {
   style?: string;
 }
 
-// The Python App lists its plugins in plugins.json; each module's default export is a
+// The Python App lists this workspace's plugins in plugins.json; each module's default export is a
 // ViewerPlugin. Plugins import "vue", "three" and "@compas-dev/compas-threejs-ts"
 // through index.html's import map, so they share this page's copies.
 async function loadPlugins(): Promise<ViewerPlugin[]> {
   let entries: PluginEntry[] = [];
   try {
-    const response = await fetch("plugins.json");
+    const workspace = encodeURIComponent(workspaceId());
+    const response = await fetch(`plugins.json?workspace=${workspace}`);
     if (response.ok) entries = (await response.json()) as PluginEntry[];
   } catch {
     return [];

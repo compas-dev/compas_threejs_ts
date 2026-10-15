@@ -130,6 +130,11 @@ plugin's Python half, and `useShortcuts({ key: handler })` binds keys.
 A plugin can also add `objectActions` (`{ hide: HideAction }`): components shown in the
 FUNCTIONS panel for the selected object.
 
+A page shows one workspace (`viewer.workspace`, from `?workspace=`). A button can open
+another in a new tab with `window.open(viewer.workspaceUrl(id))`: open it from the click,
+and let Python fill the workspace meanwhile - a tab opened after waiting for Python's
+answer is blocked as a pop-up.
+
 The Python half can hide or disable a group or a single button by its id. The viewer
 applies it to any button: a disabled one is greyed out and inert, and its `useShortcuts`
 stand down.
@@ -137,7 +142,8 @@ stand down.
 `ToolbarButton`, `Button`, `Popover`,
 `Tooltip`, ... make buttons look like the viewer's own.
 
-The page the Python `App` serves loads its plugins at runtime from `plugins.json`. It
+The page the Python `App` serves loads its workspace's plugins at runtime from
+`plugins.json?workspace=<id>`. It
 maps `vue`, `three` and `@compas-dev/compas-threejs-ts` with an import map, so a plugin is
 built with those three left external and shares the page's copies. See
-[compas_threejs_plugins](https://github.com/compas-dev/compas_threejs_plugins).
+`compas_threejs_essentials`, `compas_threejs_views` and `compas_threejs_draw`.

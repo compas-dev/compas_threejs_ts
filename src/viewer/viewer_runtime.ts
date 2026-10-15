@@ -1,5 +1,8 @@
 import { decodeMessage } from "../communications/decode";
-import { ViewerConnection } from "../communications/viewer_connection";
+import {
+  ViewerConnection,
+  workspaceId,
+} from "../communications/viewer_connection";
 import {
   convertToThreeJSGeometry,
   matrix4FromRowMajor,
@@ -108,6 +111,8 @@ export class ViewerRuntime {
   readonly controls: OrbitControls;
   readonly geometries = new Map<string, THREE.Object3D>();
   readonly plugins: readonly ViewerPlugin[];
+  /** The workspace this viewer shows. */
+  readonly workspace: string;
 
   private readonly materials = new Map<string, MaterialEntry>();
   private readonly geometryMaterials = new Map<string, string>();
@@ -169,6 +174,7 @@ export class ViewerRuntime {
     private readonly options: CompasViewerOptions,
   ) {
     this.plugins = options.plugins ?? [];
+    this.workspace = workspaceId(options.websocket);
     const { width, height } = this.getDimensions();
     this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     this.camera.up.set(0, 0, 1);
