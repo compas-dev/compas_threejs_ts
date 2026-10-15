@@ -1,5 +1,8 @@
 import { decodeMessage } from "../communications/decode";
-import { ViewerConnection } from "../communications/viewer_connection";
+import {
+  ViewerConnection,
+  workspaceId,
+} from "../communications/viewer_connection";
 import {
   convertToThreeJSGeometry,
   matrix4FromRowMajor,
@@ -9,6 +12,7 @@ import { lightToThree } from "../conversions/lights";
 import { materialToThree } from "../conversions/material";
 import { asCompasViewerError, CompasViewerError } from "../library/errors";
 import type { CompasViewerOptions } from "../library/types";
+import type { ViewerPlugin } from "../library/plugins";
 import {
   parseViewerCommand,
   readGeometryGuid,
@@ -34,7 +38,6 @@ import {
 } from "./viewer_store";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 import {
   FontLoader,
@@ -48,23 +51,28 @@ import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 export type ViewPreset = CameraViewPreset;
 
-export interface SavedView {
-  id: string;
-  name: string;
-  cameraPosition: { x: number; y: number; z: number };
+/** Pointer handlers for a plugin that takes over input - see `beginInteraction`. */
+export interface InteractionHandlers {
+  onPointerDown?(event: MouseEvent): void;
+  onPointerMove?(event: MouseEvent): void;
+  onKeyDown?(event: KeyboardEvent): void;
+  /** The viewer ended the session (another `beginInteraction`, or dispose). */
+  onInterrupt?(): void;
+}
+
+export interface InteractionSession {
+  /** False once released or interrupted. */
+  readonly active: boolean;
+  /** Gives input back to picking and shortcuts. Idempotent. */
+  release(): void;
+}
+
+/** Where the camera is and what it looks at. */
+export interface CameraState {
+  position: { x: number; y: number; z: number };
   target: { x: number; y: number; z: number };
   zoom: number;
   fov: number;
-}
-
-export type ScreenshotFormat = "png" | "jpg" | "webp";
-
-export interface ScreenshotOptions {
-  width?: number;
-  height?: number;
-  format?: ScreenshotFormat;
-  fileName?: string;
-  quality?: number;
 }
 
 interface MaterialEntry {
@@ -102,6 +110,9 @@ export class ViewerRuntime {
   readonly labelRenderer = new CSS2DRenderer();
   readonly controls: OrbitControls;
   readonly geometries = new Map<string, THREE.Object3D>();
+  readonly plugins: readonly ViewerPlugin[];
+  /** The workspace this viewer shows. */
+  readonly workspace: string;
 
   private readonly materials = new Map<string, MaterialEntry>();
   private readonly geometryMaterials = new Map<string, string>();
@@ -115,11 +126,11 @@ export class ViewerRuntime {
   private readonly defaultLights: THREE.Light[] = [];
   private readonly connection: ViewerConnection;
   private readonly raycaster = new THREE.Raycaster();
-  private readonly transformControls: TransformControls;
-  private readonly transformHelper: THREE.Object3D;
   private readonly onResize = () => this.resize();
+  private readonly onPointerMove = (event: MouseEvent) =>
+    this.interaction?.handlers.onPointerMove?.(event);
   private readonly onPointerDown = (event: MouseEvent) =>
-    this.pickFromPointer(event);
+    this.handlePointerDown(event);
   private readonly onKeyDown = (event: KeyboardEvent) =>
     this.handleKeyDown(event);
   private animationFrame: number | null = null;
@@ -129,7 +140,29 @@ export class ViewerRuntime {
   private pickedObject: THREE.Object3D | null = null;
   private pickedMaterial: THREE.Material | THREE.Material[] | null = null;
   private readonly hiddenGuids = new Set<string>();
-  private dragStartMatrix: THREE.Matrix4 | null = null;
+  private readonly pluginHandlers = new Map<
+    string,
+    Set<(data: unknown) => void>
+  >();
+  // Plugin hooks: objects that can't be picked (e.g. locked), objects whose backend
+  // updates wait (e.g. while a gizmo drags them), vetoes on picking, selection listeners,
+  // plugin-owned scene objects, and how many plugins paused navigation.
+  private readonly unpickableGuids = new Set<string>();
+  private readonly heldGuids = new Map<string, number>();
+  private readonly pickGuards = new Set<(event: MouseEvent) => boolean>();
+  private readonly selectionListeners = new Set<
+    (guid: string | null) => void
+  >();
+  private readonly overlays = new Set<THREE.Object3D>();
+  private navigationPauses = 0;
+  // The plugin session holding pointer/keyboard input, if any (beginInteraction).
+  private interaction: {
+    handlers: InteractionHandlers;
+    active: boolean;
+  } | null = null;
+  private readonly resizeListeners = new Set<
+    (size: { width: number; height: number }) => void
+  >();
   private readonly highlightMaterial = new THREE.MeshStandardMaterial({
     color: "orange",
     emissive: "yellow",
@@ -140,6 +173,8 @@ export class ViewerRuntime {
     readonly root: HTMLElement,
     private readonly options: CompasViewerOptions,
   ) {
+    this.plugins = options.plugins ?? [];
+    this.workspace = workspaceId(options.websocket);
     const { width, height } = this.getDimensions();
     this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     this.camera.up.set(0, 0, 1);
@@ -162,28 +197,6 @@ export class ViewerRuntime {
       MIDDLE: null,
       RIGHT: THREE.MOUSE.ROTATE,
     };
-    this.transformControls = new TransformControls(
-      this.camera,
-      this.renderer.domElement,
-    );
-    this.transformHelper = this.transformControls.getHelper();
-    this.transformControls.addEventListener("dragging-changed", (event) => {
-      this.controls.enabled = !event.value;
-      if (event.value) {
-        // Capture the object's world matrix as it stood right before this drag, so the
-        // delta sent to the backend on release is relative to it - NOT relative to
-        // identity. Conversion bakes each object's frame into its own position/quaternion
-        // (via THREE.Object3D.applyMatrix4, which decomposes into position/quaternion/
-        // scale rather than baking into vertex data), so a freshly-built object already
-        // sits at its absolute world placement, not at the origin.
-        this.dragStartMatrix =
-          this.transformControls.object?.matrix.clone() ?? null;
-      }
-    });
-    this.transformControls.addEventListener("mouseUp", () => {
-      this.sendObjectTransform();
-    });
-    this.scene.add(this.transformHelper);
 
     this.labelRenderer.domElement.style.position = "absolute";
     this.labelRenderer.domElement.style.inset = "0";
@@ -214,6 +227,7 @@ export class ViewerRuntime {
     container.append(this.renderer.domElement, this.labelRenderer.domElement);
     window.addEventListener("resize", this.onResize);
     this.renderer.domElement.addEventListener("mousedown", this.onPointerDown);
+    this.renderer.domElement.addEventListener("mousemove", this.onPointerMove);
     this.root.addEventListener("keydown", this.onKeyDown);
     if (this.options.defaultLighting) this.addDefaultLighting();
     if ((this.options.mode ?? "embedded") === "websocket") {
@@ -281,6 +295,34 @@ export class ViewerRuntime {
       action,
       value: value ?? null,
     });
+  }
+
+  /** Sends `data` to the backend half of `plugin`, as its `action`. */
+  sendToPlugin(plugin: string, action: string, data?: unknown): boolean {
+    return this.sendData({
+      dispatch: "plugin",
+      plugin,
+      action,
+      data: data ?? null,
+    });
+  }
+
+  /** Calls `handler` with the data of every `action` the backend sends to `plugin`. */
+  onPluginMessage(
+    plugin: string,
+    action: string,
+    handler: (data: unknown) => void,
+  ): () => void {
+    const key = `${plugin}/${action}`;
+    let handlers = this.pluginHandlers.get(key);
+    if (!handlers) {
+      handlers = new Set();
+      this.pluginHandlers.set(key, handlers);
+    }
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+    };
   }
 
   handleObjectAction(action: Record<string, unknown>, value?: unknown): void {
@@ -380,11 +422,6 @@ export class ViewerRuntime {
     this.clearPickedObject();
   }
 
-  setTransformMode(mode: "translate" | "rotate" | "scale"): void {
-    this.store.pickerMode.value = mode;
-    this.transformControls.setMode(mode);
-  }
-
   toggleTheme(): void {
     this.applyTheme(this.store.theme.value === "dark" ? "light" : "dark");
   }
@@ -398,60 +435,193 @@ export class ViewerRuntime {
     this.controls.update();
   }
 
-  captureCurrentView(name: string): SavedView {
+  getCamera(): CameraState {
     return {
-      id: `view-${Date.now()}`,
-      name,
-      cameraPosition: this.vectorData(this.camera.position),
+      position: this.vectorData(this.camera.position),
       target: this.vectorData(this.controls.target),
       zoom: this.camera.zoom,
       fov: this.camera.fov,
     };
   }
 
-  applySavedView(view: SavedView): void {
-    this.camera.position.set(
-      view.cameraPosition.x,
-      view.cameraPosition.y,
-      view.cameraPosition.z,
-    );
-    this.controls.target.set(view.target.x, view.target.y, view.target.z);
-    this.camera.zoom = view.zoom;
-    this.camera.fov = view.fov;
+  setCamera(state: Partial<CameraState>): void {
+    const { position, target } = state;
+    if (position) this.camera.position.set(position.x, position.y, position.z);
+    if (target) this.controls.target.set(target.x, target.y, target.z);
+    if (state.zoom !== undefined) this.camera.zoom = state.zoom;
+    if (state.fov !== undefined) this.camera.fov = state.fov;
     this.camera.updateProjectionMatrix();
     this.controls.update();
   }
 
-  saveCurrentCanvasImage(options: ScreenshotOptions = {}): void {
-    const format = options.format ?? "png";
-    const mimeType = format === "jpg" ? "image/jpeg" : `image/${format}`;
-    const extension = format;
-    const width = Math.max(
-      16,
-      Math.round(options.width ?? this.renderer.domElement.width),
-    );
-    const height = Math.max(
-      16,
-      Math.round(options.height ?? this.renderer.domElement.height),
-    );
+  /** Renders the current view into a new canvas of this size (default: the viewport's). */
+  captureImage(
+    options: { width?: number; height?: number } = {},
+  ): HTMLCanvasElement {
+    const source = this.renderer.domElement;
+    const width = Math.max(16, Math.round(options.width ?? source.width));
+    const height = Math.max(16, Math.round(options.height ?? source.height));
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
-
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("Unable to create screenshot canvas context");
-    if (format === "jpg") {
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, width, height);
+    if (!context) throw new Error("Unable to create an image canvas context");
+    context.drawImage(source, 0, 0, width, height);
+    return canvas;
+  }
+
+  setTheme(mode: "light" | "dark"): void {
+    this.applyTheme(mode);
+  }
+
+  /** The scene object of a backend geometry, by guid. */
+  object(guid: string): THREE.Object3D | undefined {
+    return this.geometries.get(guid);
+  }
+
+  /** Whether clicking can pick this object (false while locked, say); unpicking a picked one deselects it. */
+  setObjectPickable(guid: string, pickable: boolean): void {
+    if (pickable) {
+      this.unpickableGuids.delete(guid);
+      return;
     }
-    context.drawImage(this.renderer.domElement, 0, 0, width, height);
-    const link = document.createElement("a");
-    link.download =
-      options.fileName ?? `compas-view-${Date.now()}.${extension}`;
-    link.href = canvas.toDataURL(mimeType, options.quality);
-    link.click();
+    this.unpickableGuids.add(guid);
+    if (this.store.pickedObjectGuid.value === guid) this.clearPickedObject();
+  }
+
+  /**
+   * Tells the backend that the object moved by `matrix`: a row-major 4x4 delta from where
+   * it was, as `compas.geometry.Transformation.from_matrix` expects.
+   */
+  commitObjectTransform(guid: string, matrix: number[][]): void {
+    this.sendData({ dispatch: "object_transform", guid, matrix });
+  }
+
+  /**
+   * Keeps backend updates of this object from rebuilding or moving it until released -
+   * e.g. while a gizmo drags it, so an App.loop updating it doesn't fight the drag.
+   */
+  holdObjectUpdates(guid: string): () => void {
+    this.heldGuids.set(guid, (this.heldGuids.get(guid) ?? 0) + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const count = (this.heldGuids.get(guid) ?? 1) - 1;
+      if (count > 0) this.heldGuids.set(guid, count);
+      else this.heldGuids.delete(guid);
+    };
+  }
+
+  /** Calls `listener` with the picked guid (or null) when it changes, or its object is rebuilt. */
+  onSelectionChange(listener: (guid: string | null) => void): () => void {
+    this.selectionListeners.add(listener);
+    return () => {
+      this.selectionListeners.delete(listener);
+    };
+  }
+
+  /** A click picks nothing while `guard` returns true (e.g. with a gizmo handle under the pointer). */
+  addPickGuard(guard: (event: MouseEvent) => boolean): () => void {
+    this.pickGuards.add(guard);
+    return () => {
+      this.pickGuards.delete(guard);
+    };
+  }
+
+  /** Adds a plugin-owned object to the scene; it is never picked, nor cleared by reset. */
+  addOverlay(object: THREE.Object3D): () => void {
+    this.overlays.add(object);
+    this.scene.add(object);
+    return () => {
+      this.overlays.delete(object);
+      this.scene.remove(object);
+    };
+  }
+
+  /** The world-space ray under the pointer, or null while the canvas has no size. */
+  pointerRay(event: { clientX: number; clientY: number }): THREE.Ray | null {
+    const bounds = this.renderer.domElement.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return null;
+    const pointer = new THREE.Vector2(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(pointer, this.camera);
+    return this.raycaster.ray.clone();
+  }
+
+  /** The visible backend objects, with their guids. */
+  visibleObjects(): { guid: string; object: THREE.Object3D }[] {
+    return Array.from(this.geometries)
+      .filter(([, object]) => object.visible)
+      .map(([guid, object]) => ({ guid, object }));
+  }
+
+  viewportSize(): { width: number; height: number } {
+    return this.getDimensions();
+  }
+
+  addResizeListener(
+    listener: (size: { width: number; height: number }) => void,
+  ): () => void {
+    this.resizeListeners.add(listener);
+    return () => {
+      this.resizeListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Hands pointer and keyboard input to a plugin until the session is released: picking,
+   * the viewer's own keys and every plugin's `useShortcuts` stand down, and events go to
+   * `handlers`. Orbiting keeps working. Clears the selection and focuses the canvas (a
+   * session is often started from a toolbar button, which would keep the keys). One
+   * session at a time: beginning another interrupts the current one.
+   */
+  beginInteraction(handlers: InteractionHandlers): InteractionSession {
+    this.interruptInteraction();
+    this.clearPickedObject();
+    this.renderer.domElement.focus({ preventScroll: true });
+    const entry = { handlers, active: true };
+    this.interaction = entry;
+    this.store.interacting.value = true;
+    return {
+      get active() {
+        return entry.active;
+      },
+      release: () => {
+        if (!entry.active) return;
+        entry.active = false;
+        if (this.interaction === entry) {
+          this.interaction = null;
+          this.store.interacting.value = false;
+        }
+      },
+    };
+  }
+
+  private interruptInteraction(): void {
+    const current = this.interaction;
+    if (!current) return;
+    current.active = false;
+    this.interaction = null;
+    this.store.interacting.value = false;
+    current.handlers.onInterrupt?.();
+  }
+
+  /** Stops camera navigation until every pause is released (e.g. during a gizmo drag). */
+  pauseNavigation(): () => void {
+    this.navigationPauses += 1;
+    this.controls.enabled = false;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.navigationPauses -= 1;
+      this.controls.enabled = this.navigationPauses === 0;
+    };
   }
 
   reset(): void {
@@ -481,6 +651,7 @@ export class ViewerRuntime {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
     this.labelRenderer.setSize(width, height);
+    this.resizeListeners.forEach((listener) => listener({ width, height }));
   }
 
   dispose(): void {
@@ -490,6 +661,12 @@ export class ViewerRuntime {
     window.removeEventListener("resize", this.onResize);
     this.root.removeEventListener("keydown", this.onKeyDown);
     this.renderer.domElement.removeEventListener(
+      "mousemove",
+      this.onPointerMove,
+    );
+    this.interruptInteraction();
+    this.resizeListeners.clear();
+    this.renderer.domElement.removeEventListener(
       "mousedown",
       this.onPointerDown,
     );
@@ -498,9 +675,8 @@ export class ViewerRuntime {
     this.clearPickedObject();
     this.resetAfterDispose();
     this.controls.dispose();
-    this.transformControls.detach();
-    this.transformControls.dispose();
-    this.scene.remove(this.transformHelper);
+    this.overlays.forEach((object) => this.scene.remove(object));
+    this.overlays.clear();
     this.scene.remove(this.axesHelper);
     this.disposeObject(this.axesHelper);
     this.clearDefaultLighting();
@@ -571,19 +747,25 @@ export class ViewerRuntime {
       case "spinner":
         this.manageSpinner(data);
         break;
+      case "plugin_buttons":
+        this.store.pluginButtons[data.plugin] = {
+          hidden: data.hidden,
+          disabled: data.disabled,
+        };
+        break;
+      case "plugin":
+        this.pluginHandlers
+          .get(`${data.plugin}/${data.action}`)
+          ?.forEach((handler) => handler(data.data ?? null));
+        break;
     }
   }
 
   private manageGeometry(object: CommandRecord): void {
     const externalGuid = resolveExternalGeometryGuid(object);
     if (externalGuid) {
-      const draggingTarget = this.geometries.get(externalGuid);
-      if (
-        draggingTarget &&
-        this.transformControls.dragging &&
-        draggingTarget === this.transformControls.object
-      ) {
-        // The user is actively dragging this exact object with the gizmo - drop this
+      if (this.heldGuids.has(externalGuid)) {
+        // A plugin holds this object, e.g. the user is dragging it with a gizmo - drop this
         // incoming update instead of rebuilding it out from under them. This matters a lot
         // for a continuously self-animating object (e.g. a spinning torus with an `App.loop`
         // callback): its backend loop keeps calling update_geometry many times a second,
@@ -619,8 +801,8 @@ export class ViewerRuntime {
       converted.add(edges);
     }
     // If the replaced object was selected (e.g. this update is the echo of a gizmo edit
-    // the user just made), carry the selection - highlight material and gizmo attachment
-    // - over to the newly-built object instead of silently losing it.
+    // the user just made), carry the selection - its highlight - over to the newly-built
+    // object, and tell the selection listeners (a gizmo re-attaches to it).
     if (wasSelected) {
       this.pickedObject = converted;
       if ("material" in converted) {
@@ -628,7 +810,7 @@ export class ViewerRuntime {
         this.pickedMaterial = renderable.material ?? null;
         renderable.material = this.highlightMaterial;
       }
-      this.transformControls.attach(converted);
+      this.notifySelection();
     }
   }
 
@@ -812,13 +994,23 @@ export class ViewerRuntime {
       : null;
   }
 
+  private handlePointerDown(event: MouseEvent): void {
+    const interaction = this.interaction;
+    if (!interaction) {
+      this.pickFromPointer(event);
+      return;
+    }
+    this.renderer.domElement.focus({ preventScroll: true });
+    interaction.handlers.onPointerDown?.(event);
+  }
+
   private pickFromPointer(event: MouseEvent): void {
     this.renderer.domElement.focus({ preventScroll: true });
     if (
       event.button !== 0 ||
       !this.store.pickerEnabled.value ||
       this.store.blockPicker.value ||
-      this.transformControls.dragging
+      [...this.pickGuards].some((guard) => guard(event))
     ) {
       return;
     }
@@ -830,9 +1022,11 @@ export class ViewerRuntime {
     );
     this.raycaster.layers.set(0);
     this.raycaster.setFromCamera(pointer, this.camera);
-    const visible = Array.from(this.geometries.values()).filter(
-      (object) => object.visible,
-    );
+    const visible = Array.from(this.geometries)
+      .filter(
+        ([guid, object]) => object.visible && !this.unpickableGuids.has(guid),
+      )
+      .map(([, object]) => object);
     const picked =
       this.raycaster.intersectObjects(visible, true)[0]?.object ?? null;
     if (!picked) {
@@ -847,13 +1041,18 @@ export class ViewerRuntime {
       this.pickedMaterial = renderable.material ?? null;
       renderable.material = this.highlightMaterial;
     }
-    this.transformControls.attach(picked);
     const guid = this.findGeometryGuid(picked);
     if (guid) {
       this.store.selectedObjectGuid.value = guid;
       this.sendData({ dispatch: "object_picked", guid });
     }
     this.store.pickedObjectGuid.value = guid ?? null;
+    this.notifySelection();
+  }
+
+  private notifySelection(): void {
+    const guid = this.store.pickedObjectGuid.value;
+    this.selectionListeners.forEach((listener) => listener(guid));
   }
 
   /**
@@ -879,13 +1078,14 @@ export class ViewerRuntime {
     ) {
       (this.pickedObject as RenderableObject).material = this.pickedMaterial;
     }
+    const hadSelection = this.pickedObject !== null;
     this.pickedObject = null;
     this.pickedMaterial = null;
-    this.transformControls.detach();
     this.store.pickedObjectGuid.value = null;
     this.store.objectBarData.data = null;
     this.store.objectActionsState.splice(0);
     this.store.selectedObjectGuid.value = null;
+    if (hadSelection) this.notifySelection();
   }
 
   private findGeometryGuid(object: THREE.Object3D): string | undefined {
@@ -901,49 +1101,16 @@ export class ViewerRuntime {
     return undefined;
   }
 
-  /**
-   * Sends the object currently attached to the transform gizmo back to the backend as a
-   * delta transform, once dragging ends. Geometry conversion (`applyMatrix4` in
-   * `conversions/geometry.ts`) decomposes each object's frame into its own
-   * position/quaternion/scale (that's what `Object3D.applyMatrix4` does - it does NOT
-   * bake into vertex data), so `object.matrix` is already the object's absolute world
-   * placement both before and after a drag, not a delta relative to identity. What the
-   * backend needs is the delta between the placement captured at drag-start
-   * (`dragStartMatrix`, set in the `dragging-changed` listener above) and the placement
-   * after the drag - sending the absolute matrix instead would have the backend compose
-   * it on top of the object's current state a second time, landing it somewhere else
-   * entirely (this was the cause of a "moves to another location" bug).
-   */
-  private sendObjectTransform(): void {
-    const object = this.transformControls.object;
-    const startMatrix = this.dragStartMatrix;
-    this.dragStartMatrix = null;
-    if (!object || !startMatrix) return;
-
-    const delta = object.matrix.clone().multiply(startMatrix.clone().invert());
-    if (delta.equals(new THREE.Matrix4())) return;
-
-    const guid = this.findGeometryGuid(object);
-    if (!guid) return;
-
-    // THREE.Matrix4.elements is column-major; transpose into a row-major 4x4 nested
-    // list, matching `compas.geometry.Transformation.from_matrix`'s expected shape.
-    const e = delta.elements;
-    const matrix = [
-      [e[0], e[4], e[8], e[12]],
-      [e[1], e[5], e[9], e[13]],
-      [e[2], e[6], e[10], e[14]],
-      [e[3], e[7], e[11], e[15]],
-    ];
-    this.sendData({ dispatch: "object_transform", guid, matrix });
-  }
-
   private handleKeyDown(event: KeyboardEvent): void {
+    // A plugin session gets every key, so e.g. Escape ends its tool rather than
+    // clearing a stale pick.
+    if (this.interaction) {
+      this.interaction.handlers.onKeyDown?.(event);
+      return;
+    }
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === "Escape") {
       this.clearPickedObject();
-    } else if (event.key.toLowerCase() === "p") {
-      this.store.pickerEnabled.value = !this.store.pickerEnabled.value;
     } else if (event.key.toLowerCase() === "i") {
       this.store.objectBarData.isVisible = !this.store.objectBarData.isVisible;
     }
@@ -1031,13 +1198,10 @@ export class ViewerRuntime {
     } else if (data.type === "toggle_visibility") {
       object.visible = !object.visible;
     } else if (data.type === "apply_transform") {
-      if (
-        this.transformControls.dragging &&
-        object === this.transformControls.object
-      ) {
-        // Same reasoning as manageGeometry's dragging guard above: don't fight a live
-        // gizmo drag with a backend-driven transform arriving mid-drag (e.g. an
-        // App.loop callback transforming this same object every frame).
+      if (this.heldGuids.has(guid)) {
+        // Same reasoning as manageGeometry's guard above: don't fight a live gizmo
+        // drag with a backend-driven transform arriving mid-drag (e.g. an App.loop
+        // callback transforming this same object every frame).
         return;
       }
       object.applyMatrix4(matrix4FromRowMajor(data.matrix));

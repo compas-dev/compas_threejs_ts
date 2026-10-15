@@ -6,7 +6,7 @@ import {
   pbDumpBytes,
   Quaternion,
 } from "@gramaziokohler/compas-pb-ts";
-import { nextTick } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("three", async () => {
@@ -31,7 +31,13 @@ vi.mock("three", async () => {
   return { ...actual, WebGLRenderer };
 });
 
-import { CompasViewerError, createViewer } from "../src/library";
+import {
+  CompasViewerError,
+  createViewer,
+  definePlugin,
+  useShortcuts,
+  useViewer,
+} from "../src/library";
 import { ViewerRuntime } from "../src/viewer/viewer_runtime";
 import * as THREE from "three";
 
@@ -170,11 +176,30 @@ describe("createViewer", () => {
     const firstRoot = document.createElement("div");
     const secondRoot = document.createElement("div");
     document.body.append(firstRoot, secondRoot);
+    const darkMode = definePlugin({
+      name: "dark_mode",
+      groups: {
+        display: {
+          theme: defineComponent(() => {
+            const viewer = useViewer();
+            useShortcuts({
+              d: () =>
+                viewer.setTheme(
+                  viewer.state.theme.value === "dark" ? "light" : "dark",
+                ),
+            });
+            return () => h("button");
+          }),
+        },
+      },
+    });
     const first = createViewer(firstRoot, {
       mode: "embedded",
+      plugins: [darkMode],
     });
     const second = createViewer(secondRoot, {
       mode: "embedded",
+      plugins: [darkMode],
     });
     viewers.push(first, second);
 
@@ -403,7 +428,127 @@ describe("createViewer", () => {
     runtime.dispose();
   });
 
-  it("skips an apply_transform command for an object currently being dragged", () => {
+  it("lets plugins veto picks, make objects unpickable, and follow the selection", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    vi.spyOn(
+      runtime.renderer.domElement,
+      "getBoundingClientRect",
+    ).mockReturnValue({ left: 0, top: 0, width: 800, height: 600 } as DOMRect);
+    runtime.dispatch(boxBytes("box"));
+    const internals = runtime as unknown as {
+      pickFromPointer(event: MouseEvent): void;
+    };
+    const click = () =>
+      internals.pickFromPointer(
+        new MouseEvent("mousedown", { clientX: 400, clientY: 300, button: 0 }),
+      );
+    const seen: (string | null)[] = [];
+    runtime.onSelectionChange((guid) => seen.push(guid));
+
+    // An overlay in front of the box is never picked.
+    const overlay = new THREE.Mesh(
+      new THREE.BoxGeometry(50, 50, 50),
+      new THREE.MeshBasicMaterial(),
+    );
+    const removeOverlay = runtime.addOverlay(overlay);
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBe("box");
+    removeOverlay();
+    expect(overlay.parent).toBeNull();
+
+    // Locking the picked object deselects it, and it can't be picked again.
+    runtime.setObjectPickable("box", false);
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+    runtime.setObjectPickable("box", true);
+
+    // A guard vetoes the pick.
+    let busy = true;
+    const removeGuard = runtime.addPickGuard(() => busy);
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+    busy = false;
+    click();
+    removeGuard();
+
+    // Rebuilding the picked object (the backend's echo) tells listeners again.
+    runtime.dispatch(boxBytes("box"));
+    expect(seen).toEqual(["box", null, "box", "box"]);
+
+    runtime.dispose();
+  });
+
+  it("hands input to one plugin interaction at a time", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    const canvas = runtime.renderer.domElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+    } as DOMRect);
+    runtime.dispatch(boxBytes("box"));
+    const at = { clientX: 400, clientY: 300, button: 0, bubbles: true };
+
+    expect(runtime.pointerRay(at)?.direction.length()).toBeCloseTo(1);
+    expect(runtime.visibleObjects().map((entry) => entry.guid)).toEqual([
+      "box",
+    ]);
+
+    const events: string[] = [];
+    const first = runtime.beginInteraction({
+      onPointerDown: () => events.push("first down"),
+      onPointerMove: () => events.push("first move"),
+      onKeyDown: (event) => events.push(`first ${event.key}`),
+      onInterrupt: () => events.push("first interrupted"),
+    });
+    expect(runtime.store.interacting.value).toBe(true);
+    canvas.dispatchEvent(new MouseEvent("mousedown", at));
+    canvas.dispatchEvent(new MouseEvent("mousemove", at));
+    container.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    // The click went to the plugin, so nothing was picked.
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+
+    const second = runtime.beginInteraction({});
+    expect(first.active).toBe(false);
+    second.release();
+    expect(runtime.store.interacting.value).toBe(false);
+    canvas.dispatchEvent(new MouseEvent("mousedown", at));
+    expect(runtime.store.pickedObjectGuid.value).toBe("box");
+
+    expect(events).toEqual([
+      "first down",
+      "first move",
+      "first Escape",
+      "first interrupted",
+    ]);
+    runtime.dispose();
+  });
+
+  it("renders the view into a canvas of the requested size", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    const context = { drawImage: vi.fn() };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      context as never,
+    );
+    const canvas = runtime.captureImage({ width: 320, height: 200 });
+    expect([canvas.width, canvas.height]).toEqual([320, 200]);
+    expect(context.drawImage).toHaveBeenCalledOnce();
+    runtime.dispose();
+  });
+
+  it("skips an apply_transform command for an object a plugin holds", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const runtime = new ViewerRuntime(container, { mode: "embedded" });
@@ -413,24 +558,27 @@ describe("createViewer", () => {
     const object = runtime.geometries.get("dragged-box")!;
     const internals = runtime as unknown as {
       dispatchObject(object: unknown): void;
-      transformControls: { dragging: boolean; object?: THREE.Object3D };
     };
-    internals.transformControls.dragging = true;
-    internals.transformControls.object = object;
+    const moveBy = (x: number) =>
+      internals.dispatchObject({
+        dispatch: "handle_geometry",
+        type: "apply_transform",
+        guid: "dragged-box",
+        matrix: [
+          [1, 0, 0, x],
+          [0, 1, 0, 0],
+          [0, 0, 1, 0],
+          [0, 0, 0, 1],
+        ],
+      });
 
-    internals.dispatchObject({
-      dispatch: "handle_geometry",
-      type: "apply_transform",
-      guid: "dragged-box",
-      matrix: [
-        [1, 0, 0, 99],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
-      ],
-    });
-
+    const release = runtime.holdObjectUpdates("dragged-box");
+    moveBy(99);
     expect(object.position.toArray()).toEqual([0, 0, 0]);
+
+    release();
+    moveBy(2);
+    expect(object.position.toArray()).toEqual([2, 0, 0]);
 
     runtime.dispose();
   });
