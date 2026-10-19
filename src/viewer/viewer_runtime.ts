@@ -148,6 +148,9 @@ export class ViewerRuntime {
   // updates wait (e.g. while a gizmo drags them), vetoes on picking, selection listeners,
   // plugin-owned scene objects, and how many plugins paused navigation.
   private readonly unpickableGuids = new Set<string>();
+  /** Guids of objects outlined with their edges (`set_edges`), kept by guid so the
+   * outline survives the backend re-sending the object. */
+  private readonly edgedGuids = new Set<string>();
   private readonly heldGuids = new Map<string, number>();
   private readonly pickGuards = new Set<(event: MouseEvent) => boolean>();
   private readonly selectionListeners = new Set<
@@ -632,6 +635,7 @@ export class ViewerRuntime {
     }
     this.geometries.clear();
     this.hiddenGuids.clear();
+    this.edgedGuids.clear();
     this.clearLights();
     for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();
@@ -794,13 +798,8 @@ export class ViewerRuntime {
     this.applyGeometryMaterial(sceneKey, converted);
     this.scene.add(converted);
     this.geometries.set(sceneKey, converted);
-    if (this.store.showEdges.value && converted instanceof THREE.Mesh) {
-      const edges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(converted.geometry),
-        new THREE.LineBasicMaterial({ color: 0x000000 }),
-      );
-      edges.layers.set(1);
-      converted.add(edges);
+    if (this.store.showEdges.value || this.edgedGuids.has(sceneKey)) {
+      this.setEdges(converted, true);
     }
     // If the replaced object was selected (e.g. this update is the echo of a gizmo edit
     // the user just made), carry the selection - its highlight - over to the newly-built
@@ -1195,6 +1194,7 @@ export class ViewerRuntime {
       this.geometries.delete(guid);
       this.geometryMaterials.delete(guid);
       this.hiddenGuids.delete(guid);
+      this.edgedGuids.delete(guid);
     } else if (data.type === "set_visibility") {
       object.visible = data.visible;
     } else if (data.type === "toggle_visibility") {
@@ -1207,7 +1207,49 @@ export class ViewerRuntime {
         return;
       }
       object.applyMatrix4(matrix4FromRowMajor(data.matrix));
+    } else if (data.type === "set_edges") {
+      if (data.show) this.edgedGuids.add(guid);
+      else this.edgedGuids.delete(guid);
+      this.setEdges(object, data.show || this.store.showEdges.value);
     }
+  }
+
+  /** Adds (or removes) `object`'s edge outline: a non-pickable overlay child
+   * (layer 1), as see-through as the object itself. */
+  private setEdges(object: THREE.Object3D, show: boolean): void {
+    const existing = object.children.find((child) => child.userData.edges);
+    if (!show) {
+      if (existing) {
+        object.remove(existing);
+        this.disposeObject(existing);
+      }
+      return;
+    }
+    if (existing || !(object instanceof THREE.Mesh)) return;
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(object.geometry),
+      new THREE.LineBasicMaterial({ color: 0x000000 }),
+    );
+    edges.userData.edges = true;
+    edges.layers.set(1);
+    object.add(edges);
+    this.syncEdges(object);
+  }
+
+  /** Keeps an edge outline as see-through as its object's material. */
+  private syncEdges(object: THREE.Object3D): void {
+    const edges = object.children.find((child) => child.userData.edges);
+    const material = (object as THREE.Mesh).material;
+    if (
+      !(edges instanceof THREE.LineSegments) ||
+      !material ||
+      Array.isArray(material)
+    )
+      return;
+    const line = edges.material as THREE.LineBasicMaterial;
+    line.transparent = material.transparent;
+    line.opacity = material.transparent ? material.opacity : 1;
+    line.needsUpdate = true;
   }
 
   private applyGeometryMaterial(guid: string, object: THREE.Object3D): void {
@@ -1252,8 +1294,10 @@ export class ViewerRuntime {
     material: THREE.Material,
   ): void {
     if (object instanceof THREE.AxesHelper) return;
-    if (object instanceof THREE.Mesh) this.replaceMaterial(object, material);
-    else if (object instanceof THREE.Line) {
+    if (object instanceof THREE.Mesh) {
+      this.replaceMaterial(object, material);
+      this.syncEdges(object);
+    } else if (object instanceof THREE.Line) {
       this.replaceMaterial(
         object,
         material instanceof THREE.LineBasicMaterial
@@ -1412,6 +1456,7 @@ export class ViewerRuntime {
     for (const object of this.geometries.values()) this.disposeObject(object);
     this.geometries.clear();
     this.hiddenGuids.clear();
+    this.edgedGuids.clear();
     this.clearLights();
     for (const entry of this.materials.values()) entry.material.dispose();
     this.materials.clear();

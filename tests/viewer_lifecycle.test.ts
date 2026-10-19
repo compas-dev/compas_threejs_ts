@@ -604,4 +604,64 @@ describe("createViewer", () => {
     ]);
     runtime.dispose();
   });
+  it("outlines one object's edges, as see-through as the object, kept across re-sends", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    const internals = runtime as unknown as {
+      dispatchObject(object: unknown): void;
+    };
+    const edgesOf = (guid: string) =>
+      runtime.geometries
+        .get(guid)!
+        .children.filter(
+          (child) => child.userData.edges,
+        ) as THREE.LineSegments[];
+    runtime.dispatch(boxBytes("outlined"));
+    runtime.dispatch(boxBytes("plain"));
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "set_edges",
+      guid: "outlined",
+      show: true,
+    });
+    expect(edgesOf("outlined")).toHaveLength(1);
+    expect(edgesOf("plain")).toHaveLength(0);
+    expect(edgesOf("outlined")[0]!.layers.mask).toBe(1 << 1); // never picked
+
+    // A see-through material makes the outline see-through too.
+    internals.dispatchObject({
+      dispatch: "material",
+      type: "standard_material",
+      guid: "ghost",
+      geometry_guid: "outlined",
+      color: "#ff0000",
+      metalness: 0,
+      roughness: 1,
+      emissive: "#000000",
+      emissive_intensity: 0,
+      flat_shading: false,
+      wireframe: false,
+      transparent: true,
+      opacity: 0.25,
+    });
+    const line = edgesOf("outlined")[0]!.material as THREE.LineBasicMaterial;
+    expect(line.transparent).toBe(true);
+    expect(line.opacity).toBeCloseTo(0.25);
+
+    // Kept by guid: a re-sent object is outlined again, once.
+    runtime.dispatch(boxBytes("outlined"));
+    expect(edgesOf("outlined")).toHaveLength(1);
+
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "set_edges",
+      guid: "outlined",
+      show: false,
+    });
+    expect(edgesOf("outlined")).toHaveLength(0);
+
+    runtime.dispose();
+  });
 });
