@@ -1,4 +1,5 @@
 import type { CompasViewerError } from "./errors";
+import type { ViewerPlugin } from "./plugins";
 
 export type ViewerMode = "embedded" | "websocket";
 
@@ -14,6 +15,8 @@ export interface CompasViewerOptions {
   websocket?: ViewerWebSocketOptions;
   defaultLighting?: boolean;
   showToolbar?: boolean;
+  /** Plugins, in toolbar order. Without any, the viewer has no toolbar. */
+  plugins?: ViewerPlugin[];
   send?: (message: unknown) => boolean | void;
   onError?: (error: CompasViewerError) => void;
 }
