@@ -664,4 +664,52 @@ describe("createViewer", () => {
 
     runtime.dispose();
   });
+  it("deselects a picked object that is removed or hidden", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    runtime.attach(container);
+    vi.spyOn(
+      runtime.renderer.domElement,
+      "getBoundingClientRect",
+    ).mockReturnValue({ left: 0, top: 0, width: 800, height: 600 } as DOMRect);
+    const internals = runtime as unknown as {
+      dispatchObject(object: unknown): void;
+      pickFromPointer(event: MouseEvent): void;
+    };
+    const click = () =>
+      internals.pickFromPointer(
+        new MouseEvent("mousedown", { clientX: 400, clientY: 300, button: 0 }),
+      );
+    const selections: (string | null)[] = [];
+    runtime.onSelectionChange((guid) => selections.push(guid));
+    runtime.dispatch(boxBytes("box"));
+
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBe("box");
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "set_visibility",
+      guid: "box",
+      visible: false,
+    });
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "set_visibility",
+      guid: "box",
+      visible: true,
+    });
+    click();
+    expect(runtime.store.pickedObjectGuid.value).toBe("box");
+    internals.dispatchObject({
+      dispatch: "handle_geometry",
+      type: "remove",
+      guid: "box",
+    });
+    expect(runtime.store.pickedObjectGuid.value).toBeNull();
+    expect(selections).toEqual(["box", null, "box", null]);
+    runtime.dispose();
+  });
 });

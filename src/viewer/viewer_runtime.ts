@@ -1223,6 +1223,13 @@ export class ViewerRuntime {
     const guid = data.guid;
     const object = this.geometries.get(guid);
     if (!object) return;
+    // A picked object that goes away (or out of sight) is deselected first, so the
+    // selection's listeners (e.g. a gizmo) let go of it.
+    const hides =
+      data.type === "remove" ||
+      (data.type === "set_visibility" && !data.visible) ||
+      (data.type === "toggle_visibility" && object.visible);
+    if (hides && object === this.pickedObject) this.clearPickedObject();
     if (data.type === "remove") {
       this.scene.remove(object);
       this.disposeObject(object);
