@@ -404,9 +404,17 @@ export interface PluginButtonsCommand extends CommandRecord {
   disabled: string[];
 }
 
+/** A message for the user, shown for a moment (a plugin's `notify`). */
+export interface NoticeCommand extends CommandRecord {
+  dispatch: "notice";
+  message: string;
+  kind?: "info" | "success" | "warning" | "error";
+}
+
 export type ViewerCommand =
   | PluginCommand
   | PluginButtonsCommand
+  | NoticeCommand
   | MaterialCommand
   | LightCommand
   | SceneCommand
@@ -439,6 +447,7 @@ const UI_TYPES = new Set<UiCommandType>([
   "checkbox",
   "select",
 ]);
+const NOTICE_KINDS = new Set(["info", "success", "warning", "error"]);
 const HANDLE_GEOMETRY_TYPES = new Set<HandleGeometryCommandType>([
   "remove",
   "set_visibility",
@@ -518,6 +527,12 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
       readStringArray(record, "hidden");
       readStringArray(record, "disabled");
       return record as PluginButtonsCommand;
+    case "notice":
+      readNonEmptyString(record, "message");
+      if (record.kind !== undefined && record.kind !== null) {
+        readVariant(record, "kind", NOTICE_KINDS);
+      }
+      return record as NoticeCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",

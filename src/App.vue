@@ -7,6 +7,7 @@
     <ThemeIndicator />
     <ObjectInfo />
     <GlobalSpinner />
+    <NoticeStack />
     <RightSidebar />
   </div>
 </template>
@@ -17,6 +18,7 @@ import RightSidebar from "./components/layout/RightSidebar.vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ThemeIndicator from "@/components/layout/ThemeIndicator.vue";
 import GlobalSpinner from "@/components/layout/GlobalSpinner.vue";
+import NoticeStack from "@/components/layout/NoticeStack.vue";
 import type { ViewerRuntime } from "@/viewer/viewer_runtime";
 
 const threeContainer = ref<HTMLDivElement | null>(null);

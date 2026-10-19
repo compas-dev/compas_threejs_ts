@@ -34,6 +34,7 @@ import {
 import {
   createViewerStore,
   type DynamicComponent,
+  type NoticeKind,
   type ViewerStore,
 } from "./viewer_store";
 import * as THREE from "three";
@@ -147,6 +148,8 @@ export class ViewerRuntime {
   // Plugin hooks: objects that can't be picked (e.g. locked), objects whose backend
   // updates wait (e.g. while a gizmo drags them), vetoes on picking, selection listeners,
   // plugin-owned scene objects, and how many plugins paused navigation.
+  private noticeCount = 0;
+  private readonly noticeTimers = new Set<ReturnType<typeof setTimeout>>();
   private readonly unpickableGuids = new Set<string>();
   /** Guids of objects outlined with their edges (`set_edges`), kept by guid so the
    * outline survives the backend re-sending the object. */
@@ -308,6 +311,33 @@ export class ViewerRuntime {
       action,
       data: data ?? null,
     });
+  }
+
+  /**
+   * Shows `message` to the user for `duration` ms (by default longer for warnings
+   * and errors); returns a function that takes it away sooner.
+   */
+  notify(
+    message: string,
+    options: { kind?: NoticeKind; duration?: number } = {},
+  ): () => void {
+    const kind = options.kind ?? "info";
+    const duration =
+      options.duration ??
+      (kind === "warning" || kind === "error" ? 8000 : 4000);
+    const id = ++this.noticeCount;
+    this.store.notices.push({ id, message, kind });
+    // At most a handful on screen: a flood of them drops the oldest.
+    while (this.store.notices.length > 5) this.store.notices.shift();
+    const dismiss = () => {
+      clearTimeout(timer);
+      this.noticeTimers.delete(timer);
+      const index = this.store.notices.findIndex((notice) => notice.id === id);
+      if (index >= 0) this.store.notices.splice(index, 1);
+    };
+    const timer = setTimeout(dismiss, duration);
+    this.noticeTimers.add(timer);
+    return dismiss;
   }
 
   /** Calls `handler` with the data of every `action` the backend sends to `plugin`. */
@@ -661,6 +691,8 @@ export class ViewerRuntime {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.noticeTimers.forEach((timer) => clearTimeout(timer));
+    this.noticeTimers.clear();
     this.connection.dispose();
     window.removeEventListener("resize", this.onResize);
     this.root.removeEventListener("keydown", this.onKeyDown);
@@ -758,6 +790,9 @@ export class ViewerRuntime {
           hidden: data.hidden,
           disabled: data.disabled,
         };
+        break;
+      case "notice":
+        this.notify(data.message, data.kind ? { kind: data.kind } : {});
         break;
       case "plugin":
         this.pluginHandlers

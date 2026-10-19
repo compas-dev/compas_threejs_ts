@@ -96,6 +96,16 @@ export interface ViewerStore {
   snap: { grid: number | null; angle: number | null };
   /** Plugin buttons Python hid or disabled, by plugin name. */
   pluginButtons: ButtonStates;
+  /** Messages for the user on screen now, oldest first (`notify`). */
+  notices: Notice[];
+}
+
+export type NoticeKind = "info" | "success" | "warning" | "error";
+
+export interface Notice {
+  id: number;
+  message: string;
+  kind: NoticeKind;
 }
 
 export function createViewerStore(): ViewerStore {
@@ -129,5 +139,6 @@ export function createViewerStore(): ViewerStore {
       angle: null as number | null,
     }),
     pluginButtons: reactive<ButtonStates>({}),
+    notices: reactive<Notice[]>([]),
   };
 }

@@ -198,6 +198,23 @@ export interface PluginViewer {
     height?: number;
   }): HTMLCanvasElement;
   channel(plugin: string): PluginChannel;
+  /**
+   * What the plugin named `name` offers other plugins (its `api`), or undefined
+   * if this page has no such plugin. Call it when needed rather than at setup:
+   * plugins are set up in order.
+   */
+  plugin<T = unknown>(name: string): T | undefined;
+  /**
+   * Shows `message` to the user for a moment (`duration` in ms; by default
+   * longer for warnings and errors). Returns a function that takes it away sooner.
+   */
+  notify(
+    message: string,
+    options?: {
+      kind?: "info" | "success" | "warning" | "error";
+      duration?: number;
+    },
+  ): () => void;
   readonly three: PluginThree;
 }
 
@@ -225,7 +242,33 @@ export interface ViewerPlugin {
    * Their ids share the plugin's namespace with groups and buttons.
    */
   objectActions?: ButtonGroup;
+  /**
+   * Panels by id, docked beside the view: `{ layers: LayersPanel }`, or with
+   * options, `{ layers: { component: LayersPanel, title: "Layers", side: "left" } }`.
+   * Their ids share the plugin's namespace with groups and buttons, so Python hides
+   * or disables a panel like a button.
+   */
+  panels?: Record<string, Component | PanelOptions>;
+  /**
+   * What this plugin offers other plugins, which get it with
+   * `viewer.plugin(name)` - e.g. a drawing plugin's tool controller.
+   */
+  api?: unknown;
   setup?(viewer: PluginViewer): void | (() => void);
+}
+
+/** A docked panel and where it goes. */
+export interface PanelOptions {
+  component: Component;
+  /**
+   * Shown in the panel's title bar, which folds the panel (remembered in the
+   * browser). Without a title, the component draws the whole panel.
+   */
+  title?: string;
+  /** "right" (the default): under the picked object's panels; "left": under the toolbar. */
+  side?: "left" | "right";
+  /** Whether the panel starts folded, until the user unfolds it. */
+  folded?: boolean;
 }
 
 export declare function definePlugin(plugin: ViewerPlugin): ViewerPlugin;

@@ -29,6 +29,7 @@ export {
   type InteractionHandlers,
   type InteractionSession,
   type ObjectMaterial,
+  type PanelOptions,
   type PluginThree,
   type PluginViewer,
   type ViewerPlugin,
@@ -82,6 +83,7 @@ export function createViewer(
         ...group.buttons.map((button) => button.id),
       ]),
       ...Object.keys(plugin.objectActions ?? {}),
+      ...Object.keys(plugin.panels ?? {}),
     ];
     const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);
     if (duplicate !== undefined) {

@@ -48,6 +48,13 @@ const HIDE_G2_A2_DISABLE_A3 =
 const DISABLE_G1 =
   "ClkyVwoWCghkaXNhYmxlZBIKOggKBhIEGgJnMQoMCgZoaWRkZW4SAjoACh4KCGRpc3BhdGNoEhISEBoOcGx1Z2luX2J1dHRvbnMKDwoGcGx1Z2luEgUSAxoBYRIFMS4yLjA=";
 
+// {"dispatch": "notice", "message": "Saved", "kind": "success"}
+const NOTICE_SAVED =
+  "CkUyQwoTCgRraW5kEgsSCRoHc3VjY2VzcwoUCgdtZXNzYWdlEgkSBxoFU2F2ZWQKFgoIZGlzcGF0Y2gSChIIGgZub3RpY2USBTEuMi4w";
+// {"dispatch": "plugin_buttons", "plugin": "a", "hidden": ["tree"], "disabled": ["table"]}
+const HIDE_TREE_DISABLE_TABLE =
+  "CmYyZAoZCghkaXNhYmxlZBINOgsKCRIHGgV0YWJsZQoWCgZoaWRkZW4SDDoKCggSBhoEdHJlZQoPCgZwbHVnaW4SBRIDGgFhCh4KCGRpc3BhdGNoEhISEBoOcGx1Z2luX2J1dHRvbnMSBTEuMi4w";
+
 function fromBase64(text: string): Uint8Array {
   return Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
 }
@@ -375,5 +382,112 @@ describe("plugins", () => {
     viewer.dispatch(fromBase64(CAMERA_VIEWS));
     viewer.dispatch(fromBase64(OTHER_VIEWS));
     expect(received).toEqual([{ names: ["View 1"] }]);
+  });
+  it("docks panels on their side, folds titled ones, and hides them as Python says", async () => {
+    const { root, viewer } = mount({
+      plugins: [
+        definePlugin({
+          name: "a",
+          panels: {
+            tree: button("tree"),
+            table: { component: button("table"), title: "Table", side: "left" },
+            graph: { component: button("graph"), title: "Graph", folded: true },
+          },
+        }),
+      ],
+    });
+    await nextTick();
+    const panelsOn = (side: string) =>
+      [
+        ...root.querySelectorAll(
+          `.plugin-panels[data-side="${side}"] .plugin-panel`,
+        ),
+      ].map((panel) => panel.getAttribute("data-panel"));
+    expect(panelsOn("right")).toEqual(["tree", "graph"]);
+    expect(panelsOn("left")).toEqual(["table"]);
+
+    // A titled panel folds from its title bar; "graph" starts folded.
+    const body = (id: string) =>
+      root.querySelector<HTMLElement>(
+        `[data-panel="${id}"] .plugin-panel-body`,
+      )!;
+    expect(body("graph").style.display).toBe("none");
+    expect(body("table").style.display).toBe("");
+    root
+      .querySelector<HTMLButtonElement>(
+        '[data-panel="table"] .plugin-panel-title',
+      )!
+      .click();
+    await nextTick();
+    expect(body("table").style.display).toBe("none");
+
+    // hidden: ["tree"], disabled: ["table"]
+    viewer.dispatch(fromBase64(HIDE_TREE_DISABLE_TABLE));
+    await nextTick();
+    expect(panelsOn("right")).toEqual(["graph"]);
+    expect(
+      root
+        .querySelector('[data-panel="table"] .toolbar-slot')!
+        .hasAttribute("inert"),
+    ).toBe(true);
+  });
+
+  it("rejects a panel id a button already uses", () => {
+    expect(() =>
+      mount({
+        plugins: [
+          definePlugin({
+            name: "a",
+            groups: { g: { tree: button("tree") } },
+            panels: { tree: button("tree") },
+          }),
+        ],
+      }),
+    ).toThrow(/"tree" twice/);
+  });
+
+  it("gives a plugin what another one offers", () => {
+    let viewerOfB: PluginViewer | undefined;
+    mount({
+      plugins: [
+        definePlugin({
+          name: "b",
+          setup: (viewer) => {
+            viewerOfB = viewer;
+          },
+        }),
+        definePlugin({ name: "a", api: { answer: 42 } }),
+      ],
+    });
+    // Plugins set up in order, so B asks once A is there too.
+    expect(viewerOfB!.plugin<{ answer: number }>("a")?.answer).toBe(42);
+    expect(viewerOfB!.plugin("missing")).toBeUndefined();
+  });
+
+  it("shows notices from plugins and from Python, for a moment", async () => {
+    vi.useFakeTimers();
+    try {
+      let pluginViewer: PluginViewer | undefined;
+      const { root, viewer } = mount({
+        plugins: [
+          definePlugin({ name: "a", setup: (v) => void (pluginViewer = v) }),
+        ],
+      });
+      pluginViewer!.notify("Drawn", { duration: 1000 });
+      viewer.dispatch(fromBase64(NOTICE_SAVED));
+      await nextTick();
+      const notices = () =>
+        // Leaving ones fade out first.
+        [...root.querySelectorAll(".notice:not(.notice-leave-active)")].map(
+          (notice) =>
+            `${notice.getAttribute("data-kind")}: ${notice.textContent?.trim()}`,
+        );
+      expect(notices()).toEqual(["info: Drawn", "success: Saved"]);
+      vi.advanceTimersByTime(1500);
+      await nextTick();
+      expect(notices()).not.toContain("info: Drawn");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

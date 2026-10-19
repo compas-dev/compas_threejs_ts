@@ -130,14 +130,33 @@ plugin's Python half, and `useShortcuts({ key: handler })` binds keys.
 A plugin can also add `objectActions` (`{ hide: HideAction }`): components shown in the
 FUNCTIONS panel for the selected object.
 
+And `panels`, docked beside the view: on the right under the object panels (the
+default), or on the left under the toolbar. A panel with a `title` gets a frame whose
+title bar folds it (remembered in the browser); without one, the component draws the
+whole panel.
+
+```ts
+definePlugin({
+  name: "timber",
+  panels: {
+    tree: { component: TreePanel, title: "Elements", side: "left" },
+    table: TablePanel,
+  },
+});
+```
+
+Plugins can use each other: a plugin's `api` is what others get from
+`viewer.plugin(name)` (e.g. a drawing plugin's tool controller). `viewer.notify(message,
+{ kind })` shows the user a message for a moment; Python's `Plugin.notify` does the same.
+
 A page shows one workspace (`viewer.workspace`, from `?workspace=`). A button can open
 another in a new tab with `window.open(viewer.workspaceUrl(id))`: open it from the click,
 and let Python fill the workspace meanwhile - a tab opened after waiting for Python's
 answer is blocked as a pop-up.
 
-The Python half can hide or disable a group or a single button by its id. The viewer
-applies it to any button: a disabled one is greyed out and inert, and its `useShortcuts`
-stand down.
+The Python half can hide or disable a group, a single button or a panel by its id. The
+viewer applies it to any of them: a disabled one is greyed out and inert, and its
+`useShortcuts` stand down.
 
 `ToolbarButton`, `Button`, `Popover`,
 `Tooltip`, ... make buttons look like the viewer's own.
