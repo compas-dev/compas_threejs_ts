@@ -582,4 +582,26 @@ describe("createViewer", () => {
 
     runtime.dispose();
   });
+  it("shows metadata fields in the order the backend sent them", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const runtime = new ViewerRuntime(container, { mode: "embedded" });
+    const internals = runtime as unknown as {
+      dispatchObject(data: Record<string, unknown>): void;
+    };
+    // A protobuf map on the way loses the order: "__order__" carries it.
+    internals.dispatchObject({
+      dispatch: "object_infos",
+      Length: "3.48 m",
+      Type: "Beam",
+      Floor: "F1",
+      __order__: ["Type", "Floor", "Length"],
+    });
+    expect(Object.keys(runtime.store.objectBarData.data!)).toEqual([
+      "Type",
+      "Floor",
+      "Length",
+    ]);
+    runtime.dispose();
+  });
 });

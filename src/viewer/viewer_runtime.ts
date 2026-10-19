@@ -736,7 +736,9 @@ export class ViewerRuntime {
         this.manageTextTag(data);
         break;
       case "object_infos":
-        this.store.objectBarData.data = this.withoutDispatch(data);
+        this.store.objectBarData.data = this.orderedInfos(
+          this.withoutDispatch(data),
+        );
         break;
       case "object_action":
         this.manageObjectAction(data);
@@ -1427,6 +1429,21 @@ export class ViewerRuntime {
   private withoutDispatch(data: ObjectInfosCommand): Record<string, unknown> {
     const { dispatch: _dispatch, ...rest } = data;
     return rest;
+  }
+
+  /**
+   * The metadata fields in the order the backend gave them: they arrive as a protobuf
+   * map, which doesn't keep it, so the backend sends it along as `__order__`. Fields it
+   * doesn't list follow, as they came.
+   */
+  private orderedInfos(data: Record<string, unknown>): Record<string, unknown> {
+    const { __order__: order, ...fields } = data;
+    if (!Array.isArray(order)) return fields;
+    const ordered: Record<string, unknown> = {};
+    for (const key of order) {
+      if (typeof key === "string" && key in fields) ordered[key] = fields[key];
+    }
+    return { ...ordered, ...fields };
   }
 
   private reportOrThrow(error: CompasViewerError): void {
