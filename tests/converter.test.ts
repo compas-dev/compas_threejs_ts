@@ -1,6 +1,9 @@
 import {
   Arc,
   Box,
+  Capsule,
+  Cone,
+  Cylinder,
   Graph,
   Polygon,
   Quaternion,
@@ -169,5 +172,44 @@ describe("convertToThreeJSGeometry", () => {
     expect(() => convertToThreeJSGeometry({})).toThrow(
       UnsupportedCompasObjectError,
     );
+  });
+});
+
+describe("shapes along their frame's z-axis, as in COMPAS", () => {
+  const frame = {
+    guid: "frame-guid",
+    name: "Frame",
+    point: { guid: "", name: "", x: 0, y: 0, z: 0 },
+    xaxis: { guid: "", name: "", x: 1, y: 0, z: 0 },
+    yaxis: { guid: "", name: "", x: 0, y: 1, z: 0 },
+  };
+
+  function extent(object: THREE.Object3D): [number, number, number, number] {
+    object.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(object);
+    return [box.min.z, box.max.z, box.min.y, box.max.y].map((value) =>
+      Number(value.toFixed(3)),
+    ) as [number, number, number, number];
+  }
+
+  it("a cylinder is centered on its frame, along z", () => {
+    const cylinder = new Cylinder({
+      data: { guid: "c", name: "Cylinder", frame, radius: 1, height: 4 },
+    });
+    expect(extent(convertToThreeJSGeometry(cylinder))).toEqual([-2, 2, -1, 1]);
+  });
+
+  it("a cone stands on its frame, its apex along z", () => {
+    const cone = new Cone({
+      data: { guid: "c", name: "Cone", frame, radius: 1, height: 4 },
+    });
+    expect(extent(convertToThreeJSGeometry(cone))).toEqual([0, 4, -1, 1]);
+  });
+
+  it("a capsule is centered on its frame, along z", () => {
+    const capsule = new Capsule({
+      data: { guid: "c", name: "Capsule", frame, radius: 1, height: 4 },
+    });
+    expect(extent(convertToThreeJSGeometry(capsule))).toEqual([-3, 3, -1, 1]);
   });
 });
