@@ -5,61 +5,65 @@
     id="actions-panel"
     ref="actionsPanel"
   >
-    <h1
-      class="text-lg font-bold section-title"
-      :class="{ dark: theme.value === 'dark' }"
+    <!-- Titled like the plugins' panels -->
+    <h2 class="object-actions-title">Actions</h2>
+    <!-- Each plugin's actions in a group of their own, shaded like the toolbar's -->
+    <div
+      v-for="group in pluginGroups"
+      :key="group.plugin"
+      class="action-group plugin-actions"
+      :data-plugin="group.plugin"
     >
-      FUNCTIONS
-    </h1>
-    <div v-if="pluginActions.length" class="single_data plugin-actions">
       <ToolbarSlot
-        v-for="action in pluginActions"
+        v-for="action in group.actions"
         :key="`${action.plugin}/${action.button.id}`"
         :plugin="action.plugin"
         :button="action.button"
       />
     </div>
-    <div
-      v-for="action in objectActionsState"
-      :key="action.guid"
-      class="single_data"
-    >
-      <Button
-        v-if="action.type === 'button'"
-        variant="outline"
-        @click="handleObjectAction(action)"
-        class="w-full"
+    <div v-if="objectActionsState.length" class="action-group">
+      <div
+        v-for="action in objectActionsState"
+        :key="action.guid"
+        class="single_data"
       >
-        {{ action.text }}
-      </Button>
+        <Button
+          v-if="action.type === 'button'"
+          variant="secondary"
+          @click="handleObjectAction(action)"
+          class="w-full"
+        >
+          {{ action.text }}
+        </Button>
 
-      <Select
-        v-else-if="action.type === 'select'"
-        :model-value="
-          typeof action.defaultValue === 'string' ? action.defaultValue : ''
-        "
-        @update:model-value="
-          (value) => {
-            action.defaultValue = typeof value === 'string' ? value : '';
-            handleObjectAction(action, value);
-          }
-        "
-      >
-        <SelectTrigger class="w-full">
-          <SelectValue
-            :placeholder="action.placeholder ?? 'Select an option'"
-          />
-        </SelectTrigger>
-        <SelectContent class="z-[4000]">
-          <SelectItem
-            v-for="option in action.options"
-            :key="option"
-            :value="option"
-          >
-            {{ option }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+        <Select
+          v-else-if="action.type === 'select'"
+          :model-value="
+            typeof action.defaultValue === 'string' ? action.defaultValue : ''
+          "
+          @update:model-value="
+            (value) => {
+              action.defaultValue = typeof value === 'string' ? value : '';
+              handleObjectAction(action, value);
+            }
+          "
+        >
+          <SelectTrigger class="w-full">
+            <SelectValue
+              :placeholder="action.placeholder ?? 'Select an option'"
+            />
+          </SelectTrigger>
+          <SelectContent class="z-[4000]">
+            <SelectItem
+              v-for="option in action.options"
+              :key="option"
+              :value="option"
+            >
+              {{ option }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   </div>
 </template>
@@ -80,13 +84,8 @@ import { useViewerRuntime } from "@/viewer/viewer_context";
 import type { ObjectAction } from "@/viewer/viewer_store";
 
 const runtime = useViewerRuntime();
-const {
-  objectActionsState,
-  blockPicker,
-  theme,
-  pickedObjectGuid,
-  pluginButtons,
-} = runtime.store;
+const { objectActionsState, blockPicker, pickedObjectGuid, pluginButtons } =
+  runtime.store;
 // The plugins' actions for the picked object, in plugin order, minus those Python hid.
 const pluginActions = computed(() =>
   pickedObjectGuid.value === null
@@ -101,6 +100,16 @@ const pluginActions = computed(() =>
           }));
       }),
 );
+// The same, by plugin: one group each, in plugin order
+const pluginGroups = computed(() => {
+  const groups: { plugin: string; actions: typeof pluginActions.value }[] = [];
+  for (const action of pluginActions.value) {
+    const group = groups.at(-1);
+    if (group?.plugin === action.plugin) group.actions.push(action);
+    else groups.push({ plugin: action.plugin, actions: [action] });
+  }
+  return groups;
+});
 const handleObjectAction = (action: ObjectAction, value?: unknown) =>
   runtime.handleObjectAction({ ...action }, value);
 const actionsPanel = ref<HTMLElement | null>(null);
@@ -113,9 +122,10 @@ watchEffect(() => {
 </script>
 
 <style scoped>
+/* Framed and titled like the plugins' panels (PluginPanels.vue) */
 div.object-actions {
   z-index: 1000; /* Ensure it appears above other content */
-  padding: 20px;
+  padding: 10px 12px;
   max-width: 400px;
   border-radius: 10px;
   margin: 0px;
@@ -124,15 +134,31 @@ div.object-actions {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 8px;
   color: var(--foreground);
   pointer-events: auto;
 }
 
-div.plugin-actions {
+/* A group is a shaded segment, as in the toolbar (Toolbar.vue's .toolbar-group) */
+div.action-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+/* An action that draws nothing for this object (a comment only) leaves no gap, and a
+   group of only those no empty segment */
+div.action-group > :empty,
+div.action-group:not(:has(> :not(:empty))) {
+  display: none;
+}
+
+/* Buttons as the toolbar's: grey, with its hover */
+div.action-group :deep(button:hover) {
+  box-shadow: var(--toolbar-button-hover-shadow);
 }
 
 div.object-actions.is-empty {
@@ -143,19 +169,12 @@ div.object-actions.is-empty {
   display: none;
 }
 
-h1.section-title {
-  margin-bottom: 10px;
-  color: var(--foreground);
-  background: color-mix(in oklab, var(--background) 25%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  padding: 5px;
-  padding-left: 10px;
-  border-radius: 10px;
-  box-shadow:
-    1px 1px 3px 0px color-mix(in oklab, var(--foreground) 35%, transparent)
-      inset,
-    -1px -1px 3px 0px color-mix(in oklab, var(--background) 70%, transparent)
-      inset;
+.object-actions-title {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 </style>
