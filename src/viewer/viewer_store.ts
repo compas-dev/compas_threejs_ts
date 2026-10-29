@@ -1,5 +1,7 @@
 import { reactive } from "vue";
 
+import type { ButtonStates } from "../library/plugins";
+
 export interface ObjectAction {
   guid: string;
   label?: string;
@@ -81,13 +83,29 @@ export interface ViewerStore {
   };
   sidebarComponents: DynamicComponent[];
   pickerEnabled: { value: boolean };
-  pickerMode: { value: "translate" | "rotate" | "scale" };
   pickedObjectGuid: { value: string | null };
   blockPicker: { value: boolean };
   showEdges: { value: boolean };
   theme: { value: "light" | "dark" };
   spinnerState: { visible: boolean; message: string | null };
   selectedObjectGuid: { value: string | null };
+  /** Whether a plugin holds pointer/keyboard input (beginInteraction). */
+  interacting: { value: boolean };
+  /** Snap steps shared by plugins: one sets them (e.g. a drawing tool's Snap
+   * settings), others follow them (e.g. a gizmo). Null is off. */
+  snap: { grid: number | null; angle: number | null };
+  /** Plugin buttons Python hid or disabled, by plugin name. */
+  pluginButtons: ButtonStates;
+  /** Messages for the user on screen now, oldest first (`notify`). */
+  notices: Notice[];
+}
+
+export type NoticeKind = "info" | "success" | "warning" | "error";
+
+export interface Notice {
+  id: number;
+  message: string;
+  kind: NoticeKind;
 }
 
 export function createViewerStore(): ViewerStore {
@@ -105,7 +123,6 @@ export function createViewerStore(): ViewerStore {
     }),
     sidebarComponents: reactive<DynamicComponent[]>([]),
     pickerEnabled: reactive({ value: true }),
-    pickerMode: reactive({ value: "translate" as const }),
     pickedObjectGuid: reactive({ value: null as string | null }),
     blockPicker: reactive({ value: false }),
     showEdges: reactive({ value: false }),
@@ -116,5 +133,12 @@ export function createViewerStore(): ViewerStore {
     }),
 
     selectedObjectGuid: reactive({ value: null as string | null }),
+    interacting: reactive({ value: false }),
+    snap: reactive({
+      grid: null as number | null,
+      angle: null as number | null,
+    }),
+    pluginButtons: reactive<ButtonStates>({}),
+    notices: reactive<Notice[]>([]),
   };
 }

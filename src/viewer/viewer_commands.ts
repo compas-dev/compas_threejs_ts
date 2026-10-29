@@ -23,7 +23,11 @@ export type UiCommandType =
   | "select";
 
 export type HandleGeometryCommandType =
-  "remove" | "set_visibility" | "toggle_visibility" | "apply_transform";
+  | "remove"
+  | "set_visibility"
+  | "toggle_visibility"
+  | "set_edges"
+  | "apply_transform";
 
 interface MaterialCommandBase extends CommandRecord {
   dispatch: "material";
@@ -360,6 +364,13 @@ export interface ToggleGeometryVisibilityCommand extends HandleGeometryCommandBa
   type: "toggle_visibility";
 }
 
+/** Outlines one object's edges (or stops), whatever the scene-wide
+ * `show_edges` setting. */
+export interface SetGeometryEdgesCommand extends HandleGeometryCommandBase {
+  type: "set_edges";
+  show: boolean;
+}
+
 export interface ApplyTransformGeometryCommand extends HandleGeometryCommandBase {
   type: "apply_transform";
   /** A 4x4 row-major matrix, matching `compas.geometry.Transformation.matrix`. */
@@ -370,6 +381,7 @@ export type HandleGeometryCommand =
   | RemoveGeometryCommand
   | SetGeometryVisibilityCommand
   | ToggleGeometryVisibilityCommand
+  | SetGeometryEdgesCommand
   | ApplyTransformGeometryCommand;
 
 export interface SpinnerCommand extends CommandRecord {
@@ -378,7 +390,31 @@ export interface SpinnerCommand extends CommandRecord {
   message?: string | null;
 }
 
+export interface PluginCommand extends CommandRecord {
+  dispatch: "plugin";
+  plugin: string;
+  action: string;
+  data?: unknown;
+}
+
+export interface PluginButtonsCommand extends CommandRecord {
+  dispatch: "plugin_buttons";
+  plugin: string;
+  hidden: string[];
+  disabled: string[];
+}
+
+/** A message for the user, shown for a moment (a plugin's `notify`). */
+export interface NoticeCommand extends CommandRecord {
+  dispatch: "notice";
+  message: string;
+  kind?: "info" | "success" | "warning" | "error";
+}
+
 export type ViewerCommand =
+  | PluginCommand
+  | PluginButtonsCommand
+  | NoticeCommand
   | MaterialCommand
   | LightCommand
   | SceneCommand
@@ -411,10 +447,12 @@ const UI_TYPES = new Set<UiCommandType>([
   "checkbox",
   "select",
 ]);
+const NOTICE_KINDS = new Set(["info", "success", "warning", "error"]);
 const HANDLE_GEOMETRY_TYPES = new Set<HandleGeometryCommandType>([
   "remove",
   "set_visibility",
   "toggle_visibility",
+  "set_edges",
   "apply_transform",
 ]);
 const MATERIAL_TYPES = new Set<MaterialCommand["type"]>([
@@ -480,6 +518,21 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
     case "spinner":
       validateSpinner(record);
       return record as SpinnerCommand;
+    case "plugin":
+      readNonEmptyString(record, "plugin");
+      readNonEmptyString(record, "action");
+      return record as PluginCommand;
+    case "plugin_buttons":
+      readNonEmptyString(record, "plugin");
+      readStringArray(record, "hidden");
+      readStringArray(record, "disabled");
+      return record as PluginButtonsCommand;
+    case "notice":
+      readNonEmptyString(record, "message");
+      if (record.kind !== undefined && record.kind !== null) {
+        readVariant(record, "kind", NOTICE_KINDS);
+      }
+      return record as NoticeCommand;
     default:
       throw new CompasViewerError(
         "unsupported_message",
@@ -766,6 +819,7 @@ function validateHandleGeometry(record: CommandRecord): void {
   const type = readVariant(record, "type", HANDLE_GEOMETRY_TYPES);
   readNonEmptyString(record, "guid");
   if (type === "set_visibility") readBoolean(record, "visible");
+  if (type === "set_edges") readBoolean(record, "show");
   if (type === "apply_transform") readMatrix4Rows(record, "matrix");
 }
 

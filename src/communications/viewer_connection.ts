@@ -19,6 +19,15 @@ interface ViewerConnectionOptions extends ViewerWebSocketOptions {
 // liveness) while doing it.
 const FRAME_BUDGET_MS = 8;
 
+/** The workspace this page shows: the option, else the page's `?workspace=`, else "main". */
+export function workspaceId(options?: { workspace?: string }): string {
+  return (
+    options?.workspace ??
+    new URLSearchParams(window.location.search).get("workspace") ??
+    "main"
+  );
+}
+
 export class ViewerConnection {
   private socket: WebSocket | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -150,8 +159,7 @@ export class ViewerConnection {
     const query = new URLSearchParams(window.location.search);
     const host = this.options.host ?? query.get("ws_host") ?? "127.0.0.1";
     const port = this.options.port ?? Number(query.get("ws_port") ?? 9001);
-    const workspace =
-      this.options.workspace ?? query.get("workspace") ?? "main";
+    const workspace = workspaceId(this.options);
     const secure = this.options.secure ?? window.location.protocol === "https:";
     return `${secure ? "wss" : "ws"}://${host}:${port}/ws?workspace=${encodeURIComponent(workspace)}`;
   }
