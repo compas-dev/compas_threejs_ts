@@ -9,6 +9,7 @@ export type CompasViewerErrorCode =
   | "unsupported_message"
   | "connection_error"
   | "lifecycle_error"
+  | "plugin_error"
   | "render_error";
 
 export interface CompasViewerErrorOptions {

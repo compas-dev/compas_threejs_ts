@@ -5,12 +5,25 @@
     :data-button="button.id"
     :inert="!enabled || undefined"
   >
-    <component :is="button.component" />
+    <span
+      v-if="failed"
+      class="toolbar-slot-failed"
+      :title="`The ${plugin} plugin's ${button.id} failed`"
+      >!</span
+    >
+    <component :is="button.component" v-else />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, provide, reactive } from "vue";
+import {
+  computed,
+  onErrorCaptured,
+  onMounted,
+  provide,
+  reactive,
+  ref,
+} from "vue";
 
 import { buttonStateKey, type PluginButton } from "@/library/plugins";
 import { useViewerRuntime } from "@/viewer/viewer_context";
@@ -22,7 +35,8 @@ const props = defineProps<{
   group?: string;
   button: PluginButton;
 }>();
-const { pluginButtons } = useViewerRuntime().store;
+const runtime = useViewerRuntime();
+const { pluginButtons } = runtime.store;
 
 // Disabling the group disables each of its buttons.
 const enabled = computed(() => {
@@ -38,11 +52,39 @@ provide(
     enabled,
   }),
 );
+
+// A plugin component that throws is reported, and stops there: the rest of the viewer
+// carries on. One that fails to set up or draw is replaced by a "!" mark; a failing
+// click or watcher, after it mounted, leaves it in place.
+const failed = ref(false);
+let mounted = false;
+onMounted(() => (mounted = true));
+onErrorCaptured((error) => {
+  if (!mounted) failed.value = true;
+  runtime.pluginFailed(
+    props.plugin,
+    `The "${props.plugin}" plugin's "${props.button.id}" failed`,
+    error,
+  );
+  return false;
+});
 </script>
 
 <style scoped>
 .toolbar-slot {
   display: contents;
+}
+
+.toolbar-slot-failed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  font-weight: 700;
+  color: var(--destructive, #d0342c);
+  border: 1px dashed currentColor;
 }
 
 .toolbar-slot.disabled > :deep(*) {

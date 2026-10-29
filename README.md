@@ -74,7 +74,12 @@ standalone lighting rig, and `showToolbar` controls the built-in toolbar.
 is provided. Asynchronous connection and asset-loading errors are reported to
 the callback, or to the console when no callback is configured. The current
 codes are `decode_error`, `invalid_message`, `unsupported_message`,
-`connection_error`, `lifecycle_error`, and `render_error`.
+`connection_error`, `lifecycle_error`, `plugin_error`, and `render_error`.
+
+A failing plugin never stops the viewer: one with a taken name or a duplicate id, or
+whose `setup` throws, is left out; a component or a channel handler that throws stays
+contained. Each is reported as a `plugin_error` (`details.plugin` names it) and shown
+to the user as an error notice.
 
 `pbDumpBytes` is the TypeScript equivalent of Python's `compas_pb.pb_dump_bts`: it adds the complete COMPAS-Protobuf message envelope around any supported wrapper object.
 

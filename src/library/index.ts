@@ -5,7 +5,12 @@ import App from "../App.vue";
 import { viewerRuntimeKey } from "../viewer/viewer_context";
 import { ViewerRuntime } from "../viewer/viewer_runtime";
 import { CompasViewerError } from "./errors";
-import { buttonGroups, createPluginViewer, pluginViewerKey } from "./plugins";
+import {
+  buttonGroups,
+  createPluginViewer,
+  pluginViewerKey,
+  type ViewerPlugin,
+} from "./plugins";
 import type { CompasViewer, CompasViewerOptions } from "./types";
 
 export type {
@@ -60,7 +65,16 @@ export function createViewer(
     );
   }
 
-  const runtime = markRaw(new ViewerRuntime(container, options));
+  // A plugin that is invalid, or fails to set up, is left out (and reported): the
+  // viewer and the other plugins still mount.
+  const rejected: { plugin: string; message: string }[] = [];
+  const plugins = validPlugins(options.plugins ?? [], rejected);
+  const runtime = markRaw(
+    new ViewerRuntime(container, { ...options, plugins }),
+  );
+  for (const { plugin, message } of rejected) {
+    runtime.pluginFailed(plugin, message);
+  }
   const app = createApp(App, {
     runtime,
     showToolbar: options.showToolbar ?? true,
@@ -69,32 +83,18 @@ export function createViewer(
   app.provide(viewerRuntimeKey, runtime);
   app.provide(pluginViewerKey, viewer);
   const cleanups: (() => void)[] = [];
-  const names = new Set<string>();
-  for (const plugin of runtime.plugins) {
-    if (names.has(plugin.name)) {
-      throw new CompasViewerError(
-        "lifecycle_error",
-        `Two plugins are named "${plugin.name}"`,
+  for (const plugin of [...runtime.plugins]) {
+    try {
+      const cleanup = plugin.setup?.(viewer);
+      if (cleanup) cleanups.push(cleanup);
+    } catch (error) {
+      runtime.dropPlugin(plugin);
+      runtime.pluginFailed(
+        plugin.name,
+        `The "${plugin.name}" plugin was not loaded: its setup failed`,
+        error,
       );
     }
-    names.add(plugin.name);
-    const ids = [
-      ...buttonGroups(plugin).flatMap((group) => [
-        group.id,
-        ...group.buttons.map((button) => button.id),
-      ]),
-      ...Object.keys(plugin.objectActions ?? {}),
-      ...Object.keys(plugin.panels ?? {}),
-    ];
-    const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);
-    if (duplicate !== undefined) {
-      throw new CompasViewerError(
-        "lifecycle_error",
-        `The "${plugin.name}" plugin uses the id "${duplicate}" twice`,
-      );
-    }
-    const cleanup = plugin.setup?.(viewer);
-    if (cleanup) cleanups.push(cleanup);
   }
   app.mount(container);
 
@@ -117,4 +117,39 @@ export function createViewer(
       runtime.dispose();
     },
   };
+}
+
+/** The plugins with a unique name and unique ids; the others go to `rejected`. */
+function validPlugins(
+  plugins: readonly ViewerPlugin[],
+  rejected: { plugin: string; message: string }[],
+): ViewerPlugin[] {
+  const names = new Set<string>();
+  return plugins.filter((plugin) => {
+    if (names.has(plugin.name)) {
+      rejected.push({
+        plugin: plugin.name,
+        message: `Two plugins are named "${plugin.name}": the second was not loaded`,
+      });
+      return false;
+    }
+    names.add(plugin.name);
+    const ids = [
+      ...buttonGroups(plugin).flatMap((group) => [
+        group.id,
+        ...group.buttons.map((button) => button.id),
+      ]),
+      ...Object.keys(plugin.objectActions ?? {}),
+      ...Object.keys(plugin.panels ?? {}),
+    ];
+    const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);
+    if (duplicate !== undefined) {
+      rejected.push({
+        plugin: plugin.name,
+        message: `The "${plugin.name}" plugin uses the id "${duplicate}" twice: it was not loaded`,
+      });
+      return false;
+    }
+    return true;
+  });
 }

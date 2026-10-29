@@ -111,7 +111,8 @@ export class ViewerRuntime {
   readonly labelRenderer = new CSS2DRenderer();
   readonly controls: OrbitControls;
   readonly geometries = new Map<string, THREE.Object3D>();
-  readonly plugins: readonly ViewerPlugin[];
+  /** The plugins it shows: those given, minus any that failed to set up. */
+  readonly plugins: ViewerPlugin[];
   /** The workspace this viewer shows. */
   readonly workspace: string;
 
@@ -179,7 +180,7 @@ export class ViewerRuntime {
     readonly root: HTMLElement,
     private readonly options: CompasViewerOptions,
   ) {
-    this.plugins = options.plugins ?? [];
+    this.plugins = [...(options.plugins ?? [])];
     this.workspace = workspaceId(options.websocket);
     const { width, height } = this.getDimensions();
     this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
@@ -338,6 +339,28 @@ export class ViewerRuntime {
     const timer = setTimeout(dismiss, duration);
     this.noticeTimers.add(timer);
     return dismiss;
+  }
+
+  /**
+   * A plugin failed (to load, to set up, to draw, in a handler): reported like an
+   * asynchronous error - to `onError`, else the console - and shown to the user. Never
+   * throws, so the rest of the viewer carries on.
+   */
+  pluginFailed(plugin: string, message: string, cause?: unknown): void {
+    this.reportAsyncError(
+      new CompasViewerError("plugin_error", message, {
+        cause,
+        details: { plugin },
+      }),
+    );
+    const reason = cause instanceof Error ? `: ${cause.message}` : "";
+    this.notify(`${message}${reason}`, { kind: "error" });
+  }
+
+  /** Takes a plugin that failed to set up out of the viewer, before it mounts. */
+  dropPlugin(plugin: ViewerPlugin): void {
+    const index = this.plugins.indexOf(plugin);
+    if (index >= 0) this.plugins.splice(index, 1);
   }
 
   /** Calls `handler` with the data of every `action` the backend sends to `plugin`. */
@@ -797,7 +820,18 @@ export class ViewerRuntime {
       case "plugin":
         this.pluginHandlers
           .get(`${data.plugin}/${data.action}`)
-          ?.forEach((handler) => handler(data.data ?? null));
+          ?.forEach((handler) => {
+            // One failing handler must not keep the message from the others.
+            try {
+              handler(data.data ?? null);
+            } catch (error) {
+              this.pluginFailed(
+                data.plugin,
+                `The "${data.plugin}" plugin failed on "${data.action}"`,
+                error,
+              );
+            }
+          });
         break;
     }
   }

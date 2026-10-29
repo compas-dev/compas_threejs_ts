@@ -23,6 +23,7 @@ vi.mock("three", async () => {
 });
 
 import {
+  CompasViewerError,
   createViewer,
   definePlugin,
   useChannel,
@@ -180,19 +181,6 @@ describe("plugins", () => {
     expect(actions()).toEqual(["a1"]);
   });
 
-  it("rejects an id used twice in a plugin", () => {
-    expect(() =>
-      mount({
-        plugins: [
-          definePlugin({
-            name: "a",
-            groups: { g1: { x: button("x") }, x: { y: button("y") } },
-          }),
-        ],
-      }),
-    ).toThrowError(/"a" plugin uses the id "x" twice/);
-  });
-
   it("hides and disables groups and buttons as Python says", async () => {
     let pressed = 0;
     const shortcut = defineComponent(() => {
@@ -321,12 +309,6 @@ describe("plugins", () => {
     expect(pressed).toBe(1);
   });
 
-  it("rejects two plugins with the same name", () => {
-    expect(() =>
-      mount({ plugins: [{ name: "a" }, { name: "a" }] }),
-    ).toThrowError(/Two plugins are named "a"/);
-  });
-
   it("knows its workspace and gives the URL of another", () => {
     window.history.replaceState(null, "", "/?ws_port=9001&workspace=beam");
     let seen: PluginViewer | undefined;
@@ -436,20 +418,6 @@ describe("plugins", () => {
     ).toBe(true);
   });
 
-  it("rejects a panel id a button already uses", () => {
-    expect(() =>
-      mount({
-        plugins: [
-          definePlugin({
-            name: "a",
-            groups: { g: { tree: button("tree") } },
-            panels: { tree: button("tree") },
-          }),
-        ],
-      }),
-    ).toThrow(/"tree" twice/);
-  });
-
   it("gives a plugin what another one offers", () => {
     let viewerOfB: PluginViewer | undefined;
     mount({
@@ -493,5 +461,154 @@ describe("plugins", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("a failing plugin", () => {
+  function sections(root: HTMLElement) {
+    return [...root.querySelectorAll(".toolbar-section")].map((section) =>
+      section.getAttribute("data-plugin"),
+    );
+  }
+
+  function notices(root: HTMLElement) {
+    return [...root.querySelectorAll(".notice")].map(
+      (notice) =>
+        `${notice.getAttribute("data-kind")}: ${notice.textContent?.trim()}`,
+    );
+  }
+
+  function failing(errors: CompasViewerError[]): CompasViewerOptions {
+    return { onError: (error) => errors.push(error) };
+  }
+
+  const ok = definePlugin({ name: "ok", groups: { g: { b: button("b") } } });
+
+  it("is left out when it uses an id twice; the others still mount", async () => {
+    const errors: CompasViewerError[] = [];
+    const { root } = mount({
+      ...failing(errors),
+      plugins: [
+        definePlugin({
+          name: "a",
+          groups: { g1: { x: button("x") }, x: { y: button("y") } },
+        }),
+        definePlugin({
+          name: "p",
+          groups: { g: { tree: button("tree") } },
+          panels: { tree: button("tree") },
+        }),
+        ok,
+      ],
+    });
+    await nextTick();
+    expect(sections(root)).toEqual(["ok"]);
+    expect(errors.map((error) => [error.code, error.details?.plugin])).toEqual([
+      ["plugin_error", "a"],
+      ["plugin_error", "p"],
+    ]);
+    expect(errors[0]!.message).toMatch(/"a" plugin uses the id "x" twice/);
+    expect(errors[1]!.message).toMatch(/"tree" twice/);
+    expect(notices(root)).toHaveLength(2);
+  });
+
+  it("is left out when its name is taken", async () => {
+    const errors: CompasViewerError[] = [];
+    const { root } = mount({
+      ...failing(errors),
+      plugins: [
+        ok,
+        definePlugin({ name: "ok", groups: { h: { c: button("c") } } }),
+      ],
+    });
+    await nextTick();
+    expect(root.querySelector(".toolbar-group")?.textContent).toBe("b");
+    expect(errors[0]!.message).toMatch(/Two plugins are named "ok"/);
+  });
+
+  it("is left out when its setup throws", async () => {
+    const errors: CompasViewerError[] = [];
+    const { root } = mount({
+      ...failing(errors),
+      plugins: [
+        definePlugin({
+          name: "broken",
+          groups: { g: { b: button("x") } },
+          setup() {
+            throw new Error("no scene");
+          },
+        }),
+        ok,
+      ],
+    });
+    await nextTick();
+    expect(sections(root)).toEqual(["ok"]);
+    expect(errors[0]!.cause).toEqual(new Error("no scene"));
+    expect(notices(root)).toEqual([
+      'error: The "broken" plugin was not loaded: its setup failed: no scene',
+    ]);
+  });
+
+  it("does not keep a message from its other handlers", async () => {
+    const errors: CompasViewerError[] = [];
+    const received: unknown[] = [];
+    const { root, viewer } = mount({
+      ...failing(errors),
+      plugins: [
+        definePlugin({
+          name: "camera",
+          setup(v) {
+            const channel = v.channel("camera");
+            channel.on("views", () => {
+              throw new Error("bad data");
+            });
+            channel.on("views", (data) => received.push(data));
+          },
+        }),
+      ],
+    });
+    viewer.dispatch(fromBase64(CAMERA_VIEWS));
+    await nextTick();
+    expect(received).toEqual([{ names: ["View 1"] }]);
+    expect(errors[0]!.message).toBe('The "camera" plugin failed on "views"');
+    expect(notices(root)).toEqual([
+      'error: The "camera" plugin failed on "views": bad data',
+    ]);
+  });
+
+  it("component that throws is marked, and the rest still draws", async () => {
+    const errors: CompasViewerError[] = [];
+    const { root } = mount({
+      ...failing(errors),
+      plugins: [
+        definePlugin({
+          name: "a",
+          groups: {
+            g: {
+              broken: defineComponent(() => {
+                throw new Error("render");
+              }),
+              fine: button("fine"),
+            },
+          },
+          panels: {
+            panel: defineComponent(() => () => {
+              throw new Error("panel");
+            }),
+          },
+        }),
+        ok,
+      ],
+    });
+    await nextTick();
+    expect(sections(root)).toEqual(["a", "ok"]);
+    expect(
+      [...root.querySelectorAll(".probe")].map((probe) => probe.textContent),
+    ).toEqual(["fine", "b"]);
+    expect(root.querySelectorAll(".toolbar-slot-failed")).toHaveLength(2);
+    expect(errors.map((error) => error.message)).toEqual([
+      `The "a" plugin's "broken" failed`,
+      `The "a" plugin's "panel" failed`,
+    ]);
   });
 });
