@@ -392,6 +392,8 @@ describe("plugins", () => {
             tree: button("tree"),
             table: { component: button("table"), title: "Table", side: "left" },
             graph: { component: button("graph"), title: "Graph", folded: true },
+            timeline: { component: button("timeline"), side: "bottom" },
+            search: { component: button("search"), side: "top" },
           },
         }),
       ],
@@ -405,6 +407,8 @@ describe("plugins", () => {
       ].map((panel) => panel.getAttribute("data-panel"));
     expect(panelsOn("right")).toEqual(["tree", "graph"]);
     expect(panelsOn("left")).toEqual(["table"]);
+    expect(panelsOn("top")).toEqual(["search"]);
+    expect(panelsOn("bottom")).toEqual(["timeline"]);
 
     // A titled panel folds from its title bar; "graph" starts folded.
     const body = (id: string) =>

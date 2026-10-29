@@ -130,8 +130,9 @@ plugin's Python half, and `useShortcuts({ key: handler })` binds keys.
 A plugin can also add `objectActions` (`{ hide: HideAction }`): components shown in the
 FUNCTIONS panel for the selected object.
 
-And `panels`, docked beside the view: on the right under the object panels (the
-default), or on the left under the toolbar. A panel with a `title` gets a frame whose
+And `panels`, docked beside or along the view: on the right under the object panels
+(the default), on the left under the toolbar, or with `side: "top"` or `"bottom"` in a
+row along that edge, between the sidebars. A panel with a `title` gets a frame whose
 title bar folds it (remembered in the browser); without one, the component draws the
 whole panel.
 
@@ -141,6 +142,7 @@ definePlugin({
   panels: {
     tree: { component: TreePanel, title: "Elements", side: "left" },
     table: TablePanel,
+    timeline: { component: TimelinePanel, side: "bottom" },
   },
 });
 ```

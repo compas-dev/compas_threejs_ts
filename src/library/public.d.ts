@@ -243,7 +243,7 @@ export interface ViewerPlugin {
    */
   objectActions?: ButtonGroup;
   /**
-   * Panels by id, docked beside the view: `{ layers: LayersPanel }`, or with
+   * Panels by id, docked beside or along the view: `{ layers: LayersPanel }`, or with
    * options, `{ layers: { component: LayersPanel, title: "Layers", side: "left" } }`.
    * Their ids share the plugin's namespace with groups and buttons, so Python hides
    * or disables a panel like a button.
@@ -257,6 +257,9 @@ export interface ViewerPlugin {
   setup?(viewer: PluginViewer): void | (() => void);
 }
 
+/** Where a panel docks. */
+export type PanelSide = "left" | "right" | "top" | "bottom";
+
 /** A docked panel and where it goes. */
 export interface PanelOptions {
   component: Component;
@@ -265,8 +268,11 @@ export interface PanelOptions {
    * browser). Without a title, the component draws the whole panel.
    */
   title?: string;
-  /** "right" (the default): under the picked object's panels; "left": under the toolbar. */
-  side?: "left" | "right";
+  /**
+   * "right" (the default): under the picked object's panels; "left": under the toolbar;
+   * "top" or "bottom": in a row along that edge of the view, between the sidebars.
+   */
+  side?: PanelSide;
   /** Whether the panel starts folded, until the user unfolds it. */
   folded?: boolean;
 }

@@ -42,13 +42,18 @@ import { ChevronDown } from "lucide-vue-next";
 
 import ToolbarSlot from "@/components/layout/ToolbarSlot.vue";
 import { useHover } from "@/composables/useHover";
-import { pluginPanels, type PluginPanel } from "@/library/plugins";
+import {
+  pluginPanels,
+  type PanelSide,
+  type PluginPanel,
+} from "@/library/plugins";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 
 // The plugins' panels docked on one side, in plugin order, minus those Python hid.
-// A panel with a title gets a frame whose title bar folds it; a disabled panel is
-// greyed out and inert, like a disabled button.
-const props = defineProps<{ side: "left" | "right" }>();
+// Left and right stack in their sidebar; top and bottom lie in a row along that edge
+// of the view, between the sidebars. A panel with a title gets a frame whose title bar
+// folds it; a disabled panel is greyed out and inert, like a disabled button.
+const props = defineProps<{ side: PanelSide }>();
 const runtime = useViewerRuntime();
 const { pluginButtons, blockPicker } = runtime.store;
 
@@ -106,6 +111,37 @@ watchEffect(() => {
   overflow-y: auto;
   pointer-events: auto;
   color: var(--foreground);
+}
+
+/* Top and bottom: a row between the sidebars (their width: 30vw, 250px to 300px) */
+.plugin-panels[data-side="top"],
+.plugin-panels[data-side="bottom"] {
+  position: absolute;
+  left: clamp(250px, 30vw, 300px);
+  right: clamp(250px, 30vw, 300px);
+  z-index: 1000; /* Above the Three.js canvas, like the sidebars */
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  max-height: 40%;
+  pointer-events: none; /* Clicks between the panels reach the canvas */
+}
+
+.plugin-panels[data-side="top"] {
+  top: 20px;
+}
+
+.plugin-panels[data-side="bottom"] {
+  bottom: 20px;
+  align-items: flex-end;
+  align-content: flex-end;
+}
+
+.plugin-panels[data-side="top"] .plugin-panel,
+.plugin-panels[data-side="bottom"] .plugin-panel {
+  pointer-events: auto;
+  max-width: 100%;
 }
 
 .plugin-panel {

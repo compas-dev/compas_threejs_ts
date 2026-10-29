@@ -30,6 +30,7 @@ export {
   type InteractionSession,
   type ObjectMaterial,
   type PanelOptions,
+  type PanelSide,
   type PluginThree,
   type PluginViewer,
   type ViewerPlugin,
