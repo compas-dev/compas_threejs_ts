@@ -128,12 +128,16 @@ export interface PluginViewer {
   /**
    * Shows `message` to the user for a moment (`duration` in ms; by default
    * longer for warnings and errors). Returns a function that takes it away sooner.
+   * With a `key`, it takes the place of the notice with that key still shown; with
+   * a `progress` (0 to 1), it shows a progress bar and stays until replaced.
    */
   notify(
     message: string,
     options?: {
       kind?: "info" | "success" | "warning" | "error";
       duration?: number;
+      key?: string;
+      progress?: number | null;
     },
   ): () => void;
   readonly three: PluginThree;

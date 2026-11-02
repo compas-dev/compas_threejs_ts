@@ -8,6 +8,19 @@
       role="status"
     >
       {{ notice.message }}
+      <div
+        v-if="notice.progress !== null"
+        class="notice-progress"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="Math.round(notice.progress * 100)"
+      >
+        <div
+          class="notice-progress-bar"
+          :style="{ width: `${notice.progress * 100}%` }"
+        />
+      </div>
     </div>
   </TransitionGroup>
 </template>
@@ -43,6 +56,22 @@ const { notices } = useViewerRuntime().store;
   font-size: 13px;
   line-height: 1.4;
   pointer-events: auto;
+}
+
+.notice-progress {
+  width: min(280px, 60vw);
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--foreground) 15%, transparent);
+  overflow: hidden;
+}
+
+.notice-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--notice-accent, #2a78d6);
+  transition: width 0.2s ease-out;
 }
 
 .notice[data-kind="success"] {

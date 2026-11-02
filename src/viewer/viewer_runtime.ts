@@ -150,7 +150,11 @@ export class ViewerRuntime {
   // updates wait (e.g. while a gizmo drags them), vetoes on picking, selection listeners,
   // plugin-owned scene objects, and how many plugins paused navigation.
   private noticeCount = 0;
-  private readonly noticeTimers = new Set<ReturnType<typeof setTimeout>>();
+  // The timer that takes each notice away, by its id.
+  private readonly noticeTimers = new Map<
+    number,
+    ReturnType<typeof setTimeout>
+  >();
   private readonly unpickableGuids = new Set<string>();
   /** Guids of objects outlined with their edges (`set_edges`), kept by guid so the
    * outline survives the backend re-sending the object. */
@@ -317,27 +321,54 @@ export class ViewerRuntime {
   /**
    * Shows `message` to the user for `duration` ms (by default longer for warnings
    * and errors); returns a function that takes it away sooner.
+   *
+   * With a `key`, it takes the place of the notice with the same key still on
+   * screen, if any. With a `progress` (0 to 1), it shows a progress bar and stays
+   * until a notice with its key takes its place: a long piece of work shows how far
+   * along it is, then how it ended, in one notice.
    */
   notify(
     message: string,
-    options: { kind?: NoticeKind; duration?: number } = {},
+    options: {
+      kind?: NoticeKind;
+      duration?: number;
+      key?: string;
+      progress?: number | null;
+    } = {},
   ): () => void {
     const kind = options.kind ?? "info";
     const duration =
       options.duration ??
       (kind === "warning" || kind === "error" ? 8000 : 4000);
-    const id = ++this.noticeCount;
-    this.store.notices.push({ id, message, kind });
-    // At most a handful on screen: a flood of them drops the oldest.
-    while (this.store.notices.length > 5) this.store.notices.shift();
+    const progress =
+      options.progress === undefined || options.progress === null
+        ? null
+        : Math.min(Math.max(options.progress, 0), 1);
+    let notice =
+      options.key === undefined
+        ? undefined
+        : this.store.notices.find((shown) => shown.key === options.key);
+    if (notice) {
+      clearTimeout(this.noticeTimers.get(notice.id));
+      this.noticeTimers.delete(notice.id);
+      Object.assign(notice, { message, kind, progress });
+    } else {
+      notice = { id: ++this.noticeCount, message, kind, progress };
+      if (options.key !== undefined) notice.key = options.key;
+      this.store.notices.push(notice);
+      // At most a handful on screen: a flood of them drops the oldest.
+      while (this.store.notices.length > 5) this.store.notices.shift();
+    }
+    const id = notice.id;
     const dismiss = () => {
-      clearTimeout(timer);
-      this.noticeTimers.delete(timer);
-      const index = this.store.notices.findIndex((notice) => notice.id === id);
+      clearTimeout(this.noticeTimers.get(id));
+      this.noticeTimers.delete(id);
+      const index = this.store.notices.findIndex((shown) => shown.id === id);
       if (index >= 0) this.store.notices.splice(index, 1);
     };
-    const timer = setTimeout(dismiss, duration);
-    this.noticeTimers.add(timer);
+    if (progress === null) {
+      this.noticeTimers.set(id, setTimeout(dismiss, duration));
+    }
     return dismiss;
   }
 
@@ -815,7 +846,11 @@ export class ViewerRuntime {
         };
         break;
       case "notice":
-        this.notify(data.message, data.kind ? { kind: data.kind } : {});
+        this.notify(data.message, {
+          ...(data.kind ? { kind: data.kind } : {}),
+          ...(data.key ? { key: data.key } : {}),
+          progress: data.progress ?? null,
+        });
         break;
       case "plugin":
         this.pluginHandlers

@@ -106,6 +106,10 @@ export interface Notice {
   id: number;
   message: string;
   kind: NoticeKind;
+  /** Notices with the same key are one: a new one takes the old one's place. */
+  key?: string;
+  /** How far along some work is, from 0 to 1 (a progress bar), or null. */
+  progress: number | null;
 }
 
 export function createViewerStore(): ViewerStore {

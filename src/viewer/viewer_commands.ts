@@ -409,6 +409,10 @@ export interface NoticeCommand extends CommandRecord {
   dispatch: "notice";
   message: string;
   kind?: "info" | "success" | "warning" | "error";
+  /** Takes the place of the notice with the same key (see ViewerRuntime.notify). */
+  key?: string | null;
+  /** How far along, from 0 to 1: a progress bar, kept until replaced. */
+  progress?: number | null;
 }
 
 export type ViewerCommand =
@@ -531,6 +535,10 @@ export function parseViewerCommand(record: CommandRecord): ViewerCommand {
       readNonEmptyString(record, "message");
       if (record.kind !== undefined && record.kind !== null) {
         readVariant(record, "kind", NOTICE_KINDS);
+      }
+      readOptionalString(record, "key");
+      if (record.progress !== undefined && record.progress !== null) {
+        readFiniteNumber(record, "progress");
       }
       return record as NoticeCommand;
     default:

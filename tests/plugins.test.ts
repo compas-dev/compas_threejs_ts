@@ -462,6 +462,53 @@ describe("plugins", () => {
       vi.useRealTimers();
     }
   });
+
+  it("shows a long piece of work's progress in one notice, kept until it ends", async () => {
+    vi.useFakeTimers();
+    try {
+      let pluginViewer: PluginViewer | undefined;
+      const { root } = mount({
+        plugins: [
+          definePlugin({ name: "a", setup: (v) => void (pluginViewer = v) }),
+        ],
+      });
+      const shown = () =>
+        [...root.querySelectorAll(".notice:not(.notice-leave-active)")].map(
+          (notice) => ({
+            text: notice.textContent?.trim(),
+            bar: (
+              notice.querySelector(".notice-progress-bar") as HTMLElement | null
+            )?.style.width,
+          }),
+        );
+      pluginViewer!.notify("Computing (1 of 4)", { key: "work", progress: 0 });
+      pluginViewer!.notify("Other", { duration: 1000 });
+      pluginViewer!.notify("Computing (3 of 4)", {
+        key: "work",
+        progress: 0.5,
+      });
+      await nextTick();
+      expect(shown()).toEqual([
+        { text: "Computing (3 of 4)", bar: "50%" },
+        { text: "Other", bar: undefined },
+      ]);
+
+      // Kept while in progress, however long it takes.
+      vi.advanceTimersByTime(60000);
+      await nextTick();
+      expect(shown()).toEqual([{ text: "Computing (3 of 4)", bar: "50%" }]);
+
+      // Its end takes its place, and goes after a moment like any notice.
+      pluginViewer!.notify("Computed 4", { key: "work", kind: "success" });
+      await nextTick();
+      expect(shown()).toEqual([{ text: "Computed 4", bar: undefined }]);
+      vi.advanceTimersByTime(5000);
+      await nextTick();
+      expect(shown()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("a failing plugin", () => {
