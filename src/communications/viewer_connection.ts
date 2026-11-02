@@ -19,6 +19,32 @@ interface ViewerConnectionOptions extends ViewerWebSocketOptions {
 // liveness) while doing it.
 const FRAME_BUDGET_MS = 8;
 
+// The first byte of a frame holding several messages (see unpackBatch). No protobuf
+// message starts with it: it would be field number 0, which protobuf doesn't allow.
+const BATCH_MARKER = 0;
+
+/**
+ * The messages in one WebSocket frame. compas_threejs sends what one handler changes as
+ * a single frame (its `pack_batch`): BATCH_MARKER, then each message as its length (4
+ * bytes, little-endian) and its bytes. Any other frame is one message.
+ */
+export function unpackBatch(frame: Uint8Array): Uint8Array[] {
+  if (frame[0] !== BATCH_MARKER) return [frame];
+  const view = new DataView(frame.buffer, frame.byteOffset, frame.byteLength);
+  const messages: Uint8Array[] = [];
+  let offset = 1;
+  while (offset + 4 <= frame.length) {
+    const size = view.getUint32(offset, true);
+    offset += 4;
+    if (offset + size > frame.length) {
+      throw new Error("A batch frame ends inside a message.");
+    }
+    messages.push(frame.subarray(offset, offset + size));
+    offset += size;
+  }
+  return messages;
+}
+
 /** The workspace this page shows: the option, else the page's `?workspace=`, else "main". */
 export function workspaceId(options?: { workspace?: string }): string {
   return (
@@ -92,7 +118,13 @@ export class ViewerConnection {
     socket.binaryType = "arraybuffer";
     socket.onmessage = (event: MessageEvent) => {
       if (event.data instanceof ArrayBuffer) {
-        this.inbox.push(new Uint8Array(event.data));
+        try {
+          this.inbox.push(...unpackBatch(new Uint8Array(event.data)));
+        } catch (error) {
+          this.options.onError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
         this.scheduleDrain();
       }
     };
