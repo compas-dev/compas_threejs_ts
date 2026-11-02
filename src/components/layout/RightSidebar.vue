@@ -2,6 +2,7 @@
   <TransitionGroup tag="div" id="right-sidebar" name="right-sidebar-item">
     <ObjectInfo v-if="objectBarData.isVisible" key="object-info" />
     <ObjectActions key="object-actions" />
+    <PluginPanels key="plugin-panels" side="right" />
   </TransitionGroup>
 
   <Button
@@ -18,6 +19,7 @@
 <script setup lang="ts">
 import ObjectInfo from "@/components/layout/ObjectInfo.vue";
 import ObjectActions from "@/components/layout/ObjectActions.vue";
+import PluginPanels from "@/components/layout/PluginPanels.vue";
 import { Button } from "@/components/ui/button";
 import { ArrowBigLeftDash } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";

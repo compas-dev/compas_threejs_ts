@@ -2,7 +2,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ViewerConnection } from "../src/communications/viewer_connection";
+import {
+  unpackBatch,
+  ViewerConnection,
+} from "../src/communications/viewer_connection";
 
 class MockWebSocket {
   static readonly OPEN = 1;
@@ -18,8 +21,24 @@ class MockWebSocket {
   close(): void {}
 }
 
+/** A one-byte message - never 0, which starts a batch frame (see unpackBatch). */
 function bytes(value: number): Uint8Array {
-  return new Uint8Array([value]);
+  return new Uint8Array([value + 1]);
+}
+
+/** A batch frame of `messages`, as compas_threejs's `pack_batch` makes it. */
+function batch(...messages: Uint8Array[]): Uint8Array {
+  const frame = new Uint8Array(
+    1 + messages.reduce((total, message) => total + 4 + message.length, 0),
+  );
+  const view = new DataView(frame.buffer);
+  let offset = 1;
+  for (const message of messages) {
+    view.setUint32(offset, message.length, true);
+    frame.set(message, offset + 4);
+    offset += 4 + message.length;
+  }
+  return frame;
 }
 
 /**
@@ -102,14 +121,14 @@ describe("ViewerConnection message batching", () => {
     }
 
     expect(dispatched).toHaveLength(5);
-    expect(dispatched.map((message) => message[0])).toEqual([0, 1, 2, 3, 4]);
+    expect(dispatched.map((message) => message[0])).toEqual([1, 2, 3, 4, 5]);
   });
 
   it("keeps draining on the next frame if onError throws while reporting a failed dispatch", () => {
     const dispatched: Uint8Array[] = [];
     const connection = new ViewerConnection({
       dispatch: (message) => {
-        if (message[0] === 0) throw new Error("bad message");
+        if (message[0] === 1) throw new Error("bad message");
         dispatched.push(message);
       },
       onError: () => {
@@ -127,7 +146,7 @@ describe("ViewerConnection message batching", () => {
     expect(rafCallbacks).toHaveLength(1);
 
     flushOneFrame();
-    expect(dispatched.map((message) => message[0])).toEqual([1, 2]);
+    expect(dispatched.map((message) => message[0])).toEqual([2, 3]);
   });
 
   it("dispose() cancels a pending drain and drops whatever was still queued", () => {
@@ -145,5 +164,62 @@ describe("ViewerConnection message batching", () => {
     flushOneFrame();
 
     expect(dispatched).toHaveLength(0);
+  });
+
+  it("dispatches each message of a batch frame, in order, with the single ones around it", () => {
+    const dispatched: Uint8Array[] = [];
+    const connection = new ViewerConnection({
+      dispatch: (message) => dispatched.push(message),
+      onError: () => {},
+    });
+    connection.start();
+    const socket = sockets[0]!;
+    socket.onmessage?.({ data: bytes(0).buffer } as MessageEvent);
+    const frame = batch(bytes(1), new Uint8Array([9, 9, 9]), bytes(2));
+    socket.onmessage?.({ data: frame.buffer } as MessageEvent);
+    socket.onmessage?.({ data: bytes(3).buffer } as MessageEvent);
+
+    flushOneFrame();
+    expect(dispatched.map((message) => Array.from(message))).toEqual([
+      [1],
+      [2],
+      [9, 9, 9],
+      [3],
+      [4],
+    ]);
+  });
+
+  it("reports a batch frame cut short, and goes on with the next frames", () => {
+    const errors: Error[] = [];
+    const dispatched: Uint8Array[] = [];
+    const connection = new ViewerConnection({
+      dispatch: (message) => dispatched.push(message),
+      onError: (error) => errors.push(error),
+    });
+    connection.start();
+    const socket = sockets[0]!;
+    const cut = batch(new Uint8Array([7, 7, 7])).subarray(0, 6);
+    socket.onmessage?.({ data: cut.slice().buffer } as MessageEvent);
+    socket.onmessage?.({ data: bytes(0).buffer } as MessageEvent);
+
+    flushOneFrame();
+    expect(errors).toHaveLength(1);
+    expect(dispatched.map((message) => message[0])).toEqual([1]);
+  });
+});
+
+describe("unpackBatch", () => {
+  it("leaves a frame that isn't a batch as one message", () => {
+    const frame = new Uint8Array([8, 1, 2]);
+    expect(unpackBatch(frame)).toEqual([frame]);
+  });
+
+  it("reads Python's pack_batch format", () => {
+    // pack_batch([b"a", b"bc"]) in compas_threejs.
+    const frame = new Uint8Array([0, 1, 0, 0, 0, 97, 2, 0, 0, 0, 98, 99]);
+    expect(unpackBatch(frame).map((message) => Array.from(message))).toEqual([
+      [97],
+      [98, 99],
+    ]);
   });
 });

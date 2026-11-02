@@ -1,39 +1,30 @@
 <template>
   <div class="theme object-info" id="info-panel" ref="infoPanel">
-    <div id="data-container">
-      <div class="metadata item">
-        <h1
-          class="text-lg font-bold section-title"
-          :class="{ dark: theme.value === 'dark' }"
-        >
-          METADATA
-        </h1>
-        <div v-if="selectedObjectGuid.value" class="single_data">
-          <Button variant="outline" class="w-full" @click="handleHide">
-            <EyeOff class="size-4" />
-            Hide
-          </Button>
-        </div>
-        <div
-          v-for="(value, key) in objectBarData.data"
-          :key="key"
-          class="data-entry"
-        >
-          <p>
-            <strong> {{ key }}:</strong> {{ value }}
-          </p>
-        </div>
+    <!-- Titled like the plugins' panels -->
+    <header class="object-info-header">
+      <h2 class="object-info-title">Metadata</h2>
+      <Button
+        variant="ghost"
+        size="icon"
+        id="closeObjectBar"
+        class="object-info-close"
+        aria-label="Close the object's info"
+        title="Close"
+        @click="objectBarData.isVisible = false"
+      >
+        <ArrowBigRightDash />
+      </Button>
+    </header>
+    <dl id="data-container">
+      <div
+        v-for="(value, key) in objectBarData.data"
+        :key="key"
+        class="data-entry"
+      >
+        <dt>{{ key }}</dt>
+        <dd>{{ value }}</dd>
       </div>
-    </div>
-
-    <Button
-      variant="secondary"
-      size="icon"
-      id="closeObjectBar"
-      @click="objectBarData.isVisible = false"
-    >
-      <ArrowBigRightDash />
-    </Button>
+    </dl>
   </div>
 </template>
 
@@ -41,18 +32,12 @@
 import { Button } from "@/components/ui/button";
 import { useHover } from "@/composables/useHover";
 import { ref, watchEffect } from "vue";
-import { ArrowBigRightDash, EyeOff } from "lucide-vue-next";
+import { ArrowBigRightDash } from "lucide-vue-next";
 import { useViewerRuntime } from "@/viewer/viewer_context";
 
 const runtime = useViewerRuntime();
-const { objectBarData, blockPicker, theme, selectedObjectGuid } = runtime.store;
+const { objectBarData, blockPicker } = runtime.store;
 const infoPanel = ref<HTMLElement | null>(null);
-
-function handleHide() {
-  if (!selectedObjectGuid.value) return;
-  runtime.hideObjectByGuid(selectedObjectGuid.value);
-  runtime.deselectObject();
-}
 
 const { isHovered } = useHover(infoPanel);
 
@@ -62,9 +47,10 @@ watchEffect(() => {
 </script>
 
 <style scoped>
+/* Framed and titled like the plugins' panels (PluginPanels.vue) */
 div.object-info {
   z-index: 1000; /* Ensure it appears above other content */
-  padding: 20px;
+  padding: 10px 12px;
   max-width: 400px;
   border-radius: 10px;
   max-height: 100%;
@@ -72,48 +58,58 @@ div.object-info {
   flex: 0 1 auto; /* Size to content within RightSidebar's column, but shrink if it doesn't fit */
   display: flex;
   flex-direction: column;
+  gap: 8px;
   color: var(--foreground);
   pointer-events: auto;
 }
 
-div#data-container {
-  position: relative;
+.object-info-header {
   display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  gap: 30px;
-}
-div.item {
-  display: flex;
-  flex-direction: column; /* Stack label on top of the component */
-  align-items: left;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-h1.section-title {
-  margin-bottom: 10px;
-  color: var(--foreground);
-  background: color-mix(in oklab, var(--background) 25%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  /*border: 1px solid rgba(255, 255, 255, 0.2);*/
-  padding: 5px;
-  padding-left: 10px;
-  border-radius: 10px;
-  box-shadow:
-    1px 1px 3px 0px color-mix(in oklab, var(--foreground) 35%, transparent)
-      inset,
-    -1px -1px 3px 0px color-mix(in oklab, var(--background) 70%, transparent)
-      inset;
+.object-info-title {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.object-info-close {
+  width: 24px;
+  height: 24px;
+}
+
+.object-info-close :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+dl#data-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  overflow-y: auto;
+  font-size: 13px;
 }
 
 div.data-entry {
-  margin-bottom: 8px;
-  padding: 0 0 0 10px;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 8px;
 }
 
-Button#closeObjectBar {
-  position: relative;
-  align-self: flex-end;
-  margin-top: auto;
+div.data-entry dt {
+  color: var(--muted-foreground);
+}
+
+div.data-entry dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 </style>

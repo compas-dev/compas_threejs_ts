@@ -285,6 +285,8 @@ export function capsuleToThreeJS(
     capSegments,
     radialSegments,
   );
+  // three.js builds it along Y; COMPAS's axis is its frame's Z
+  capsuleGeometry.rotateX(Math.PI / 2);
   const capsuleMesh = new THREE.Mesh(capsuleGeometry);
   const transformationMatrix = buildTransformationFromFrame(capsule.frame!);
   capsuleMesh.applyMatrix4(transformationMatrix);
@@ -329,6 +331,9 @@ export function coneToThreeJS(cone: Cone, radialSegments: number) {
     cone.height,
     radialSegments,
   );
+  // three.js builds it centered along Y; COMPAS's stands on its frame, apex along Z
+  coneGeometry.rotateX(Math.PI / 2);
+  coneGeometry.translate(0, 0, cone.height / 2);
   const coneMesh = new THREE.Mesh(coneGeometry);
   const transformationMatrix = buildTransformationFromFrame(cone.frame!);
   coneMesh.applyMatrix4(transformationMatrix);
@@ -353,6 +358,8 @@ export function cylinderToThreeJS(cylinder: Cylinder, radialSegments: number) {
     cylinder.height,
     radialSegments,
   );
+  // three.js builds it along Y; COMPAS's axis is its frame's Z
+  cylinder_geometry.rotateX(Math.PI / 2);
   const cylinderMesh = new THREE.Mesh(cylinder_geometry);
   // transform geometry to the correct position
   const transform = buildTransformationFromFrame(cylinder.frame);
