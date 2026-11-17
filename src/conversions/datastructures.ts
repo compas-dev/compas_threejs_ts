@@ -29,24 +29,26 @@ function positionsFromVertices(vertices: readonly VertexLike[]): Float32Array {
 }
 
 /**
- * Fan-triangulate polygonal faces into a flat triangle index list.
+ * Triangulate polygonal faces into a flat triangle index list.
  *
- * Every face is triangulated as (v0, vi, vi+1). Faces with fewer than three
- * vertices contribute no triangles. Indices are validated against the vertex
- * count so that malformed input fails deliberately at the conversion boundary
- * instead of producing corrupt buffers.
- *
- * Limitation: fan triangulation is only correct for convex, planar faces.
+ * A triangle stays as it is. A face of more corners is triangulated in its own
+ * plane by ear clipping (three.js's earcut), so a concave face - an L-shaped
+ * floor, say - comes out right; if that fails (a degenerate face), as a fan
+ * (v0, vi, vi+1), which is only right for convex faces. Faces with fewer than
+ * three vertices contribute no triangles. Indices are validated against the
+ * vertex count so that malformed input fails deliberately at the conversion
+ * boundary instead of producing corrupt buffers.
  *
  * @param faces - per-face vertex index lists
- * @param vertexCount - number of vertices the indices may address
+ * @param positions - the vertices' flat `[x, y, z, ...]` positions
  * @returns Flat triangle index list
  * @throws RangeError when a face references a vertex that does not exist
  */
 function triangulateFaces(
   faces: readonly (readonly number[])[],
-  vertexCount: number,
+  positions: ArrayLike<number>,
 ): number[] {
+  const vertexCount = positions.length / 3;
   const indices: number[] = [];
   faces.forEach((face, faceIndex) => {
     const at = (position: number): number => {
@@ -64,11 +66,65 @@ function triangulateFaces(
       return index;
     };
 
-    for (let i = 1; i < face.length - 1; i++) {
-      indices.push(at(0), at(i), at(i + 1));
+    const corners = face.map((_, position) => at(position));
+    if (corners.length === 3) {
+      indices.push(...corners);
+      return;
+    }
+    const triangles = earcutFace(corners, positions);
+    if (triangles) {
+      for (const [a, b, c] of triangles) {
+        indices.push(corners[a]!, corners[b]!, corners[c]!);
+      }
+      return;
+    }
+    for (let i = 1; i < corners.length - 1; i++) {
+      indices.push(corners[0]!, corners[i]!, corners[i + 1]!);
     }
   });
   return indices;
+}
+
+/**
+ * The triangles of a planar face, as positions in `corners`, by ear clipping
+ * in the face's own plane - or null for a face without area.
+ */
+function earcutFace(
+  corners: readonly number[],
+  positions: ArrayLike<number>,
+): [number, number, number][] | null {
+  const point = (index: number) =>
+    new THREE.Vector3(
+      positions[index * 3]!,
+      positions[index * 3 + 1]!,
+      positions[index * 3 + 2]!,
+    );
+  const points = corners.map(point);
+  // Newell's normal: right for any simple polygon, convex or not.
+  const normal = new THREE.Vector3();
+  points.forEach((current, i) => {
+    const next = points[(i + 1) % points.length]!;
+    normal.x += (current.y - next.y) * (current.z + next.z);
+    normal.y += (current.z - next.z) * (current.x + next.x);
+    normal.z += (current.x - next.x) * (current.y + next.y);
+  });
+  if (normal.lengthSq() < 1e-18) return null;
+  normal.normalize();
+  // Two axes in the face's plane.
+  const u = new THREE.Vector3()
+    .crossVectors(
+      normal,
+      Math.abs(normal.z) < 0.9
+        ? new THREE.Vector3(0, 0, 1)
+        : new THREE.Vector3(1, 0, 0),
+    )
+    .normalize();
+  const v = new THREE.Vector3().crossVectors(normal, u);
+  const contour = points.map((p) => new THREE.Vector2(p.dot(u), p.dot(v)));
+  const triangles = THREE.ShapeUtils.triangulateShape(contour, []);
+  return triangles.length === corners.length - 2
+    ? (triangles as [number, number, number][])
+    : null;
 }
 
 /**
@@ -133,7 +189,7 @@ function centerGeometry(geometry: THREE.BufferGeometry): THREE.Vector3 {
  *
  * The conversion:
  * - Creates a BufferGeometry and fills its "position" attribute from mesh.vertices.
- * - Triangulates polygonal faces using a simple fan triangulation (indices: 0,i,i+1).
+ * - Triangulates polygonal faces (see `triangulateFaces`: concave ones too).
  * - Sets the index buffer and computes vertex normals.
  * - Re-centers the geometry on its bounding-box middle and moves that offset onto
  *   `mesh.position` (see `centerGeometry`), so the returned object's own origin -
@@ -142,7 +198,7 @@ function centerGeometry(geometry: THREE.BufferGeometry): THREE.Vector3 {
  *
  * Limitations:
  * - Assumes `mesh.vertices` items have numeric `x`, `y`, `z` properties.
- * - Faces are triangulated with a fan; non-planar or self-intersecting faces may render incorrectly.
+ * - Non-planar or self-intersecting faces may render incorrectly.
  *
  * @param mesh - Mesh protobuf object to convert
  * @returns THREE.Mesh ready for rendering
@@ -153,7 +209,7 @@ export function meshToThreeJS(mesh: Mesh): THREE.Mesh {
   const vertices = positionsFromVertices(mesh.vertices);
   const indices = triangulateFaces(
     mesh.faces.map((face) => face.indices),
-    mesh.vertices.length,
+    vertices,
   );
 
   geometry.setIndex(indices);
@@ -193,7 +249,7 @@ export function polyhedronToThreeJS(polyhedron: Polyhedron): THREE.Mesh {
   const vertices = positionsFromVertices(polyhedron.vertices);
   const indices = triangulateFaces(
     polyhedron.faces.map((face) => face.vertexIndices),
-    polyhedron.vertices.length,
+    vertices,
   );
 
   geometry.setIndex(indices);

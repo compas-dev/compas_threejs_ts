@@ -77,3 +77,50 @@ describe("polyhedronToThreeJS", () => {
     expect(box.max.toArray()).toEqual([10.5, 10.5, 10]);
   });
 });
+
+describe("concave faces", () => {
+  // An L in the XY plane, one face of six corners: the notch at (1..2, 1..2).
+  const L = [0, 0, 0, 2, 0, 0, 2, 1, 0, 1, 1, 0, 1, 2, 0, 0, 2, 0];
+
+  function triangles(result: THREE.Mesh): THREE.Triangle[] {
+    const index = result.geometry.getIndex()!;
+    const position = result.geometry.getAttribute("position");
+    const at = (i: number) =>
+      new THREE.Vector3().fromBufferAttribute(position, index.getX(i));
+    const list: THREE.Triangle[] = [];
+    for (let i = 0; i < index.count; i += 3)
+      list.push(new THREE.Triangle(at(i), at(i + 1), at(i + 2)));
+    return list;
+  }
+
+  it("are triangulated inside their outline, not across the notch", () => {
+    const mesh = new Mesh({
+      data: {
+        guid: "l-guid",
+        name: "L",
+        vertices: L,
+        faceVertices: [0, 1, 2, 3, 4, 5],
+        faceSizes: [6],
+        attributes: {},
+        vertexAttributeColumns: [],
+        faceAttributeColumns: [],
+        edgeAttributeColumns: [],
+        edgeKeys: [],
+        defaultVertexAttributes: {},
+        defaultFaceAttributes: {},
+        defaultEdgeAttributes: {},
+      },
+    });
+    const result = meshToThreeJS(mesh);
+    const list = triangles(result);
+    expect(list).toHaveLength(4);
+    // The L's area, 3: a fan from corner 0 would cover the notch too.
+    const area = list.reduce((sum, t) => sum + t.getArea(), 0);
+    expect(area).toBeCloseTo(3, 6);
+    // No triangle's middle in the notch (the geometry is re-centered: shift back).
+    for (const t of list) {
+      const middle = t.getMidpoint(new THREE.Vector3()).add(result.position);
+      expect(middle.x > 1 && middle.y > 1).toBe(false);
+    }
+  });
+});
