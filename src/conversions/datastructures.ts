@@ -92,7 +92,7 @@ function triangulateFaces(
 function earcutFace(
   corners: readonly number[],
   positions: ArrayLike<number>,
-): number[][] | null {
+): [number, number, number][] | null {
   const point = (index: number) =>
     new THREE.Vector3(
       positions[index * 3]!,
@@ -122,7 +122,9 @@ function earcutFace(
   const v = new THREE.Vector3().crossVectors(normal, u);
   const contour = points.map((p) => new THREE.Vector2(p.dot(u), p.dot(v)));
   const triangles = THREE.ShapeUtils.triangulateShape(contour, []);
-  return triangles.length === corners.length - 2 ? triangles : null;
+  return triangles.length === corners.length - 2
+    ? (triangles as [number, number, number][])
+    : null;
 }
 
 /**
