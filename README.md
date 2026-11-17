@@ -74,7 +74,12 @@ standalone lighting rig, and `showToolbar` controls the built-in toolbar.
 is provided. Asynchronous connection and asset-loading errors are reported to
 the callback, or to the console when no callback is configured. The current
 codes are `decode_error`, `invalid_message`, `unsupported_message`,
-`connection_error`, `lifecycle_error`, and `render_error`.
+`connection_error`, `lifecycle_error`, `plugin_error`, and `render_error`.
+
+A failing plugin never stops the viewer: one with a taken name or a duplicate id, or
+whose `setup` throws, is left out; a component or a channel handler that throws stays
+contained. Each is reported as a `plugin_error` (`details.plugin` names it) and shown
+to the user as an error notice.
 
 `pbDumpBytes` is the TypeScript equivalent of Python's `compas_pb.pb_dump_bts`: it adds the complete COMPAS-Protobuf message envelope around any supported wrapper object.
 
@@ -96,3 +101,75 @@ labelled 4×4 grid.
 Maintainers can find the dependency policy in
 [`docs/dependencies.md`](docs/dependencies.md) and the automated release flow in
 [`docs/releasing.md`](docs/releasing.md).
+
+## Plugins
+
+The viewer has no toolbar of its own: plugins add it, each in a section of its own.
+
+```ts
+import { createViewer, definePlugin } from "@compas-dev/compas-threejs-ts";
+import { FrontButton, SaveViewButton, TopButton } from "./buttons";
+
+const camera = definePlugin({
+  name: "camera",
+  title: "Camera", // optional, shown above the section
+  // Groups of Vue components, by id, in toolbar order; each group is one segment.
+  groups: {
+    presets: { top: TopButton, front: FrontButton },
+    saved: { save_view: SaveViewButton },
+  },
+  setup(viewer) {}, // optional; may return a cleanup
+});
+
+createViewer(container, { plugins: [camera] });
+```
+
+A plugin owns its tools' behaviour; the viewer only gives primitives. Inside a button,
+`useViewer()` gives the selection, objects (hide, pickable, commit a transform), the
+camera (get, set, view presets), the theme and image capture; `viewer.three` goes closer
+to the scene (camera, canvas, objects, overlays, pointer rays, pausing navigation,
+vetoing picks, taking over input with `beginInteraction`) for interactive tools like a
+gizmo or drawing tools. `useChannel(name)` sends to and receives from the
+plugin's Python half, and `useShortcuts({ key: handler })` binds keys.
+
+A plugin can also add `objectActions` (`{ hide: HideAction }`): components shown in the
+FUNCTIONS panel for the selected object.
+
+And `panels`, docked beside or along the view: on the right under the object panels
+(the default), on the left under the toolbar, or with `side: "top"` or `"bottom"` in a
+row along that edge, between the sidebars. A panel with a `title` gets a frame whose
+title bar folds it (remembered in the browser); without one, the component draws the
+whole panel.
+
+```ts
+definePlugin({
+  name: "timber",
+  panels: {
+    tree: { component: TreePanel, title: "Elements", side: "left" },
+    table: TablePanel,
+    timeline: { component: TimelinePanel, side: "bottom" },
+  },
+});
+```
+
+Plugins can use each other: a plugin's `api` is what others get from
+`viewer.plugin(name)` (e.g. a drawing plugin's tool controller). `viewer.notify(message,
+{ kind })` shows the user a message for a moment; Python's `Plugin.notify` does the same.
+
+A page shows one workspace (`viewer.workspace`, from `?workspace=`). A button can open
+another in a new tab with `window.open(viewer.workspaceUrl(id))`: open it from the click,
+and let Python fill the workspace meanwhile - a tab opened after waiting for Python's
+answer is blocked as a pop-up.
+
+The Python half can hide or disable a group, a single button or a panel by its id. The
+viewer applies it to any of them: a disabled one is greyed out and inert, and its
+`useShortcuts` stand down.
+
+`ToolbarButton`, `Button`, `Popover`,
+`Tooltip`, ... make buttons look like the viewer's own.
+
+The page the Python `App` serves loads its workspace's plugins at runtime from
+`plugins.json?workspace=<id>`. It
+maps `vue`, `three` and `@compas-dev/compas-threejs-ts` with an import map, so a plugin is
+built with those three left external and shares the page's copies. See
+`compas_threejs_essentials`, `compas_threejs_views` and `compas_threejs_draw`.

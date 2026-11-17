@@ -39,6 +39,24 @@ describe("viewer command validation", () => {
     );
   });
 
+  it("accepts a notice with a key and a progress, and rejects a progress that isn't a number", () => {
+    const notice = {
+      dispatch: "notice",
+      message: "Computing (2 of 4)",
+      key: "work",
+      progress: 0.25,
+    };
+    expect(parseViewerCommand(notice)).toEqual(notice);
+    expect(() =>
+      parseViewerCommand({ ...notice, progress: "half" }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CompasViewerError>>({
+        code: "invalid_message",
+        details: expect.objectContaining({ field: "progress" }),
+      }),
+    );
+  });
+
   it("distinguishes unsupported dispatch and variant values", () => {
     for (const input of [
       { dispatch: "not_a_real_dispatch", type: "show" },
