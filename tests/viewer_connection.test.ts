@@ -124,6 +124,47 @@ describe("ViewerConnection message batching", () => {
     expect(dispatched.map((message) => message[0])).toEqual([1, 2, 3, 4, 5]);
   });
 
+  it("queues a replay larger than the argument limit and preserves surrounding messages", () => {
+    const count = 200_000;
+    const frame = new Uint8Array(1 + count * 5);
+    const view = new DataView(frame.buffer);
+    for (let i = 0; i < count; i++) {
+      view.setUint32(1 + i * 5, 1, true);
+      frame[5 + i * 5] = (i % 255) + 1;
+    }
+    const dispatched: number[] = [];
+    const onError = vi.fn();
+    const connection = new ViewerConnection({
+      dispatch: (message) => {
+        dispatched.push(message[0]!);
+        nowValue += 0.001;
+      },
+      onError,
+    });
+    connection.start();
+    const socket = sockets[0]!;
+    socket.onmessage?.({ data: bytes(99).buffer } as MessageEvent);
+    socket.onmessage?.({ data: frame.buffer } as MessageEvent);
+    socket.onmessage?.({ data: bytes(100).buffer } as MessageEvent);
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(dispatched).toHaveLength(0);
+    expect(rafCallbacks).toHaveLength(1);
+    flushOneFrame();
+    expect(dispatched.length).toBeGreaterThan(0);
+    expect(dispatched.length).toBeLessThan(count);
+    for (let guard = 0; rafCallbacks.length && guard < 100; guard++) {
+      flushOneFrame();
+    }
+    expect(dispatched).toEqual([
+      100,
+      ...Array.from({ length: count }, (_, i) => (i % 255) + 1),
+      101,
+    ]);
+    expect(rafCallbacks).toHaveLength(0);
+    connection.dispose();
+  });
+
   it("keeps draining on the next frame if onError throws while reporting a failed dispatch", () => {
     const dispatched: Uint8Array[] = [];
     const connection = new ViewerConnection({

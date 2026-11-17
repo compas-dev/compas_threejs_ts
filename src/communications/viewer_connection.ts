@@ -119,7 +119,9 @@ export class ViewerConnection {
     socket.onmessage = (event: MessageEvent) => {
       if (event.data instanceof ArrayBuffer) {
         try {
-          this.inbox.push(...unpackBatch(new Uint8Array(event.data)));
+          for (const message of unpackBatch(new Uint8Array(event.data))) {
+            this.inbox.push(message);
+          }
         } catch (error) {
           this.options.onError(
             error instanceof Error ? error : new Error(String(error)),
