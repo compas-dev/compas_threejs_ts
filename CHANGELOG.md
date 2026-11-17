@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.0.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.5.0...v2.0.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **viewer:** PluginViewer's setTransformMode, setCameraView, captureView/applyView, saveScreenshot, showAllObjects and toggleTheme are replaced by the primitives above; the viewer has no gizmo of its own.
+* **viewer:** `buttons` is replaced by `groups`.
+* **viewer:** the built-in toolbar buttons are gone; use plugins.
+
+### Features
+
+* **viewer:** give each plugin its own toolbar section ([1d78eda](https://github.com/compas-dev/compas_threejs_ts/commit/1d78eda53c033bcd05ee39d54a2e0a2399d61402))
+* **viewer:** group buttons inside a plugin's toolbar section ([b28cdb4](https://github.com/compas-dev/compas_threejs_ts/commit/b28cdb4ba224b486444caaac71075f6bc3eb5767))
+* **viewer:** load the workspace's plugins, and let plugins open other workspaces ([9f7af74](https://github.com/compas-dev/compas_threejs_ts/commit/9f7af7499620d3be4f7e080673d7a7ac4487c7b2))
+* **viewer:** move the toolbar into plugins ([b3eaf12](https://github.com/compas-dev/compas_threejs_ts/commit/b3eaf12a4d627c0d91682486a48e848fdfe60fb0))
+* **viewer:** name plugin groups and buttons, so Python can hide or disable them ([456eceb](https://github.com/compas-dev/compas_threejs_ts/commit/456eceb0057d27a1b0747fa6a65f192d30fb63bb))
+* **viewer:** notices that show progress ([3acfd82](https://github.com/compas-dev/compas_threejs_ts/commit/3acfd8253dd538d4c8814d4bb5ddeb1c57c1eebf))
+* **viewer:** outline one object's edges (set_edges) ([0fdf298](https://github.com/compas-dev/compas_threejs_ts/commit/0fdf29819dd16acdd72402dbf501e29903094584))
+* **viewer:** plugin panels docked along the top or bottom edge ([b2eee31](https://github.com/compas-dev/compas_threejs_ts/commit/b2eee310040a4ef7b6ced6037dcdbcc56c2379bd))
+* **viewer:** plugin panels, plugins that use each other, and notices ([cd4e590](https://github.com/compas-dev/compas_threejs_ts/commit/cd4e590976f30dc62c14385dd502648ce652007b))
+* **viewer:** plugins own their tools; the viewer gives primitives ([a60d9bc](https://github.com/compas-dev/compas_threejs_ts/commit/a60d9bc814eba8f331072c2abab62df48a19e893))
+* **viewer:** primitives for interactive plugin tools ([b418e56](https://github.com/compas-dev/compas_threejs_ts/commit/b418e56115fb4fcb43f934fc279039abdb68b4ac))
+* **viewer:** show metadata fields in the order the backend sent them ([9e295cd](https://github.com/compas-dev/compas_threejs_ts/commit/9e295cdd157c0219f641c1f1e35df708fe1f8f30))
+* **viewer:** snap steps shared between plugins ([412051c](https://github.com/compas-dev/compas_threejs_ts/commit/412051c90bde214034320594eb27db3c506cd004))
+* **viewer:** unpack frames holding several messages ([240d5fd](https://github.com/compas-dev/compas_threejs_ts/commit/240d5fd6e234f20bce102d9a53872ba0843e21e9))
+
+
+### Bug Fixes
+
+* **conversions:** cylinders, cones and capsules along their frame's z-axis ([7ba3c39](https://github.com/compas-dev/compas_threejs_ts/commit/7ba3c393aba6b810aae55ce9c35b50b056ab97c3))
+* **viewer:** a failing plugin no longer stops the viewer ([b4f4a2f](https://github.com/compas-dev/compas_threejs_ts/commit/b4f4a2fbec0ebf91189d456096353984a5274f04))
+* **viewer:** deselect a picked object that is removed or hidden ([56ff088](https://github.com/compas-dev/compas_threejs_ts/commit/56ff0886967b159818ec509947ee346c3a9017ba))
+
 ## [1.5.0](https://github.com/compas-dev/compas_threejs_ts/compare/v1.4.1...v1.5.0) (2026-10-13)
 
 
